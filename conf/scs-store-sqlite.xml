@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+	<comment>SEASR CENTRAL storage schema</comment>
+
+	<entry key="org.seasr.central.storage.db.driver">org.sqlite.JDBC</entry>
+	<entry key="org.seasr.central.storage.db.url">jdbc:sqlite:db/SCStore.sqlite</entry>
+	<entry key="org.seasr.central.storage.db.user"></entry>
+	<entry key="org.seasr.central.storage.db.password"></entry>
+	<entry key="org.seasr.central.storage.db.db"></entry>
+	
+	<entry key="org.seasr.central.storage.link">org.seasr.central.storage.db.SQLiteLink</entry>
+	
+	<entry key="org.seasr.central.storage.db.auth.schema">
+		CREATE TABLE IF NOT EXISTS sc_role ( uuid CHAR(36), role VARCHAR(30) );
+		CREATE TABLE IF NOT EXISTS sc_user ( uuid CHAR(36), screen_name VARCHAR(20), password VARCHAR(80), created_at datetime, profile TEXT, deleted BOOLEAN );
+		CREATE TABLE IF NOT EXISTS sc_role_user ( role_uuid CHAR(36), user_uuid CHAR(36) );
+		CREATE UNIQUE INDEX IF NOT EXISTS sc_role_uuid ON sc_role(uuid);
+		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_screen_name ON sc_user(screen_name);
+		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_uuid ON sc_user(uuid);
+		CREATE INDEX IF NOT EXISTS sc_user_deleted ON sc_user(deleted);
+		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_role_uuids ON sc_role_user(user_uuid,role_uuid);
+		
+		INSERT OR IGNORE INTO sc_user VALUES ( "23e38ffa-fafc-4430-b88d-f04bd4d89104","admin","-1g1j-u1a-t28-2i-2b36f-1uka-k1l-3rc2d-2n-39",datetime('now'),"{}",0 );
+		INSERT OR IGNORE INTO sc_role VALUES ( "d7cb33b8-1225-498d-a463-5b78734f93f7","admin" );
+		INSERT OR IGNORE INTO sc_role_user VALUES ( "d7cb33b8-1225-498d-a463-5b78734f93f7","23e38ffa-fafc-4430-b88d-f04bd4d89104" );
+		INSERT OR IGNORE INTO sc_role VALUES ( "08b40562-138e-4ca9-86d7-561cfec1de0e","user" );
+	</entry>
+
+	<entry key="org.seasr.central.storage.db.schema">
+
+	</entry>
+	
+	<entry key="org.seasr.central.storage.db.query.user.count">
+		SELECT COUNT(1) FROM sc_user WHERE deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.add">
+		INSERT INTO sc_user (uuid,screen_name,password,created_at,profile,deleted) VALUES (?,?,?,datetime('now'),?,0);
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.remove.uuid">
+		UPDATE sc_user SET deleted=1 WHERE uuid=?;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.remove.screen_name">
+		UPDATE sc_user SET deleted=1 WHERE screen_name=?;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.uuid">
+		SELECT uuid FROM sc_user WHERE screen_name=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.screen_name">
+		SELECT screen_name FROM sc_user WHERE uuid=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.profile.uuid">
+		SELECT profile FROM sc_user WHERE uuid=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.profile.screen_name">
+		SELECT profile FROM sc_user WHERE screen_name=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.createdat.uuid">
+		SELECT created_at FROM sc_user WHERE uuid=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.get.createdat.screen_name">
+		SELECT created_at FROM sc_user WHERE screen_name=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.valid.password.uuid">
+		SELECT 1 FROM sc_user WHERE uuid=? AND password=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.valid.password.screen_name">
+		SELECT 1 FROM sc_user WHERE screen_name=? AND password=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.update.profile.uuid">
+		UPDATE sc_user SET profile=? WHERE uuid=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.update.profile.screen_name">
+		UPDATE sc_user SET profile=? WHERE screen_name=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.update.password.uuid">
+		UPDATE sc_user SET password=? WHERE uuid=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.update.password.screen_name">
+		UPDATE sc_user SET password=? WHERE screen_name=? AND deleted=0;
+	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.db.list">
+		SELECT uuid,screen_name,profile FROM sc_user WHERE deleted=0 LIMIT ?,?;
+	</entry>
+	
+	
+</properties>

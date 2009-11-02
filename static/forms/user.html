@@ -1,0 +1,37 @@
+<html>
+<body>
+
+<h3>Add a user</h3>
+<form method="POST" action="/services/user/add/format.txt">
+<table>
+<tr><td>Screen name:</td><td><input type="text" name="screen_name"></td></tr>
+<tr><td>Password:</td><td<input type="password" name="password"></td></tr>
+<tr><td>Profile:</td><td<textarea name="profile">{"foo":"true"}</textarea></td></tr>
+<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
+</table>
+</form>
+
+<h3>Remove a user by screen_name</h3>
+<form method="POST" action="/services/user/delete/format.txt">
+<table>
+<tr><td>Screen name:</td><td><input type="text" name="screen_name"></td></tr>
+<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
+</table>
+</form>
+
+<h3>Remove a user by uuid</h3>
+<form method="POST" action="/services/user/delete/format.txt">
+<table>
+<tr><td>UUID:</td><td><input type="text" name="uuid"></td></tr>
+<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
+</table>
+</form>
+
+<h3>Update a user</h3>
+<form method="POST" action="/services/user/update/format.html">
+User ID: <input type="text" name="user_id"><br/>
+Name: <input type="text" name="name"><br/>
+<input type="submit"> <input type="reset"><br/>
+</form>
+
+</html>

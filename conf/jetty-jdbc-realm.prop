@@ -1,0 +1,15 @@
+jdbcdriver = org.sqlite.JDBC
+url = jdbc:sqlite:/Users/xavier/Documents/Workspace/SEASR\ Central/SC\ J\ API/db/SCStore.sqlite
+username = 
+password = 
+usertable = auth_user
+usertablekey = uuid
+usertableuserfield = user
+usertablepasswordfield = password
+roletable = auth_role
+roletablekey = uuid
+roletablerolefield = role
+userroletable = auth_user_role
+userroletableuserkey = user_uuid
+userroletablerolekey = role_uuid
+cachetime = 300
