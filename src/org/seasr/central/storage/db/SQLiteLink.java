@@ -1,9 +1,66 @@
 /**
- * 
+ *
+ * University of Illinois/NCSA
+ * Open Source License
+ *
+ * Copyright (c) 2008, NCSA.  All rights reserved.
+ *
+ * Developed by:
+ * The Automated Learning Group
+ * University of Illinois at Urbana-Champaign
+ * http://www.seasr.org
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal with the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ *
+ * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimers.
+ *
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimers in
+ * the documentation and/or other materials provided with the distribution.
+ *
+ * Neither the names of The Automated Learning Group, University of
+ * Illinois at Urbana-Champaign, nor the names of its contributors may
+ * be used to endorse or promote products derived from this Software
+ * without specific prior written permission.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
+ *
  */
+
 package org.seasr.central.storage.db;
 
-import static org.seasr.central.properties.SCDBProperties.*;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_SCREEN_NAME;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_UUID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_SCHEMA;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
@@ -24,10 +81,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.BackendStorageLink;
 
-/** The SQLite driver to create a backend storage link
- * 
- * @author xavier
+/**
+ * The SQLite driver to create a backend storage link
  *
+ * @author xavier
  */
 public class SQLiteLink implements BackendStorageLink {
 
@@ -36,7 +93,7 @@ public class SQLiteLink implements BackendStorageLink {
 	/** The properties available */
 	Properties properties = null;
 
-	/** The connection object to que SQLite database */
+	/** The connection object to queue SQLite database */
 	private Connection conn = null;
 
 	/** The digest calculator */
@@ -47,8 +104,9 @@ public class SQLiteLink implements BackendStorageLink {
 
 	//-------------------------------------------------------------------------------------
 
-	/** Initialize the back end storage driver with the given properties.
-	 * 
+	/**
+	 * Initialize the back end storage driver with the given properties.
+	 *
 	 * @param properties The properties required to initialize the backend link
 	 * @return true if it could be properly initialized, false otherwise
 	 */
@@ -90,9 +148,10 @@ public class SQLiteLink implements BackendStorageLink {
 			return false;
 		}
 	}
-	
-	/** Closes the backend storage link.
-	 * 
+
+	/**
+	 * Closes the backend storage link.
+	 *
 	 * @return true if it could be properly closed, false otherwise
 	 */
 	public boolean close() {
@@ -109,8 +168,9 @@ public class SQLiteLink implements BackendStorageLink {
 
 	//-------------------------------------------------------------------------------------
 
-	/** Adds a user to the back end storage facility.
-	 * 
+	/**
+	 * Adds a user to the back end storage facility.
+	 *
 	 * @param user The user name
 	 * @param password The password for this users
 	 * @param profile The profile information for this user
@@ -131,8 +191,9 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Computes the digest of a string and returns its hex encoded string
-	 * 
+	/**
+	 * Computes the digest of a string and returns its hex encoded string
+	 *
 	 * @param string The string to process
 	 * @return The resulting digest
 	 */
@@ -144,8 +205,9 @@ public class SQLiteLink implements BackendStorageLink {
 		return sb.toString();
 	}
 
-	/** Remove a user from the back end storage facility.
-	 * 
+	/**
+	 * Remove a user from the back end storage facility.
+	 *
 	 * @param uuid The UUID of the user to remove
 	 * @return True if the user could be successfully removed. False otherwise
 	 */
@@ -160,8 +222,9 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Remove a user from the back end storage facility.
-	 * 
+	/**
+	 * Remove a user from the back end storage facility.
+	 *
 	 * @param user The screen name of the user to remove
 	 * @return True if the user could be successfully removed. False otherwise
 	 */
@@ -176,9 +239,10 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Updates the user's password.
-	 * 
-	 * @param uuid The user UUID 
+	/**
+	 * Updates the user's password.
+	 *
+	 * @param uuid The user UUID
 	 * @param password The new password to use
 	 * @return True if the password could be successfully updated. False otherwise
 	 */
@@ -194,9 +258,10 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Updates the user's password.
-	 * 
-	 * @param user The user screen_name 
+	/**
+	 * Updates the user's password.
+	 *
+	 * @param user The user screen_name
 	 * @param password The new password to use
 	 * @return True if the password could be successfully updated. False otherwise
 	 */
@@ -212,8 +277,9 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Updates the user's profile.
-	 * 
+	/**
+	 * Updates the user's profile.
+	 *
 	 * @param uuid The user UUID
 	 * @param profile The new profile to use
 	 * @return True if the profile could be successfully updated. False otherwise
@@ -230,9 +296,10 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Updates the user's profile.
-	 * 
-	 * @param user The user screen_name 
+	/**
+	 * Updates the user's profile.
+	 *
+	 * @param user The user screen_name
 	 * @param profile The new profile to use
 	 * @return True if the profile could be successfully updated. False otherwise
 	 */
@@ -248,8 +315,9 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Returns the UUID of a user given his screen name.
-	 * 
+	/**
+	 * Returns the UUID of a user given his screen name.
+	 *
 	 * @param user The user's screen name
 	 * @return The UUID of the user or null if the user does not exist
 	 */
@@ -259,7 +327,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_UUID).toString());
 			ps.setString(1, user);
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			UUID uuid = UUID.fromString(rs.getString(1));
 			rs.close();
 			return uuid;
@@ -273,9 +341,10 @@ public class SQLiteLink implements BackendStorageLink {
 				return null;
 		}
 	}
-	
-	/** Returns the screen name of a user given his screen name.
-	 * 
+
+	/**
+	 * Returns the screen name of a user given his screen name.
+	 *
 	 * @param uuid The user's UUID
 	 * @return The screen name of the user or null if the user does not exist
 	 */
@@ -285,7 +354,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_SCREEN_NAME).toString());
 			ps.setString(1, uuid.toString());
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			String screenName = rs.getString(1);
 			rs.close();
 			return screenName;
@@ -300,8 +369,9 @@ public class SQLiteLink implements BackendStorageLink {
 		}
 	}
 
-	/** Returns the profile of a user given his screen name.
-	 * 
+	/**
+	 * Returns the profile of a user given his screen name.
+	 *
 	 * @param user The user's screen name
 	 * @return The profile of the user or null if the user does not exist
 	 */
@@ -311,7 +381,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_SCREEN_NAME).toString());
 			ps.setString(1, user);
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			JSONObject jo =  new JSONObject(rs.getString(1));
 			rs.close();
 			return jo;
@@ -323,12 +393,13 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return null;
-		} 
+		}
 	}
 
 
-	/** Returns the profile of a user given his UUID.
-	 * 
+	/**
+	 * Returns the profile of a user given his UUID.
+	 *
 	 * @param uuid The user's UUID
 	 * @return The profile of the user or null if the user does not exist
 	 */
@@ -338,7 +409,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_UUID).toString());
 			ps.setString(1, uuid.toString());
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			JSONObject jo =  new JSONObject(rs.getString(1));
 			rs.close();
 			return jo;
@@ -350,11 +421,12 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return null;
-		} 
+		}
 	}
-	
-	/** Returns the creation time of a user given his screen name.
-	 * 
+
+	/**
+	 * Returns the creation time of a user given his screen name.
+	 *
 	 * @param user The user's screen name
 	 * @return The creation time of the user or null if the user does not exist
 	 */
@@ -364,7 +436,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME).toString());
 			ps.setString(1, user);
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			Date date = rs.getTimestamp(1);
 			rs.close();
 			return date;
@@ -376,13 +448,12 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return null;
-		} 
+		}
 	}
 
-
-
-	/** Returns the creation time of a user given his UUID.
-	 * 
+	/**
+	 * Returns the creation time of a user given his UUID.
+	 *
 	 * @param uuid The user's UUID
 	 * @return The creation time of the user or null if the user does not exist
 	 */
@@ -392,7 +463,7 @@ public class SQLiteLink implements BackendStorageLink {
 			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_UUID).toString());
 			ps.setString(1, uuid.toString());
 			rs = ps.executeQuery();
-			rs.next();	
+			rs.next();
 			Date date = rs.getTimestamp(1);
 			rs.close();
 			return date;
@@ -404,12 +475,13 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return null;
-		} 
+		}
 	}
 
 
-	/** Check if the user password is valid based on user's screen name.
-	 * 
+	/**
+	 * Check if the user password is valid based on user's screen name.
+	 *
 	 * @param user The user's screen name
 	 * @param password The password to check
 	 * @return True if the password matches, false otherwise
@@ -436,11 +508,12 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return false;
-		} 
+		}
 	}
 
-	/** Check if the user password is valid based on the UUID of the user.
-	 * 
+	/**
+	 * Check if the user password is valid based on the UUID of the user.
+	 *
 	 * @param uuid The user's UUID
 	 * @param password The password to check
 	 * @return True if the password matches, false otherwise
@@ -467,12 +540,12 @@ public class SQLiteLink implements BackendStorageLink {
 					// Failed to clean
 				}
 				return false;
-		} 
+		}
 	}
 
-
-	/** Return the number of users on the back end storage.
-	 * 
+	/**
+	 * Return the number of users on the back end storage.
+	 *
 	 * @return The number of users in SC back end storage. -1 indicates failure
 	 */
 	public long userSize() {
@@ -491,7 +564,7 @@ public class SQLiteLink implements BackendStorageLink {
 
 	/** List the users contained on the database. Must provide number of users desired
 	 * and offset into the listing.
-	 * 
+	 *
 	 * @param count The number of users to be returned
 	 * @param offset The offset where to start computing
 	 * @return The list of retrieved users

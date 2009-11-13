@@ -1,6 +1,45 @@
 /**
- * 
+ *
+ * University of Illinois/NCSA
+ * Open Source License
+ *
+ * Copyright (c) 2008, NCSA.  All rights reserved.
+ *
+ * Developed by:
+ * The Automated Learning Group
+ * University of Illinois at Urbana-Champaign
+ * http://www.seasr.org
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal with the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ *
+ * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimers.
+ *
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimers in
+ * the documentation and/or other materials provided with the distribution.
+ *
+ * Neither the names of The Automated Learning Group, University of
+ * Illinois at Urbana-Champaign, nor the names of its contributors may
+ * be used to endorse or promote products derived from this Software
+ * without specific prior written permission.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
+ *
  */
+
 package org.seasr.central.ws.restlets;
 
 import java.io.ByteArrayOutputStream;
@@ -9,13 +48,15 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringReader;
-
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.logging.Formatter;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -31,43 +72,46 @@ import org.json.XML;
 
 import com.hp.hpl.jena.rdf.model.Model;
 
-/** This class provides basic auxiliar tools for reslets. For instance,
+/**
+ * This class provides basic auxiliar tools for reslets. For instance,
  * methods for dumping, JSON, XML, txt, RDF, TTL, NT etc.
- * 
+ *
  * @author xavier
  *
  */
 public class Tools {
-	
-	/** The date formater */
+
+	/** The date formatter */
     private final static SimpleDateFormat FORMATER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-    
+
     /** The new line separator */
     private final static String NEW_LINE = System.getProperty("line.separator");
 
-	/** The formatter class to use for the centra SC logger.
-	 * 
+	/** The formatter class to use for the central SC logger.
+	 *
 	 * @author xavier
 	 */
 	private static class SCAPIFormatter extends Formatter {
-	       
-	       /** Creates the default formater */
+
+	       /** Creates the default formatter */
 	       public SCAPIFormatter () {
 	       }
-	       
-	       
-	       /** Formats the record.
-	        * 
+
+
+	       /**
+	        * Formats the record.
+	        *
 	        * @param record The log record to format
 	        * @return The formated record
 	        */
-	         public String format(LogRecord record) {
-	               
+	         @Override
+            public String format(LogRecord record) {
+
 	               String sTimeStamp = FORMATER.format(new Date(record.getMillis()));
-	               
+
 	               return sTimeStamp+"::"+
 	                   record.getLevel()+":  "+
-	                   record.getMessage()+ "  " + 
+	                   record.getMessage()+ "  " +
 	                   NEW_LINE;
 	         }
 	}
@@ -75,10 +119,10 @@ public class Tools {
 
 	/** The xsl transformation to use to xml to html. */
 	private static Transformer xslTrans;
-	
+
 	/** The central logger for restlets */
 	public static Logger log;
-	
+
 	static {
 		// Initialize the logger
 		log = Logger.getLogger(Tools.class.getName());
@@ -92,7 +136,7 @@ public class Tools {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-		
+
 		// Initialize the transformation engine
 		String xsltFile = Tools.class.getSimpleName()+".xslt";
 		StreamSource xsltSource = new StreamSource(Tools.class.getResourceAsStream(xsltFile));
@@ -104,97 +148,108 @@ public class Tools {
 		}
 	}
 
-	/** Sets the servlet response status to OK.
-	 * 
+	/**
+	 * Sets the servlet response status to OK.
+	 *
 	 * @param response The response object
 	 */
 	public static void statusOK ( HttpServletResponse response ) {
 		response.setStatus(HttpServletResponse.SC_OK);
 	}
 
-	/** Sets the servlet response code to unauthorized.
-	 * 
+	/**
+	 * Sets the servlet response code to unauthorized.
+	 *
 	 * @param response The response object
-	 * @throws IOException Problem a rised sending error
+	 * @throws IOException Problem while sending error
 	 */
-	public static void errorUnauthorized ( HttpServletResponse response ) throws IOException { 
+	public static void errorUnauthorized ( HttpServletResponse response ) throws IOException {
 		response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
 	}
 
-	/** Sets the servlet response code to not found.
-	 * 
+	/**
+	 * Sets the servlet response code to not found.
+	 *
 	 * @param response The response object
-	 * @throws IOException 
-	 * @throws IOException Problem a rised sending error
+	 * @throws IOException
+	 * @throws IOException Problem while sending error
 	 */
 	public static void errorNotFound ( HttpServletResponse response ) throws IOException {
 		response.sendError(HttpServletResponse.SC_NOT_FOUND);
 	}
 
-	/** Sets the servlet response code to forbidden.
-	 * 
+	/**
+	 * Sets the servlet response code to forbidden.
+	 *
 	 * @param response The response object
-	 * @throws IOException 
-	 * @throws IOException Problem a rised sending error
+	 * @throws IOException
+	 * @throws IOException Problem while sending error
 	 */
 	public static void errorForbidden ( HttpServletResponse response ) throws IOException {
 		response.sendError(HttpServletResponse.SC_FORBIDDEN);
 	}
 
-	/** Sets the servlet response code to bad request.
-	 * 
+	/**
+	 * Sets the servlet response code to bad request.
+	 *
 	 * @param response The response object
-	 * @throws IOException 
-	 * @throws IOException Problem a rised sending error
+	 * @throws IOException
+	 * @throws IOException Problem while sending error
 	 */
 	public static void  errorBadRequest ( HttpServletResponse response ) throws IOException {
 		response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 	}
 
-	/** Sets the servlet response code to expectation failed.
-	 * 
+	/**
+	 * Sets the servlet response code to expectation failed.
+	 *
 	 * @param response The response object
-	 * @throws IOException 
-	 * @throws IOException Problem a rised sending error
+	 * @throws IOException
+	 * @throws IOException Problem while sending error
 	 */
 	public static void  errorExpectationFail ( HttpServletResponse response ) throws IOException {
 		response.sendError(HttpServletResponse.SC_EXPECTATION_FAILED);
 	}
 
-	/** Sets the servlet content type to text/plain
-	 * 
+	/**
+	 * Sets the servlet content type to text/plain
+	 *
 	 * @param response The response object
 	 */
 	public static void  contentTextPlain ( HttpServletResponse response ) {
 		response.setContentType("text/plain");
 	}
 
-	/** Sets the servlet response cotentnt type to json
-	 * 
+	/**
+	 * Sets the servlet response content type to json
+	 *
 	 * @param response The response object
 	 */
 	public static void  contentAppJSON ( HttpServletResponse response ) {
 		response.setContentType("application/json");
 	}
 
-	/** Sets the servlet response content type to xml
-	 * 
+	/**
+	 * Sets the servlet response content type to xml
+	 *
 	 * @param response The response object
 	 */
 	public static void  contentAppXML ( HttpServletResponse response ) {
 		response.setContentType("application/xml");
 	}
 
-	/** Sets the servlet response content type to html.
-	 * 
+	/**
+	 * Sets the servlet response content type to html.
+	 *
 	 * @param response The response object
 	 */
 	public static void contentAppHTML ( HttpServletResponse response ) {
 		response.setContentType("text/html");
 	}
 
-	/** Sets the servlet response content type to html.
-	 * 
+	/**
+	 * Sets the servlet response content type to html.
+	 *
 	 * @param response The response object
 	 * @throws IOException A problem thrown while writing the content
 	 */
@@ -206,16 +261,17 @@ public class Tools {
 		}
 	}
 
-	/** Given a model, it serializes it to the response with the proper requested 
-	 *  serialization format. The current supported formats are RDF-XML, TTL, and 
-	 *  N-TRIPLE.
+	/**
+	 * Given a model, it serializes it to the response with the proper requested
+	 * serialization format. The current supported formats are RDF-XML, TTL, and
+	 * N-TRIPLE.
 	 *
-	 *  @param response The response object
-	 *  @param model The model to dump
-	 *  @param format The format 
+	 * @param response The response object
+	 * @param model The model to dump
+	 * @param format The format
 	 * @throws IOException Problem thrown while writing to the response
 	 */
-	public static void sendRDFModel ( HttpServletResponse response, Model model, String format ) 
+	public static void sendRDFModel ( HttpServletResponse response, Model model, String format )
 	throws IOException {
 		if (format.equals("rdf") )  {
 			contentAppXML(response);
@@ -233,7 +289,7 @@ public class Tools {
 			errorNotFound(response);
 	}
 
-	public static void sendContent ( HttpServletResponse response, JSONArray content, String format ) 
+	public static void sendContent ( HttpServletResponse response, JSONArray content, String format )
 	throws IOException {
 		if (format.equals("json") )  {
 			contentAppJSON(response);
@@ -261,7 +317,7 @@ public class Tools {
 		        xslTrans.transform(xmlSource, result);
 			} catch (Exception e) {
 				log.warning(exceptionToText(e));
-			} 
+			}
 		}
 		else if (format.equals("txt") )  {
 			contentTextPlain(response);
@@ -275,25 +331,26 @@ public class Tools {
 			errorNotFound(response);
 	}
 
-	/** Returns the map containing all the parameters and values pased 
+	/**
+	 * Returns the map containing all the parameters and values pased
 	 * to the request.
 	 */
 	@SuppressWarnings("unchecked")
 	public static Map<String, String[]> extractTextPayloads ( HttpServletRequest request ) {
 		Map<String,String[]> map = new HashMap<String,String[]>();
-	
+
 		Enumeration it = request.getParameterNames();
 		while  ( it.hasMoreElements() ) {
 			String name = it.nextElement().toString();
 			String[] values = request.getParameterValues(name);
 			map.put(name,values);
-		}	
+		}
 		return map;
 	}
-	
-	
-	/** Given an exception returns the text including its stack trace.
-	 * 
+
+	/**
+	 * Given an exception returns the text including its stack trace.
+	 *
 	 * @param e The exception to convert
 	 * @return The exception text including the stack trace
 	 */
