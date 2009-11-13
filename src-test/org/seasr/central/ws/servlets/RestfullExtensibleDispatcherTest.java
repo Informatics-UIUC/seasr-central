@@ -55,7 +55,7 @@ public class RestfullExtensibleDispatcherTest {
 		 * @return The regular expression to use
 		 */
 		@Override
-		public String getRestRegularExpression() {
+		public String getRestContextRegexp() {
 			return PATTERN;
 		}
 

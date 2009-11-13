@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.ws.restlets.user;
 
@@ -22,7 +22,7 @@ import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
 /** This servlet implements add user functionality.
- * 
+ *
  * @author xavier
  *
  */
@@ -32,16 +32,17 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 	 * @see org.seasr.central.ws.servlets.RestServlet#getRestRegularExpression()
 	 */
 	@Override
-	public String getRestRegularExpression() {
-		return "/services/user/delete/format\\.(txt|json|xml|html)";
+	public String getRestContextRegexp() {
+		return "/services/users/(.*)\\.(txt|json|xml|html|sgwt)";
 	}
 
 	/* (non-Javadoc)
 	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
 	 */
 	@Override
-	public boolean process(HttpServletRequest request,
-			HttpServletResponse response, String method, String... values) {
+	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
+	    // check for DELETE
+	    if (!method.equalsIgnoreCase("DELETE")) return false;
 
 		Map<String,String[]> map = extractTextPayloads(request);
 
@@ -52,14 +53,14 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 
 			boolean bOK = true;
 			JSONArray ja = new JSONArray();
-			
+
 			if ( sna!=null ) {
 				for ( int i=0, iMax=sna.length ; bOK && i<iMax ; i++ ) {
 					try {
 						JSONObject jo = new JSONObject();
 						String sUUID = bsl.getUserUUID(sna[i]).toString();
 						if ( bsl.removeUser(sna[i])) {
-							// User deleted successfully	
+							// User deleted successfully
 							jo.put("uuid", sUUID);
 							jo.put("screen_name", sna[i]);
 						}
@@ -85,7 +86,7 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 						UUID uuid = UUID.fromString(uua[i]);
 						String screenName = bsl.getUserScreenName(uuid);
 						if ( bsl.removeUser(uuid)) {
-							// User deleted successfully	
+							// User deleted successfully
 							jo.put("uuid", uuid.toString());
 							jo.put("screen_name", screenName);
 						}

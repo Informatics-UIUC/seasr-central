@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.ws.restlets.user;
 
@@ -22,31 +22,29 @@ import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
 /** This servlet implements add user functionality.
- * 
+ *
  * @author xavier
  *
  */
 public class AddUserRestlet extends BaseAbstractRestlet {
 
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#getRestRegularExpression()
-	 */
 	@Override
-	public String getRestRegularExpression() {
-		return "/services/user/add/format\\.(txt|json|xml|html)";
+	public String getRestContextRegexp() {
+		return "/services/users\\.(txt|json|xml|html|sgwt)";
 	}
 
 	/* (non-Javadoc)
 	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
 	 */
 	@Override
-	public boolean process(HttpServletRequest request,
-			HttpServletResponse response, String method, String... values) {
+	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
+	    // check for POST
+	    if (!method.equalsIgnoreCase("POST")) return false;
 
 		Map<String,String[]> map = extractTextPayloads(request);
 
-		if ( map.containsKey("screen_name") && map.containsKey("password") && map.containsKey("profile") && 
-				map.get("screen_name").length==map.get("password").length && 
+		if ( map.containsKey("screen_name") && map.containsKey("password") && map.containsKey("profile") &&
+				map.get("screen_name").length==map.get("password").length &&
 				map.get("password").length==map.get("profile").length ) {
 
 			String [] sna = map.get("screen_name");
@@ -71,7 +69,7 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 						jo.put("error_msg", error);
 					}
 					else {
-						// User added successfully	
+						// User added successfully
 						jo.put("uuid", uuid.toString());
 						jo.put("screen_name", sna[i]);
 						jo.put("created_at", bsl.getUserCreationTime(uuid));

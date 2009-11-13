@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.ws.restlets.user;
 
@@ -16,29 +16,27 @@ import org.json.JSONArray;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
 /** This servlet implements list user functionality.
- * 
+ *
  * @author xavier
  *
  */
 public class ListUserRestlet extends BaseAbstractRestlet {
 
-	
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#getRestRegularExpression()
-	 */
 	@Override
-	public String getRestRegularExpression() {
-		return "/services/user/list/format\\.(txt|json|xml|html)";
+	public String getRestContextRegexp() {
+		return "/services/users\\.(txt|json|xml|html|sgwt)";
 	}
 
 	/* (non-Javadoc)
 	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
 	 */
 	@Override
-	public boolean process(HttpServletRequest request,
-			HttpServletResponse response, String method, String... values) {
+	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
+	    // check for GET
+	    if (!method.equalsIgnoreCase("GET")) return false;
+
 		String format = values[0];
-		
+
 		long offset = 0;
 		long count  = Long.MAX_VALUE;
 
@@ -47,9 +45,9 @@ public class ListUserRestlet extends BaseAbstractRestlet {
 
 		if ( sCount!=null ) count = Long.parseLong(sCount);
 		if ( sOffset!=null ) count = Long.parseLong(sOffset);
-		
+
 		JSONArray ja = bsl.listUsers(count, offset);
-		
+
 		try {
 			sendContent(response, ja, format);
 			return true;
@@ -59,6 +57,6 @@ public class ListUserRestlet extends BaseAbstractRestlet {
 		}
 	}
 
-	
+
 
 }

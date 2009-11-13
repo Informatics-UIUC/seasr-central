@@ -37,7 +37,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 * @param restlet The rest servlet to add.
 	 */
 	public void add ( RestServlet restlet ) {
-		lstPatterns.add(Pattern.compile(restlet.getRestRegularExpression()));
+		lstPatterns.add(Pattern.compile(restlet.getRestContextRegexp()));
 		lstServlets.add(restlet);
 		iNumRestlets++;
 	}

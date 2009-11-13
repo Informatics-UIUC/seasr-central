@@ -33,7 +33,7 @@ public interface RestServlet {
 	 * 
 	 * @return The string containing the regular expression
 	 */
-	public String getRestRegularExpression ();
+	public String getRestContextRegexp ();
 	
 	/** Process a matching restfull request.
 	 * 
