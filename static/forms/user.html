@@ -2,7 +2,7 @@
 <body>
 
 <h3>Add a user</h3>
-<form method="POST" action="/services/user/add/format.txt">
+<form method="POST" action="/services/users.txt">
 <table>
 <tr><td>Screen name:</td><td><input type="text" name="screen_name"></td></tr>
 <tr><td>Password:</td><td<input type="password" name="password"></td></tr>
@@ -11,27 +11,34 @@
 </table>
 </form>
 
+<script>
+function delUser() {
+	var req = new XMLHttpRequest();
+	var elm = document.getElementById("remove_screen_name");
+
+	function delHandler(evt) {
+		if (evt.target.readyState == 4 && evt.target.status == 200) {
+			elm.value="";
+			alert("User deleted!");
+		} else {
+			alert("There was a problem");
+		}
+	}
+
+	if (confirm("Delete user " + elm.value + "?")) {
+		req.onload = delHandler;
+		req.open("DELETE", "/services/users/" + elm.value + ".txt", false);
+		req.send("");
+	}
+}
+</script>
+
 <h3>Remove a user by screen_name</h3>
-<form method="POST" action="/services/user/delete/format.txt">
+<form action="javascript:;">
 <table>
-<tr><td>Screen name:</td><td><input type="text" name="screen_name"></td></tr>
-<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
+<tr><td>Screen name:</td><td><input id="remove_screen_name" type="text" name="screen_name"></td></tr>
 </table>
-</form>
-
-<h3>Remove a user by uuid</h3>
-<form method="POST" action="/services/user/delete/format.txt">
-<table>
-<tr><td>UUID:</td><td><input type="text" name="uuid"></td></tr>
-<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
-</table>
-</form>
-
-<h3>Update a user</h3>
-<form method="POST" action="/services/user/update/format.html">
-User ID: <input type="text" name="user_id"><br/>
-Name: <input type="text" name="name"><br/>
-<input type="submit"> <input type="reset"><br/>
+<button name="delete" onclick="delUser();">Delete</button>
 </form>
 
 </html>

@@ -2,17 +2,17 @@
 <Configure id="Server" class="org.mortbay.jetty.Server">
 
   <!-- The main connector definition -->
-  
+
   <Call name="addConnector">
     <Arg>
       <New class="org.mortbay.jetty.nio.SelectChannelConnector">
-        <Set name="port"><SystemProperty name="jetty.port" default="8080"/></Set>
+        <Set name="port"><SystemProperty name="jetty.port" default="8888"/></Set>
       </New>
     </Arg>
   </Call>
-  	
+
   <!-- The back end storage link -->
-  
+
   <New id="bsl" class="org.seasr.central.storage.db.SQLiteLink">
   	<Call name="init">
   		<Arg>
@@ -26,30 +26,30 @@
   		</Arg>
   	</Call>
   </New>
-  
+
   <!-- The rest servlet definitions -->
-  
+
   <New id="userList" class="org.seasr.central.ws.restlets.user.ListUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
   <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>	
+  </New>
   <New id="userDelete" class="org.seasr.central.ws.restlets.user.DeleteUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>	
-  
-  
+  </New>
+
+
   <!-- User rest servlet dispatcher -->
-  
+
   <New id="userRED" class="org.seasr.central.ws.restlets.RestfullExtensibleDispatcher">
   		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userAdd"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userDelete"/></Arg></Call>
   </New>
-  				
+
   <!-- The basic contexts available -->
-  			
+
   <Set name="handlers">
   	<Array type="org.mortbay.jetty.Handler">
   	  <Item>
@@ -57,7 +57,7 @@
   	  </Item>
   	  <Item>
   	  	<New id="userContext" class="org.mortbay.jetty.servlet.Context">
-  			<Set name="contextPath">/services/user</Set>
+  			<Set name="contextPath">/services</Set>
   			<Call name="addServlet">
   				<Arg>
   					<New class="org.mortbay.jetty.servlet.ServletHolder"><Arg><Ref id="userRED"/></Arg></New>
@@ -72,17 +72,17 @@
   			<Set name="resourceBase"><SystemProperty name="jetty.docroot" default="logs"/></Set>
   			<Call name="addServlet"><Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg><Arg>/</Arg></Call>
   		</New>
-  	  </Item> 
+  	  </Item>
   	  <Item>
   		<New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
   			<Set name="contextPath">/</Set>
   			<Set name="resourceBase"><SystemProperty name="jetty.docroot" default="static"/></Set>
   			<Call name="addServlet"><Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg><Arg>/</Arg></Call>
   		</New>
-  	  </Item> 
+  	  </Item>
   	 </Array>
   </Set>
-  
+
   <!-- Set up the logging facility for the server -->
   <Ref id="RequestLogHandler">
   	<Set name="server"><Ref id="Server" /></Set>
@@ -90,6 +90,7 @@
   		<New class="org.mortbay.jetty.NCSARequestLog">
   			<Set name="filename">logs/access.log</Set>
   			<Set name="append">true</Set>
+  			<Set name="extended">false</Set>
   		</New>
   	</Set>
   </Ref>

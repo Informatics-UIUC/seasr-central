@@ -158,7 +158,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("DELET",req,resp);
+		dispatch("DELETE",req,resp);
 	}
 
 	/**
