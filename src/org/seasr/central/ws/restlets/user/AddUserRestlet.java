@@ -93,6 +93,9 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 	    if (values.length == 0) {
 	        // format not specified, look at headers
 	        //TODO figure out how to deal with accept headers
+	        //TODO add unit tests
+	        //TODO return proper HTTP codes when all succeeded or not (201 vs 200)
+	        //TODO change the json array (ja) into a json object with 2 fields: success, error for easier parsing
 	        List<ContentType> allowedTypes = new ArrayList<ContentType>();
 	        allowedTypes.add(ContentType.JSON);
 	        allowedTypes.add(ContentType.APPLICATION_XML);
