@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.ws.servlets;
 
@@ -15,7 +15,6 @@ import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -32,35 +31,35 @@ import org.seasr.central.ws.restlets.RestfullExtensibleDispatcher;
 
 
 /** Test class for the basic resfull dispatcher
- * 
+ *
  * @author xavier
  *
  */
 public class RestfullExtensibleDispatcherTest {
-	
+
 	/** The test server port to bind to */
 	private static final int TEST_SERVER_PORT = 9090;
-	
+
 	/** The fixture server */
 	private Server server;
-	
+
 	/** A basic dummy test rest servlet */
 	private class TestRestlet implements RestServlet {
 
 		/** The pattern to match */
 		private final static String PATTERN = "/hello/([A-Za-z /]+)/";
-		
+
 		/** Returns the pattern to match.
-		 * 
+		 *
 		 * @return The regular expression to use
 		 */
 		@Override
-		public String getRestContextRegexp() {
+		public String getRestContextPathRegexp() {
 			return PATTERN;
 		}
 
 		/** Process the provided request.
-		 * 
+		 *
 		 * @param request The original request object
 		 * @param response The response object
 		 * @param method The method used to issue the request
@@ -71,7 +70,7 @@ public class RestfullExtensibleDispatcherTest {
 				HttpServletResponse response, String method, String... values)  {
 			response.setStatus(HttpServletResponse.SC_OK);
 			response.setContentType("text/plain");
-			
+
 			try {
 				PrintWriter pw = response.getWriter();
 				pw.print("Hello to|");
@@ -85,32 +84,32 @@ public class RestfullExtensibleDispatcherTest {
 				fail(baos.toString());
 				return false;
 			}
-			
+
 		}
 
 		@Override
 		public void setSCParent(SC sc) {
-			
+
 		}
 
 		@Override
 		public void setBackendStoreLink(BackendStorageLink bsl) {
 			// TODO Auto-generated method stub
-			
+
 		}
-		
+
 	}
 
 	/** Sets up the fixture starting a test server
-	 *  
+	 *
 	 */
 	@Before
 	public void setUpFixture () {
 		server = new Server(TEST_SERVER_PORT);
 		Context context = new Context(server,"/",Context.NO_SESSIONS);
 		RestfullExtensibleDispatcher red = new RestfullExtensibleDispatcher();
-		red.add(new TestRestlet());		
-		context.addServlet(new ServletHolder((Servlet)red), "/*");
+		red.add(new TestRestlet());
+		context.addServlet(new ServletHolder(red), "/*");
 		try {
 			server.start();
 		} catch (Exception e) {
@@ -119,7 +118,7 @@ public class RestfullExtensibleDispatcherTest {
 			fail(baos.toString());
 		}
 	}
-	
+
 	/** Tears down the fixture shutting down the test server.
 	 *
 	 */
@@ -136,9 +135,9 @@ public class RestfullExtensibleDispatcherTest {
 			server = null;
 		}
 	}
-	
+
 	/** Runs a simple test against the basic servlet.
-	 * 
+	 *
 	 */
 	@Test
 	public void basicRestTest () {
@@ -161,11 +160,11 @@ public class RestfullExtensibleDispatcherTest {
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());
 		}
-		
+
 	}
 
 	/** Makes a simple get request to the provided url and append all the content together.
-	 * 
+	 *
 	 * @param sUrl The url
 	 * @return The retrieved content
 	 * @throws MalformedURLException Wrong url format
@@ -184,14 +183,14 @@ public class RestfullExtensibleDispatcherTest {
 		pw.close();
 		return baos.toString();
 	}
-	
+
 //	public static void main ( String...args ) {
 //		String PATTERN = "/hello/([A-Za-z /]+)/";
 //		Pattern p = Pattern.compile(PATTERN);
 //		Matcher m = p.matcher("/hello/john/peter/any/mary/");
 //		System.out.println(m.find());
 //		System.out.println(m.groupCount());
-//		for ( int i=0 ; i<=m.groupCount() ; i++ ) 
+//		for ( int i=0 ; i<=m.groupCount() ; i++ )
 //			System.out.println(m.group(i));
 //	}
 }

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.test.storage;
 
@@ -31,16 +31,17 @@ import org.junit.Test;
 import org.seasr.central.storage.BackendStorageLink;
 
 
-/** Test SQLite driver basic functionalities
- * 
+/**
+ * Test SQLite driver basic functionalities
+ *
  * @author xavier
  *
  */
 public class BackendStorageLinkTest {
 
-	/** The rundom number generator */
+	/** The random number generator */
 	private static final Random rnd = new Random();
-	
+
 	/** The test user to use */
 	private static final String TEST_USER = "test";
 
@@ -74,7 +75,7 @@ public class BackendStorageLinkTest {
 		}
 		catch (Exception e) {
 			fail("Failed to load property file. "+e.toString());
-		} 
+		}
 
 	}
 
@@ -98,18 +99,17 @@ public class BackendStorageLinkTest {
 		return profile;
 	}
 
-
 	@Test
 	public void testCRUDCycle () {
 
-		long lUsers = bsl.userSize();
+		long lUsers = bsl.userCount();
 		String sUser = generateTestUserScreenName();
 		JSONObject profile = createProfile(sUser);
 		try {
 			UUID uuid = bsl.addUser(sUser, "password", profile );
 
 			assertNotNull(uuid);
-			assertEquals(lUsers+1,bsl.userSize());
+			assertEquals(lUsers+1,bsl.userCount());
 			assertEquals(uuid,bsl.getUserUUID(sUser));
 			assertEquals(sUser,bsl.getUserScreenName(uuid));
 			assertNotNull(bsl.getUserCreationTime(sUser));
@@ -135,18 +135,18 @@ public class BackendStorageLinkTest {
 			assertEquals(true,bsl.updateUserPassword(sUser, "new_password2"));
 			assertEquals(true,bsl.isUserPasswordValid(sUser, "new_password2"));
 			assertEquals(true,bsl.isUserPasswordValid(uuid, "new_password2"));
-			
+
 			assertEquals(true, bsl.removeUser(uuid));
-			assertEquals(lUsers,bsl.userSize());
-			
+			assertEquals(lUsers,bsl.userCount());
+
 			sUser = generateTestUserScreenName();
 			uuid = bsl.addUser(sUser, "admin", profile );
-			assertEquals(lUsers+1,bsl.userSize());
+			assertEquals(lUsers+1,bsl.userCount());
 			assertEquals(true, bsl.removeUser(sUser));
-			assertEquals(lUsers,bsl.userSize());
-			
-			assertEquals(bsl.userSize(), bsl.listUsers(1000, 0).length());
-			
+			assertEquals(lUsers,bsl.userCount());
+
+			assertEquals(bsl.userCount(), bsl.listUsers(0, 1000).length());
+
 		}
 		catch ( Exception e ) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -157,7 +157,7 @@ public class BackendStorageLinkTest {
 	}
 
 	/** Generates a new test user screen name
-	 * 
+	 *
 	 * @return The new test user screen name
 	 */
 	public static String generateTestUserScreenName() {

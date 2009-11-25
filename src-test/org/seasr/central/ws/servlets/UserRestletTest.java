@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.seasr.central.ws.servlets;
 
@@ -14,14 +14,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.Properties;
-
-import javax.servlet.Servlet;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -37,11 +37,14 @@ import org.seasr.central.ws.restlets.RestServlet;
 import org.seasr.central.ws.restlets.RestfullExtensibleDispatcher;
 import org.seasr.central.ws.restlets.user.AddUserRestlet;
 import org.seasr.central.ws.restlets.user.DeleteUserRestlet;
-import org.seasr.central.ws.restlets.user.ListUserRestlet;
+import org.seasr.central.ws.restlets.user.ListUsersRestlet;
+import org.seasr.central.ws.restlets.user.UserInfoRestlet;
+import org.seasr.meandre.support.generic.io.IOUtils;
 
 
-/** Test class for the basic resfull dispatcher
- * 
+/**
+ * Test class for the basic restful dispatcher
+ *
  * @author xavier
  *
  */
@@ -60,7 +63,7 @@ public class UserRestletTest {
 	private static final String DB_PROPERTY_FILE = "conf"+File.separator+"scs-store-sqlite.xml";
 
 	/** Sets up the fixture starting a test server
-	 *  
+	 *
 	 */
 	@Before
 	public void setUpFixture () {
@@ -68,9 +71,10 @@ public class UserRestletTest {
 		Context context = new Context(server,"/",Context.NO_SESSIONS);
 		RestfullExtensibleDispatcher red = new RestfullExtensibleDispatcher();
 		RestServlet [] rsa = {
-				new ListUserRestlet(),
 				new AddUserRestlet(),
-				new DeleteUserRestlet()
+				new DeleteUserRestlet(),
+				new ListUsersRestlet(),
+				new UserInfoRestlet()
 		};
 		Properties props = new Properties();
 		try {
@@ -82,7 +86,7 @@ public class UserRestletTest {
 				rs.setBackendStoreLink(bsl);
 				red.add(rs);
 			}
-			context.addServlet(new ServletHolder((Servlet)red), "/*");
+			context.addServlet(new ServletHolder(red), "/*");
 			server.start();
 		} catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -91,7 +95,8 @@ public class UserRestletTest {
 		}
 	}
 
-	/** Tears down the fixture shutting down the test server.
+	/**
+	 * Tears down the fixture shutting down the test server.
 	 *
 	 */
 	@After
@@ -108,13 +113,14 @@ public class UserRestletTest {
 		}
 	}
 
-	/** Runs a simple test against the basic servlet.
-	 * 
+	/**
+	 * Runs a simple test against the basic servlet.
+	 *
 	 */
 	@Test
 	public void  basicUserListTest () {
 		try {
-			String sUrl = "http://localhost:"+TEST_SERVER_PORT+"/services/user/list/format.json";
+			String sUrl = "http://localhost:"+TEST_SERVER_PORT+"/services/users.json";
 			String response = getRequest(sUrl).trim();
 			JSONArray ja = new JSONArray(response);
 			boolean found = false;
@@ -129,10 +135,10 @@ public class UserRestletTest {
 		}
 
 	}
-	
+
 
 	/** Runs a simple add test against the basic servlet.
-	 * 
+	 *
 	 */
 	@Test
 	public void basicUserAddTest () {
@@ -140,11 +146,11 @@ public class UserRestletTest {
 			String screenName = BackendStorageLinkTest.generateTestUserScreenName();
 			String password = "sekret";
 			String profile = "{\"test\": \"true\"}";
-			String sUrl = "http://localhost:"+TEST_SERVER_PORT+"/services/user/add/format.json?"+
-							"screen_name="+URLEncoder.encode(screenName,"UTF-8")+"" +
-							"&password="+URLEncoder.encode(password,"UTF-8")+
+			String sUrl = "http://localhost:"+TEST_SERVER_PORT+"/services/users.json";
+			String sData = "screen_name="+URLEncoder.encode(screenName,"UTF-8")+
+						    "&password="+URLEncoder.encode(password,"UTF-8")+
 							"&profile="+URLEncoder.encode(profile,"UTF-8");
-			String response = getRequest(sUrl).trim();
+			String response = postRequest(sUrl, sData).trim();
 			JSONObject jo = (new JSONArray(response)).getJSONObject(0);
 			assertTrue(jo.has("uuid"));
 			assertTrue(jo.has("screen_name"));
@@ -158,10 +164,10 @@ public class UserRestletTest {
 		}
 
 	}
-	
+
 
 	/** Runs a simple delete test against the basic servlet using the screen name.
-	 * 
+	 *
 	 */
 	@Test
 	public void basicUserDeleteUsingScreenNameTest () {
@@ -179,14 +185,14 @@ public class UserRestletTest {
 			assertTrue(joAdd.has("screen_name"));
 			assertTrue(joAdd.has("created_at"));
 			assertTrue(joAdd.has("profile"));
-			
+
 			 String sUrlDeleteUser = "http://localhost:"+TEST_SERVER_PORT+"/services/user/delete/format.json?"+
 			 						 "screen_name="+screenName;
 			String responseDelete = getRequest(sUrlDeleteUser).trim();
 			JSONObject jo = (new JSONArray(responseDelete)).getJSONObject(0);
 			assertTrue(jo.has("uuid"));
 			assertTrue(jo.has("screen_name"));
-			
+
 		} catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
@@ -194,9 +200,9 @@ public class UserRestletTest {
 		}
 
 	}
-	
+
 	/** Runs a simple delete test against the basic servlet using the uuid.
-	 * 
+	 *
 	 */
 	@Test
 	public void basicUserDeleteUsingUUIDTest () {
@@ -214,14 +220,14 @@ public class UserRestletTest {
 			assertTrue(joAdd.has("screen_name"));
 			assertTrue(joAdd.has("created_at"));
 			assertTrue(joAdd.has("profile"));
-			
+
 			 String sUrlDeleteUser = "http://localhost:"+TEST_SERVER_PORT+"/services/user/delete/format.json?"+
 			 						 "uuid="+URLEncoder.encode(joAdd.getString("uuid"),"UTF-8");
 			String responseDelete = getRequest(sUrlDeleteUser).trim();
 			JSONObject jo = (new JSONArray(responseDelete)).getJSONObject(0);
 			assertTrue(jo.has("uuid"));
 			assertTrue(jo.has("screen_name"));
-			
+
 		} catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
@@ -231,7 +237,7 @@ public class UserRestletTest {
 	}
 
 	/** Makes a simple get request to the provided url and append all the content together.
-	 * 
+	 *
 	 * @param sUrl The url
 	 * @return The retrieved content
 	 * @throws MalformedURLException Wrong url format
@@ -251,13 +257,32 @@ public class UserRestletTest {
 		return baos.toString();
 	}
 
-	//	public static void main ( String...args ) {
-	//		String PATTERN = "/hello/([A-Za-z /]+)/";
-	//		Pattern p = Pattern.compile(PATTERN);
-	//		Matcher m = p.matcher("/hello/john/peter/any/mary/");
-	//		System.out.println(m.find());
-	//		System.out.println(m.groupCount());
-	//		for ( int i=0 ; i<=m.groupCount() ; i++ ) 
-	//			System.out.println(m.group(i));
-	//	}
+	private String postRequest(String sUrl, String sData) throws MalformedURLException, IOException {
+	    URL url = new URL(sUrl);
+	    URLConnection connection = url.openConnection();
+	    connection.setDoOutput(true);
+
+	    OutputStreamWriter sw = null;
+	    try {
+	        // Send data
+	        sw = new OutputStreamWriter(connection.getOutputStream());
+	        sw.write(sData);
+	        sw.flush();
+
+	        // Get the response
+	        return IOUtils.getTextFromReader(new InputStreamReader(connection.getInputStream()));
+	    }
+	    finally {
+	        if (sw != null)
+	            sw.close();
+	    }
+	}
+
+	private String putRequest(String sUrl) throws MalformedURLException, IOException {
+	    return null;
+	}
+
+	private String deleteRequest(String sUrl) throws MalformedURLException, IOException {
+	    return null;
+	}
 }

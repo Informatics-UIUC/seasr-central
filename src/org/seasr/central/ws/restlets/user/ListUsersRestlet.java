@@ -43,7 +43,7 @@
 package org.seasr.central.ws.restlets.user;
 
 import static org.seasr.central.ws.restlets.Tools.exceptionToText;
-import static org.seasr.central.ws.restlets.Tools.log;
+import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 
 import java.io.IOException;
@@ -60,7 +60,7 @@ import org.seasr.central.ws.restlets.BaseAbstractRestlet;
  * @author xavier
  * @author Boris Capitanu
  */
-public class ListUserRestlet extends BaseAbstractRestlet {
+public class ListUsersRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
@@ -80,19 +80,19 @@ public class ListUserRestlet extends BaseAbstractRestlet {
 		long offset = 0;
 		long count  = Long.MAX_VALUE;
 
-		String sCount = request.getParameter("count");
 		String sOffset = request.getParameter("offset");
+		String sCount = request.getParameter("count");
 
+		if ( sOffset!=null ) offset = Long.parseLong(sOffset);
 		if ( sCount!=null ) count = Long.parseLong(sCount);
-		if ( sOffset!=null ) count = Long.parseLong(sOffset);
 
-		JSONArray ja = bsl.listUsers(count, offset);
+		JSONArray ja = bsl.listUsers(offset, count);
 
 		try {
 			sendContent(response, ja, format);
 			return true;
 		} catch (IOException e) {
-			log.warning(exceptionToText(e));
+			logger.warning(exceptionToText(e));
 			return false;
 		}
 	}

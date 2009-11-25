@@ -43,7 +43,7 @@
 package org.seasr.central.ws;
 
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_LINK;
-import static org.seasr.central.ws.restlets.Tools.log;
+import static org.seasr.central.ws.restlets.Tools.logger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -331,11 +331,11 @@ public class SC {
 		try {
 			JSAPResult config = processCommandLine(args);
 
-			log.info("Starting SEASR Central API ("+VERSION+"-vcli) on "+new Date());
-			log.info("Is server successfully configured: "+config.success());
-			log.info("Configuration folder: "+config.getString(CMDLINE_CONFIG_FOLDER));
-			log.info("Jetty configuration file: "+config.getString(CMDLINE_JETTY_CONFIG));
-			log.info("Storage link configuration file: "+config.getString(CMDLINE_STORE_CONFIG));
+			logger.info("Starting SEASR Central API ("+VERSION+"-vcli) on "+new Date());
+			logger.info("Is server successfully configured: "+config.success());
+			logger.info("Configuration folder: "+config.getString(CMDLINE_CONFIG_FOLDER));
+			logger.info("Jetty configuration file: "+config.getString(CMDLINE_JETTY_CONFIG));
+			logger.info("Storage link configuration file: "+config.getString(CMDLINE_STORE_CONFIG));
 
 			SC sc = new SC(
 			        config.getString(CMDLINE_CONFIG_FOLDER),

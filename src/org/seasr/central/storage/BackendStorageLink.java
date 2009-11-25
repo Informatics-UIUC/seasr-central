@@ -57,8 +57,6 @@ import org.json.JSONObject;
  */
 public interface BackendStorageLink {
 
-	//-------------------------------------------------------------------------------------
-
 	/**
 	 * Initialize the backend storage link with the given properties.
 	 *
@@ -210,17 +208,28 @@ public interface BackendStorageLink {
 	 *
 	 * @return The number of users in SC back end storage. -1 indicates failure
 	 */
-	public long userSize();
+	public long userCount();
 
 	/**
 	 * List the users contained on the database. Must provide number of users desired
 	 * and offset into the listing.
 	 *
-	 * @param count The number of users to be returned
 	 * @param offset The offset where to start computing
+	 * @param count The number of users to be returned
 	 * @return The list of retrieved users
 	 */
-	public JSONArray listUsers ( long count, long offset );
+	public JSONArray listUsers ( long offset, long count );
+
+	/**
+	 * Add a new event
+	 *
+	 * @param sourceType The source of the event
+	 * @param uuid The UUID of the source
+	 * @param event The event
+	 * @param description The JSON event description
+	 * @return True if success, false otherwise
+	 */
+	public boolean addEvent(SourceType sourceType, UUID uuid, Event event, JSONObject description);
 
 	//-------------------------------------------------------------------------------------
 

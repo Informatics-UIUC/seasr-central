@@ -43,86 +43,67 @@
 package org.seasr.central.ws.restlets.user;
 
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
-import static org.seasr.central.ws.restlets.Tools.exceptionToText;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
-/**
- * This servlet implements add user functionality.
- *
- * @author xavier
- * @author Boris Capitanu
- */
-public class DeleteUserRestlet extends BaseAbstractRestlet {
+public class UserInfoRestlet extends BaseAbstractRestlet {
 
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#getRestRegularExpression()
-	 */
-	@Override
-	public String getRestContextPathRegexp() {
-		return "/services/users/(.*)\\.(txt|json|xml|html|sgwt)";
-	}
+    @Override
+    public String getRestContextPathRegexp() {
+        return "/services/users/(.*)\\.(txt|json|xml|html|sgwt)";
+    }
 
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
-	 */
-	@Override
-	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-	    // check for DELETE
-	    if (!method.equalsIgnoreCase("DELETE")) return false;
+    @Override
+    public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
+        // check for GET
+        if (!method.equalsIgnoreCase("GET")) return false;
 
-	    String screenName = values[0];
+        String userName = values[0];
+        String format = values[1];
 
-	    UUID uuid = bsl.getUserUUID(screenName);
+        UUID uuid = bsl.getUserUUID(userName);
         if (uuid == null) {
             sendErrorNotFound(response);
             return true;
         }
 
-		JSONArray ja = new JSONArray();
+        JSONArray ja = new JSONArray();
 
-		try {
-		    JSONObject jo = new JSONObject();
+        try {
+            JSONObject jo = new JSONObject();
+            jo.put("uuid", uuid.toString());
+            jo.put("screen_name", userName);
+            jo.put("created_at", bsl.getUserCreationTime(userName));
+            jo.put("profile", bsl.getUserProfile(userName));
 
-			if ( bsl.removeUser(screenName)) {
-			    // User deleted successfully
-				jo.put("uuid", uuid.toString());
-				jo.put("screen_name", screenName);
-			} else {
-				// Could not add the user
-				JSONObject error = new JSONObject();
-				error.put("text", "User with UUID "+uuid+" could not be deleted");
-				error.put("uuid", uuid.toString());
-				error.put("screen_name", screenName);
-				jo.put("error_msg", error);
-			}
+            ja.put(jo);
+        }
+        catch (JSONException e) {
+            logger.log(Level.SEVERE, e.getMessage(), e);
+            return false;
+        }
 
-			ja.put(jo);
-		}
-		catch (JSONException e) {
-		    logger.warning(exceptionToText(e));
-		    return false;
-		}
+        try {
+            sendContent(response, ja, format);
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, e.getMessage(), e);
+            return false;
+        }
 
-		try {
-		    sendContent(response, ja, values[1]);
-		}
-		catch (IOException e) {
-		    logger.warning(exceptionToText(e));
-			return false;
-		}
+        return true;
+    }
 
-		return true;
-	}
 }

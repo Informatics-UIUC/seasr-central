@@ -42,15 +42,19 @@
 
 package org.seasr.central.ws.restlets.user;
 
-import static org.seasr.central.ws.restlets.Tools.errorExpectationFail;
-import static org.seasr.central.ws.restlets.Tools.exceptionToText;
 import static org.seasr.central.ws.restlets.Tools.extractTextPayloads;
-import static org.seasr.central.ws.restlets.Tools.log;
+import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
+import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
+import static org.seasr.central.ws.restlets.Tools.sendErrorExpectationFail;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -58,7 +62,11 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.Event;
+import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+
+import com.google.gdata.util.ContentType;
 
 /**
  * This servlet implements add user functionality.
@@ -71,74 +79,114 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
-		return "/services/users\\.(txt|json|xml|html|sgwt)";
+		return "/services/users/?";
+		//|/services/users/\\.(txt|json|xml|html|sgwt)
 	}
 
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
-	 */
-	@Override
+    @Override
 	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
 	    // check for POST
 	    if (!method.equalsIgnoreCase("POST")) return false;
 
-		Map<String,String[]> map = extractTextPayloads(request);
+	    String format;
 
-		if ( map.containsKey("screen_name") && map.containsKey("password") && map.containsKey("profile") &&
-				map.get("screen_name").length==map.get("password").length &&
-				map.get("password").length==map.get("profile").length ) {
+	    if (values.length == 0) {
+	        // format not specified, look at headers
+	        //TODO figure out how to deal with accept headers
+	        List<ContentType> allowedTypes = new ArrayList<ContentType>();
+	        allowedTypes.add(ContentType.JSON);
+	        allowedTypes.add(ContentType.APPLICATION_XML);
+	        allowedTypes.add(ContentType.TEXT_HTML);
+	        allowedTypes.add(ContentType.TEXT_PLAIN);
+	        allowedTypes.add(new ContentType("application/gwt"));
 
-			String [] sna = map.get("screen_name");
-			String [] pwa = map.get("password");
-			String [] pfa = map.get("profile");
-			UUID uuid;
-			JSONArray ja = new JSONArray();
-			boolean bOK = true;
-			for ( int i=0, iMax=sna.length ; bOK && i<iMax ; i++ ) {
-				try {
-					JSONObject joProfile = new JSONObject(pfa[i]);
-					uuid = bsl.addUser(sna[i], pwa[i], joProfile);
-					JSONObject jo = new JSONObject();
-					if ( uuid==null ) {
-						// Could not add the user
-						JSONObject error = new JSONObject();
-						UUID oldUuid = bsl.getUserUUID(sna[i]);
-						error.put("text", "User screen name "+sna[i]+" already exist");
-						error.put("uuid", oldUuid);
-						error.put("created_at", bsl.getUserCreationTime(oldUuid));
-						error.put("profile", bsl.getUserProfile(sna[i]));
-						jo.put("error_msg", error);
-					}
-					else {
-						// User added successfully
-						jo.put("uuid", uuid.toString());
-						jo.put("screen_name", sna[i]);
-						jo.put("created_at", bsl.getUserCreationTime(uuid));
-						jo.put("profile", joProfile);
-					}
-					ja.put(jo);
-				} catch (JSONException e) {
-					bOK = false;
-				}
-			}
+	        String accept = request.getHeader("Accept");
+	        ContentType ct = null;
 
-			try {
-				if ( bOK )
-					sendContent(response, ja, values[0]);
-			} catch (IOException e) {
-				log.warning(exceptionToText(e));
-				return false;
-			}
-			return true;
+	        if (accept != null)
+	            ct = ContentType.getBestContentType(accept, allowedTypes);
 
-		} else
-			try {
-				errorExpectationFail(response);
-				return true;
-			} catch (IOException e) {
-				log.warning(exceptionToText(e));
-				return false;
-			}
+            if (ct == null) {
+                sendErrorNotAcceptable(response);
+                return true;
+            }
+
+	        format = ct.getSubType();
+
+	        System.out.println("      accept: " + accept);
+	        System.out.println("content_type: " + ct.toString());
+	        System.out.println("      format: " + format);
+
+	    } else
+	        format = values[0];
+
+		Map<String, String[]> map = extractTextPayloads(request);
+
+		// check for proper request
+		if (!(map.containsKey("screen_name") && map.containsKey("password") && map.containsKey("profile")
+		        && map.get("screen_name").length == map.get("password").length
+		        && map.get("password").length == map.get("profile").length)) {
+
+		    sendErrorExpectationFail(response);
+            return true;
+		}
+
+		String[] screenNames = map.get("screen_name");
+		String[] passwords = map.get("password");
+		String[] profiles = map.get("profile");
+
+		UUID uuid;
+		JSONArray ja = new JSONArray();
+
+		for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
+		    try {
+		        JSONObject jo = new JSONObject();
+		        JSONObject joProfile = new JSONObject(profiles[i]);
+
+		        // attempt to add the user
+		        uuid = bsl.addUser(screenNames[i], passwords[i], joProfile);
+
+		        if (uuid == null) {
+		            // Could not add the user
+		            JSONObject error = new JSONObject();
+		            UUID oldUUID = bsl.getUserUUID(screenNames[i]);
+
+		            if (oldUUID != null) {
+		                error.put("text", "User screen name "+screenNames[i]+" already exists");
+		                error.put("uuid", oldUUID);
+		                error.put("created_at", bsl.getUserCreationTime(oldUUID));
+		                error.put("profile", bsl.getUserProfile(screenNames[i]));
+		            } else
+		                error.put("text", "Unable to add the user");
+
+		            jo.put("error", error);
+		        } else {
+		            // User added successfully
+		            jo.put("uuid", uuid.toString());
+		            jo.put("screen_name", screenNames[i]);
+		            jo.put("created_at", bsl.getUserCreationTime(uuid));
+		            jo.put("profile", joProfile);
+
+		            if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, jo))
+		                logger.warning(String.format("Could not record the %s event for user: %s (%s)",
+		                        Event.USER_CREATED, screenNames[i], uuid));
+		        }
+
+		        ja.put(jo);
+		    }
+		    catch (JSONException e) {
+		        sendErrorBadRequest(response);
+		        return true;
+		    }
+		}
+
+		try {
+		    sendContent(response, ja, format);
+		}
+		catch (IOException e) {
+		    logger.log(Level.WARNING, e.getMessage(), e);
+		}
+
+		return true;
 	}
-
 }

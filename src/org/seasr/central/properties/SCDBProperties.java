@@ -71,4 +71,6 @@ public abstract class SCDBProperties extends SCProperties {
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME = "org.seasr.central.storage.db.query.user.update.password.screen_name";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST = "org.seasr.central.storage.db.query.user.db.list";
 
+	// EVENTS
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 }

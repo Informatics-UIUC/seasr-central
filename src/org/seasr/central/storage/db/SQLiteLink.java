@@ -43,6 +43,7 @@
 package org.seasr.central.storage.db;
 
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME;
@@ -65,8 +66,10 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
+import static org.seasr.central.ws.restlets.Tools.logger;
 
-import java.security.MessageDigest;
+import java.io.UnsupportedEncodingException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -75,11 +78,15 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Level;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.BackendStorageLink;
+import org.seasr.central.storage.Event;
+import org.seasr.central.storage.SourceType;
+import org.seasr.meandre.support.generic.crypto.Crypto;
 
 /**
  * The SQLite driver to create a backend storage link
@@ -95,9 +102,6 @@ public class SQLiteLink implements BackendStorageLink {
 
 	/** The connection object to queue SQLite database */
 	private Connection conn = null;
-
-	/** The digest calculator */
-	private MessageDigest md;
 
 	/** The connection properties. */
 	private Properties conProps;
@@ -115,7 +119,6 @@ public class SQLiteLink implements BackendStorageLink {
 		try {
 			// Retain the properties
 			this.properties = properties;
-			this.md = MessageDigest.getInstance("SHA-1");
 
 			// Initialize the connection
 			Class.forName(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER));
@@ -198,11 +201,17 @@ public class SQLiteLink implements BackendStorageLink {
 	 * @return The resulting digest
 	 */
 	private String computeDigest(String string) {
-		StringBuffer sb = new StringBuffer();
-		md.reset();
-		for ( byte b:md.digest(string.getBytes()) )
-			sb.append(Integer.toString(b, 32));
-		return sb.toString();
+		try {
+            return Crypto.getSHA1Hash(string);
+        }
+        catch (NoSuchAlgorithmException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
+
+        return null;
 	}
 
 	/**
@@ -332,13 +341,15 @@ public class SQLiteLink implements BackendStorageLink {
 			rs.close();
 			return uuid;
 		} catch (SQLException e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
+		    if ( rs!=null ) {
+		        try {
+		            rs.close();
+		        } catch (SQLException e1) {
+		            // Failed to clean
+		        }
+		    }
+
+		    return null;
 		}
 	}
 
@@ -548,7 +559,7 @@ public class SQLiteLink implements BackendStorageLink {
 	 *
 	 * @return The number of users in SC back end storage. -1 indicates failure
 	 */
-	public long userSize() {
+	public long userCount() {
 		String query = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT).toString().trim();
 		try {
 			ResultSet rs = conn.createStatement().executeQuery(query);
@@ -565,11 +576,11 @@ public class SQLiteLink implements BackendStorageLink {
 	/** List the users contained on the database. Must provide number of users desired
 	 * and offset into the listing.
 	 *
-	 * @param count The number of users to be returned
 	 * @param offset The offset where to start computing
+	 * @param count The number of users to be returned
 	 * @return The list of retrieved users
 	 */
-	public JSONArray listUsers ( long count, long offset ) {
+	public JSONArray listUsers ( long offset, long count ) {
 		String query = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST).toString().trim();
 		JSONArray ja = new JSONArray();
 		ResultSet rs = null;
@@ -591,17 +602,37 @@ public class SQLiteLink implements BackendStorageLink {
 			}
 			rs.close();
 			return ja;
-		} catch (SQLException e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Tried to properly clean out
-				}
+		}
+		catch (SQLException e) {
 			return ja;
+		}
+		finally {
+		    if ( rs != null )
+                try {
+                    rs.close();
+                } catch (SQLException e1) {
+                    // Tried to properly clean out
+                }
 		}
 	}
 
-	//-------------------------------------------------------------------------------------
+    @Override
+    public boolean addEvent(SourceType sourceType, UUID uuid, Event eventCode, JSONObject description) {
+        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD);
 
+        try {
+            PreparedStatement ps = conn.prepareStatement(query);
+            ps.setString(1, "" + sourceType.getSourceTypeCode());
+            ps.setString(2, uuid.toString());
+            ps.setInt(3, eventCode.getEventCode());
+            ps.setString(4, description.toString());
+            ps.executeUpdate();
+            return true;
+        }
+        catch (SQLException e) {
+            return false;
+        }
+    }
+
+	//-------------------------------------------------------------------------------------
 }

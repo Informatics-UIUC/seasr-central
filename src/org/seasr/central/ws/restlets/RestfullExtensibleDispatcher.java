@@ -42,6 +42,8 @@
 
 package org.seasr.central.ws.restlets;
 
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
+
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,7 +80,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 *
 	 * @param restlet The rest servlet to add.
 	 */
-	public void add ( RestServlet restlet ) {
+	public void add(RestServlet restlet) {
 		lstPatterns.add(Pattern.compile(restlet.getRestContextPathRegexp()));
 		lstServlets.add(restlet);
 		iNumRestlets++;
@@ -89,9 +91,9 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 *
 	 * @param restlet The rest servlet to remove.
 	 */
-	public void remove ( RestServlet restlet ) {
+	public void remove(RestServlet restlet) {
 		int idx = lstServlets.indexOf(restlet);
-		if ( idx>=0 ) {
+		if (idx >= 0) {
 			lstServlets.remove(idx);
 			lstPatterns.remove(idx);
 			iNumRestlets--;
@@ -102,7 +104,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 * Remove all the contained rest servlets.
 	 *
 	 */
-	public void clear () {
+	public void clear() {
 		lstServlets.clear();
 		lstPatterns.clear();
 		iNumRestlets = 0;
@@ -113,7 +115,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 *
 	 * @return The number of restful servlets contained in this dispatcher
 	 */
-	public int size () {
+	public int size() {
 		return iNumRestlets;
 	}
 
@@ -125,7 +127,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("GET",req,resp);
+		dispatch("GET", req, resp);
 	}
 
 	/**
@@ -136,7 +138,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("POST",req,resp);
+		dispatch("POST", req, resp);
 	}
 
 	/**
@@ -147,7 +149,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("PUT",req,resp);
+		dispatch("PUT", req, resp);
 	}
 
 	/**
@@ -158,7 +160,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("DELETE",req,resp);
+		dispatch("DELETE", req, resp);
 	}
 
 	/**
@@ -169,7 +171,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doHead(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("HEAD",req,resp);
+		dispatch("HEAD", req, resp);
 	}
 
 	/**
@@ -180,7 +182,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doOptions(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("OPTIONS",req,resp);
+		dispatch("OPTIONS", req, resp);
 	}
 
 	/**
@@ -191,7 +193,7 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 */
 	@Override
     protected void doTrace(HttpServletRequest req, HttpServletResponse resp)  {
-		dispatch("TRACE",req,resp);
+		dispatch("TRACE", req, resp);
 	}
 
 	/**
@@ -202,21 +204,25 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 * @param resp The response
 	 */
 	private void dispatch(String method, HttpServletRequest req, HttpServletResponse resp) {
-		Matcher m = null;
 		String sUrl = req.getRequestURL().toString();
+		boolean handled = false;
 
-		for ( int idx = 0 ; idx<iNumRestlets ; idx++ ) {
-			m = lstPatterns.get(idx).matcher(sUrl);
-			if ( m.find() ) {
+		for (int idx = 0; idx < iNumRestlets; idx++) {
+			Matcher m = lstPatterns.get(idx).matcher(sUrl);
+			if (m.find()) {
 				// The specified pattern was matched
 				// Extract the values and invoke the restlet
 				int iGroups = m.groupCount();
-				String [] values = new String[iGroups];
-				for ( int i = 1 ; i<=iGroups ; i++)
+				String[] values = new String[iGroups];
+				for (int i = 1; i <= iGroups; i++)
 					values[i-1] = m.group(i);
-				if ( lstServlets.get(idx).process(req, resp, method, values) )
-					break;
+
+				handled = lstServlets.get(idx).process(req, resp, method, values);
+
+				if (handled) break;
 			}
 		}
+
+		if (!handled) sendErrorNotFound(resp);
 	}
 }

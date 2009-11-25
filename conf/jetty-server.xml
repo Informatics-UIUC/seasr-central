@@ -29,23 +29,27 @@
 
   <!-- The rest servlet definitions -->
 
-  <New id="userList" class="org.seasr.central.ws.restlets.user.ListUserRestlet">
-  	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
   <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
   <New id="userDelete" class="org.seasr.central.ws.restlets.user.DeleteUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
+  <New id="userList" class="org.seasr.central.ws.restlets.user.ListUsersRestlet">
+  	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
+  <New id="userInfo" class="org.seasr.central.ws.restlets.user.UserInfoRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
 
 
   <!-- User rest servlet dispatcher -->
 
   <New id="userRED" class="org.seasr.central.ws.restlets.RestfullExtensibleDispatcher">
-  		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userAdd"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userDelete"/></Arg></Call>
+  		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
+  		<Call name="add"><Arg><Ref id="userInfo"/></Arg></Call>
   </New>
 
   <!-- The basic contexts available -->
@@ -57,7 +61,7 @@
   	  </Item>
   	  <Item>
   	  	<New id="userContext" class="org.mortbay.jetty.servlet.Context">
-  			<Set name="contextPath">/services</Set>
+  			<Set name="contextPath">/services/users</Set>
   			<Call name="addServlet">
   				<Arg>
   					<New class="org.mortbay.jetty.servlet.ServletHolder"><Arg><Ref id="userRED"/></Arg></New>

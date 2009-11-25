@@ -55,6 +55,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
@@ -73,10 +74,11 @@ import org.json.XML;
 import com.hp.hpl.jena.rdf.model.Model;
 
 /**
- * This class provides basic auxiliar tools for reslets. For instance,
- * methods for dumping, JSON, XML, txt, RDF, TTL, NT etc.
+ * This class provides basic auxiliary tools for restlets. For instance,
+ * methods for dumping, JSON, XML, TXT, RDF, TTL, NT etc.
  *
  * @author xavier
+ * @author Boris Capitanu
  *
  */
 public class Tools {
@@ -84,53 +86,61 @@ public class Tools {
 	/** The date formatter */
     private final static SimpleDateFormat FORMATER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-    /** The new line separator */
-    private final static String NEW_LINE = System.getProperty("line.separator");
-
 	/** The formatter class to use for the central SC logger.
 	 *
 	 * @author xavier
 	 */
-	private static class SCAPIFormatter extends Formatter {
+    private static class SCAPIFormatter extends Formatter {
 
-	       /** Creates the default formatter */
-	       public SCAPIFormatter () {
-	       }
+        /** Creates the default formatter */
+        public SCAPIFormatter () {
+        }
 
+        /**
+         * Formats the record.
+         *
+         * @param record The log record to format
+         * @return The formated record
+         */
+        @Override
+        public String format(LogRecord record) {
+            String msg = record.getMessage();
+            if (msg == null || msg.length() == 0)
+                msg = null;
 
-	       /**
-	        * Formats the record.
-	        *
-	        * @param record The log record to format
-	        * @return The formated record
-	        */
-	         @Override
-            public String format(LogRecord record) {
+            Throwable thrown = record.getThrown();
+            if (thrown != null) {
+                if (msg == null)
+                    msg = thrown.toString();
+                else
+                    msg += "  (" + thrown.toString() + ")";
+            }
 
-	               String sTimeStamp = FORMATER.format(new Date(record.getMillis()));
+            String srcClassName = record.getSourceClassName();
+            String srcMethodName = record.getSourceMethodName();
 
-	               return sTimeStamp+"::"+
-	                   record.getLevel()+":  "+
-	                   record.getMessage()+ "  " +
-	                   NEW_LINE;
-	         }
-	}
+            srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
+
+            return String.format("%5$tm/%5$td/%5$ty %5$tH:%5$tM:%5$tS [%s]: %s\t[%s.%s]%n",
+                    record.getLevel(), msg, srcClassName, srcMethodName, new Date(record.getMillis()));
+        }
+    }
 
 
 	/** The xsl transformation to use to xml to html. */
 	private static Transformer xslTrans;
 
 	/** The central logger for restlets */
-	public static Logger log;
+	public static Logger logger;
 
 	static {
 		// Initialize the logger
-		log = Logger.getLogger(Tools.class.getName());
+		logger = Logger.getLogger(Tools.class.getName());
 		FileHandler handler;
 		try {
 			handler = new FileHandler("logs"+File.separator+"scapi.log",true);
 			handler.setFormatter(new SCAPIFormatter());
-	        log.addHandler(handler);
+	        logger.addHandler(handler);
 		} catch (SecurityException e1) {
 			e1.printStackTrace();
 		} catch (IOException e1) {
@@ -153,7 +163,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void statusOK ( HttpServletResponse response ) {
+	public static void setStatusOK ( HttpServletResponse response ) {
 		response.setStatus(HttpServletResponse.SC_OK);
 	}
 
@@ -161,62 +171,106 @@ public class Tools {
 	 * Sets the servlet response code to unauthorized.
 	 *
 	 * @param response The response object
-	 * @throws IOException Problem while sending error
 	 */
-	public static void errorUnauthorized ( HttpServletResponse response ) throws IOException {
-		response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+	public static void sendErrorUnauthorized ( HttpServletResponse response ) {
+		try {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 	}
 
 	/**
 	 * Sets the servlet response code to not found.
 	 *
 	 * @param response The response object
-	 * @throws IOException
-	 * @throws IOException Problem while sending error
 	 */
-	public static void errorNotFound ( HttpServletResponse response ) throws IOException {
-		response.sendError(HttpServletResponse.SC_NOT_FOUND);
+	public static void sendErrorNotFound ( HttpServletResponse response ) {
+	    try {
+	        response.sendError(HttpServletResponse.SC_NOT_FOUND);
+	    }
+	    catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 	}
 
 	/**
 	 * Sets the servlet response code to forbidden.
 	 *
 	 * @param response The response object
-	 * @throws IOException
-	 * @throws IOException Problem while sending error
 	 */
-	public static void errorForbidden ( HttpServletResponse response ) throws IOException {
-		response.sendError(HttpServletResponse.SC_FORBIDDEN);
+	public static void sendErrorForbidden ( HttpServletResponse response ) {
+	    try {
+	        response.sendError(HttpServletResponse.SC_FORBIDDEN);
+	    }
+	    catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 	}
 
 	/**
 	 * Sets the servlet response code to bad request.
 	 *
 	 * @param response The response object
-	 * @throws IOException
-	 * @throws IOException Problem while sending error
 	 */
-	public static void  errorBadRequest ( HttpServletResponse response ) throws IOException {
-		response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+	public static void sendErrorBadRequest ( HttpServletResponse response ) {
+	    try {
+	        response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+	    }
+	    catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 	}
 
 	/**
 	 * Sets the servlet response code to expectation failed.
 	 *
 	 * @param response The response object
-	 * @throws IOException
-	 * @throws IOException Problem while sending error
 	 */
-	public static void  errorExpectationFail ( HttpServletResponse response ) throws IOException {
-		response.sendError(HttpServletResponse.SC_EXPECTATION_FAILED);
+	public static void sendErrorExpectationFail ( HttpServletResponse response ) {
+	    try {
+	        response.sendError(HttpServletResponse.SC_EXPECTATION_FAILED);
+	    }
+	    catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 	}
+
+	/**
+	 * Sets the servlet response code to unsupported media type
+	 *
+	 * @param response The response object
+	 */
+	public static void sendErrorUnsupportedMediaType(HttpServletResponse response) {
+        try {
+            response.sendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
+	}
+
+	/**
+     * Sets the servlet response code to not acceptable
+     *
+     * @param response The response object
+     */
+    public static void sendErrorNotAcceptable(HttpServletResponse response) {
+        try {
+            response.sendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
+    }
 
 	/**
 	 * Sets the servlet content type to text/plain
 	 *
 	 * @param response The response object
 	 */
-	public static void  contentTextPlain ( HttpServletResponse response ) {
+	public static void contentTextPlain ( HttpServletResponse response ) {
 		response.setContentType("text/plain");
 	}
 
@@ -225,7 +279,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void  contentAppJSON ( HttpServletResponse response ) {
+	public static void contentAppJSON ( HttpServletResponse response ) {
 		response.setContentType("application/json");
 	}
 
@@ -234,7 +288,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void  contentAppXML ( HttpServletResponse response ) {
+	public static void contentAppXML ( HttpServletResponse response ) {
 		response.setContentType("application/xml");
 	}
 
@@ -257,7 +311,7 @@ public class Tools {
 		try {
 			response.getWriter().print(content.toString());
 		} catch (IOException e) {
-			log.warning(exceptionToText(e));
+			logger.log(Level.WARNING, e.getMessage(), e);
 		}
 	}
 
@@ -286,7 +340,7 @@ public class Tools {
 			model.write(response.getOutputStream(),"N-TRIPLE");
 		}
 		else
-			errorNotFound(response);
+			sendErrorNotFound(response);
 	}
 
 	public static void sendContent ( HttpServletResponse response, JSONArray content, String format )
@@ -303,7 +357,7 @@ public class Tools {
 				sendRawContent(response, xmlc);
 				sendRawContent(response, "</meandre_response>");
 			} catch (JSONException e) {
-				log.warning(exceptionToText(e));
+				logger.warning(exceptionToText(e));
 			}
 		}
 		else if (format.equals("html") )  {
@@ -316,7 +370,7 @@ public class Tools {
 		        StreamResult result = new StreamResult(response.getOutputStream());
 		        xslTrans.transform(xmlSource, result);
 			} catch (Exception e) {
-				log.warning(exceptionToText(e));
+				logger.warning(exceptionToText(e));
 			}
 		}
 		else if (format.equals("txt") )  {
@@ -324,11 +378,11 @@ public class Tools {
 			try {
 				sendRawContent(response, content.toString(4));
 			} catch (JSONException e) {
-				log.warning(exceptionToText(e));
+				logger.warning(exceptionToText(e));
 			}
 		}
 		else
-			errorNotFound(response);
+			sendErrorNotFound(response);
 	}
 
 	/**

@@ -1,31 +1,31 @@
 package org.seasr.central.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import org.seasr.central.ws.SC;
 
 import com.martiansoftware.jsap.JSAPException;
 import com.martiansoftware.jsap.JSAPResult;
 
 /** This class test the basic SC loader class.
- * 
+ *
  * @author xavier
  *
  */
 public class SCTest {
 
 	/** Test the command line parser.
-	 * 
+	 *
 	 */
 	@Test
 	public void testCommandLineParser () {
 		try {
-			// Check defaults 
+			// Check defaults
 			JSAPResult config = SC.processCommandLine(new String[]{});
 			checkConfigParameters(config);
 			assertEquals(SC.DEFAULT_CONFIG_FOLDER,config.getString(SC.CMDLINE_CONFIG_FOLDER));
@@ -51,7 +51,7 @@ public class SCTest {
 			} catch (JSAPException e) {
 				// OK
 			}
-			
+
 			// Check failures
 			try {
 				config = SC.processCommandLine(new String[]{"-x","s/s","-w","w/w"});
@@ -69,7 +69,7 @@ public class SCTest {
 	}
 
 	/** Checks that a returned configuration object contains all the required parameters.
-	 * 
+	 *
 	 * @param config The configuration object to check
 	 */
 	private void checkConfigParameters(JSAPResult config) {
@@ -77,9 +77,9 @@ public class SCTest {
 		if ( !config.contains(SC.CMDLINE_JETTY_CONFIG) )    fail(SC.CMDLINE_JETTY_CONFIG+" missing");
 		if ( !config.contains(SC.CMDLINE_STORE_CONFIG) ) fail(SC.CMDLINE_STORE_CONFIG+" missing");
 	}
-	
+
 	/** Checks that the instantiation, setters, and getters are all fine.
-	 * 
+	 *
 	 */
 	@Test
 	public void testInstantiation () {
@@ -87,12 +87,12 @@ public class SCTest {
 		assertEquals(SC.DEFAULT_CONFIG_FOLDER, sc.getConfigFolder());
 		assertEquals(SC.DEFAULT_JETTY_CONFIG_FILE, sc.getConfigJetty());
 		assertEquals(SC.DEFAULT_STORE_CONFIG_FILE, sc.getConfigStore());
-		
-		sc = new SC("a","b","c","d");
+
+		sc = new SC("a","b","c");
 		assertEquals("a", sc.getConfigFolder());
 		assertEquals("b", sc.getConfigJetty());
-		assertEquals("d", sc.getConfigStore());
-		
+		assertEquals("c", sc.getConfigStore());
+
 		sc = new SC();
 		sc.setConfigFolder("a");
 		sc.setConfigStore("c");
@@ -101,14 +101,14 @@ public class SCTest {
 		assertEquals("c", sc.getConfigStore());
 		assertEquals("d", sc.getConfigJetty());
 	}
-	
+
 	/** Test the instantiation of a server.
-	 * 
+	 *
 	 */
 	@Test
 	public void testServerInstantiation() {
 		SC sc = new SC();
-		
+
 		try {
 			sc.start();
 			while ( !sc.isStarted() ) {
@@ -123,6 +123,6 @@ public class SCTest {
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());
 		}
-		
+
 	}
 }
