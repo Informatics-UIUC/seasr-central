@@ -50,8 +50,7 @@ import static org.seasr.central.ws.restlets.Tools.sendErrorExpectationFail;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -77,10 +76,24 @@ import com.google.gdata.util.ContentType;
  */
 public class AddUserRestlet extends BaseAbstractRestlet {
 
+    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
+
+    static {
+        supportedResponseTypes.put("json", ContentType.JSON);
+        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
+        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
+        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
+        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+    }
+
+	@Override
+	public Map<String, ContentType> getSupportedResponseTypes() {
+	    return supportedResponseTypes;
+	}
+
 	@Override
 	public String getRestContextPathRegexp() {
 		return "/services/users/?";
-		//|/services/users/\\.(txt|json|xml|html|sgwt)
 	}
 
     @Override
@@ -88,40 +101,29 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 	    // check for POST
 	    if (!method.equalsIgnoreCase("POST")) return false;
 
+	    ContentType ct = getDesiredResponseContentType(request);
+	    if (ct == null) {
+	        sendErrorNotAcceptable(response);
+	        return true;
+	    }
+
 	    String format;
 
-	    if (values.length == 0) {
+
 	        // format not specified, look at headers
 	        //TODO figure out how to deal with accept headers
 	        //TODO add unit tests
 	        //TODO return proper HTTP codes when all succeeded or not (201 vs 200)
 	        //TODO change the json array (ja) into a json object with 2 fields: success, error for easier parsing
-	        List<ContentType> allowedTypes = new ArrayList<ContentType>();
-	        allowedTypes.add(ContentType.JSON);
-	        allowedTypes.add(ContentType.APPLICATION_XML);
-	        allowedTypes.add(ContentType.TEXT_HTML);
-	        allowedTypes.add(ContentType.TEXT_PLAIN);
-	        allowedTypes.add(new ContentType("application/gwt"));
 
-	        String accept = request.getHeader("Accept");
-	        ContentType ct = null;
 
-	        if (accept != null)
-	            ct = ContentType.getBestContentType(accept, allowedTypes);
+	        System.out.println(ct);
+	        format = "json"; //ct.getSubType();
 
-            if (ct == null) {
-                sendErrorNotAcceptable(response);
-                return true;
-            }
+//	        System.out.println("      accept: " + accept);
+//	        System.out.println("content_type: " + ct.toString());
+//	        System.out.println("      format: " + format);
 
-	        format = ct.getSubType();
-
-	        System.out.println("      accept: " + accept);
-	        System.out.println("content_type: " + ct.toString());
-	        System.out.println("      format: " + format);
-
-	    } else
-	        format = values[0];
 
 		Map<String, String[]> map = extractTextPayloads(request);
 

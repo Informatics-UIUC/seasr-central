@@ -89,15 +89,11 @@ public class RestfullExtensibleDispatcherTest {
 
 		@Override
 		public void setSCParent(SC sc) {
-
 		}
 
 		@Override
 		public void setBackendStoreLink(BackendStorageLink bsl) {
-			// TODO Auto-generated method stub
-
 		}
-
 	}
 
 	/** Sets up the fixture starting a test server

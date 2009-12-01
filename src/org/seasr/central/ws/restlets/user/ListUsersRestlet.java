@@ -47,12 +47,16 @@ import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.json.JSONArray;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+
+import com.google.gdata.util.ContentType;
 
 /**
  * This servlet implements list user functionality.
@@ -62,14 +66,26 @@ import org.seasr.central.ws.restlets.BaseAbstractRestlet;
  */
 public class ListUsersRestlet extends BaseAbstractRestlet {
 
+    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
+
+    static {
+        supportedResponseTypes.put("json", ContentType.JSON);
+        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
+        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
+        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
+        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+    }
+
+    @Override
+    public Map<String, ContentType> getSupportedResponseTypes() {
+        return supportedResponseTypes;
+    }
+
 	@Override
 	public String getRestContextPathRegexp() {
 		return "/services/users\\.(txt|json|xml|html|sgwt)";
 	}
 
-	/* (non-Javadoc)
-	 * @see org.seasr.central.ws.servlets.RestServlet#process(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String[])
-	 */
 	@Override
 	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
 	    // check for GET

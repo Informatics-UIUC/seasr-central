@@ -62,21 +62,21 @@ public interface RestServlet {
 	 *
 	 * @param sc SEASR Central reference
 	 */
-	public void setSCParent ( SC sc );
+	public void setSCParent(SC sc);
 
 	/**
 	 * Set the back end store link.
 	 *
 	 * @param bsl The back end store link reference
 	 */
-	public void setBackendStoreLink ( BackendStorageLink bsl );
+	public void setBackendStoreLink(BackendStorageLink bsl);
 
 	/**
 	 * Return the regular expression used for the restful service.
 	 *
 	 * @return The string containing the regular expression
 	 */
-	public String getRestContextPathRegexp ();
+	public String getRestContextPathRegexp();
 
 	/**
 	 * Process a matching restful request.
@@ -87,6 +87,6 @@ public interface RestServlet {
 	 * @param values The extracted values from the rest request
 	 * @return True is the request is processed and no further attempts should be ma
 	 */
-	public boolean process ( HttpServletRequest request, HttpServletResponse response, String method, String...values ) ;
+	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String...values);
 
 }

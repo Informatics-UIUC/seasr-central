@@ -42,11 +42,13 @@
 
 package org.seasr.central.ws.restlets.user;
 
-import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -58,7 +60,24 @@ import org.codehaus.jettison.json.JSONObject;
 import org.json.JSONArray;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
+import com.google.gdata.util.ContentType;
+
 public class UserInfoRestlet extends BaseAbstractRestlet {
+
+    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
+
+    static {
+        supportedResponseTypes.put("json", ContentType.JSON);
+        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
+        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
+        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
+        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+    }
+
+    @Override
+    public Map<String, ContentType> getSupportedResponseTypes() {
+        return supportedResponseTypes;
+    }
 
     @Override
     public String getRestContextPathRegexp() {

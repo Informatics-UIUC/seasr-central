@@ -42,8 +42,17 @@
 
 package org.seasr.central.ws.restlets;
 
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.servlet.http.HttpServletRequest;
+
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.ws.SC;
+
+import com.google.gdata.util.ContentType;
 
 /**
  * This servlet implements a base abstract restlet.
@@ -59,6 +68,12 @@ public abstract class BaseAbstractRestlet implements RestServlet {
 	/** The back end storage link */
 	protected BackendStorageLink bsl;
 
+	private static final Pattern patternExtension;
+
+	static {
+	    patternExtension = Pattern.compile("\\.([a-z]+)$");
+	}
+
 	@Override
 	public void setSCParent(SC sc) {
 		this.sc = sc;
@@ -70,4 +85,34 @@ public abstract class BaseAbstractRestlet implements RestServlet {
 		this.bsl = bsl;
 	}
 
+	/**
+     * Returns the supported 'Content-Type' values for this restlet
+     *
+     * @return The supported content types for this restlet
+     */
+    public abstract Map<String, ContentType> getSupportedResponseTypes();
+
+    /**
+     * Returns the desired content type for this request
+     *
+     * @param request The request
+     * @return The content type desired for the response, or null if couldn't determine
+     */
+	public ContentType getDesiredResponseContentType(HttpServletRequest request) {
+	    ContentType ct = null;
+
+	    Map<String, ContentType> allowedTypes = getSupportedResponseTypes();
+        String reqUri = request.getRequestURI().toLowerCase();
+        Matcher m = patternExtension.matcher(reqUri);
+        if (m.find())
+            ct = allowedTypes.get(m.group(1));
+        else {
+            String accept = request.getHeader("Accept");
+            if (accept != null)
+                ct = ContentType.getBestContentType(accept,
+                        new ArrayList<ContentType>(allowedTypes.values()));
+        }
+
+        return ct;
+	}
 }
