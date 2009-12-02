@@ -87,10 +87,25 @@ public abstract class BaseAbstractRestlet implements RestServlet {
 
 	/**
      * Returns the supported 'Content-Type' values for this restlet
+     * format is: <extension, ContentType>
      *
      * @return The supported content types for this restlet
      */
     public abstract Map<String, ContentType> getSupportedResponseTypes();
+
+    /**
+     * Returns a partial regular expression that matches the supported resource extensions
+     * Example: \\.txt|\\.json|\\.xml   ---- matches .txt or .json or .xml
+     *
+     * @return A partial regular expression that matches the supported resource extensions
+     */
+    public String regexExtensionMatcher() {
+        StringBuffer sb = new StringBuffer();
+        for (String ext : getSupportedResponseTypes().keySet())
+            sb.append("|\\." + ext);
+
+        return sb.toString().substring(1);
+    }
 
     /**
      * Returns the desired content type for this request

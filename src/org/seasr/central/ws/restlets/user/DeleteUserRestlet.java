@@ -42,15 +42,17 @@
 
 package org.seasr.central.ws.restlets.user;
 
-import static org.seasr.central.ws.restlets.Tools.exceptionToText;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -87,13 +89,19 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
-		return "/services/users/(.*)\\.(txt|json|xml|html|sgwt)";
+		return "/services/users/(.*)(?:/|" + regexExtensionMatcher() + ")?$";
 	}
 
 	@Override
 	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
 	    // check for DELETE
 	    if (!method.equalsIgnoreCase("DELETE")) return false;
+
+	    ContentType ct = getDesiredResponseContentType(request);
+	    if (ct == null) {
+	        sendErrorNotAcceptable(response);
+	        return true;
+	    }
 
 	    String screenName = values[0];
 
@@ -103,37 +111,46 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
             return true;
         }
 
-		JSONArray ja = new JSONArray();
+		JSONArray jaSuccess = new JSONArray();
+		JSONArray jaErrors = new JSONArray();
 
 		try {
-		    JSONObject jo = new JSONObject();
-
-			if ( bsl.removeUser(screenName)) {
+			if (bsl.removeUser(screenName)) {
 			    // User deleted successfully
-				jo.put("uuid", uuid.toString());
-				jo.put("screen_name", screenName);
+			    JSONObject joUser = new JSONObject();
+				joUser.put("uuid", uuid.toString());
+				joUser.put("screen_name", screenName);
+
+				jaSuccess.put(joUser);
 			} else {
 				// Could not add the user
-				JSONObject error = new JSONObject();
-				error.put("text", "User with UUID "+uuid+" could not be deleted");
-				error.put("uuid", uuid.toString());
-				error.put("screen_name", screenName);
-				jo.put("error_msg", error);
-			}
+				JSONObject joError = new JSONObject();
+				joError.put("text", "User with UUID "+uuid+" could not be deleted");
+				joError.put("uuid", uuid.toString());
+				joError.put("screen_name", screenName);
 
-			ja.put(jo);
+				jaErrors.put(joError);
+			}
 		}
 		catch (JSONException e) {
-		    logger.warning(exceptionToText(e));
-		    return false;
+		    logger.log(Level.SEVERE, e.getMessage(), e);
+            sendErrorInternalServerError(response);
+		    return true;
 		}
 
 		try {
-		    sendContent(response, ja, values[1]);
+		    JSONObject joContent = new JSONObject();
+	        joContent.put("ok", jaSuccess);
+	        joContent.put("fail", jaErrors);
+
+		    sendContent(response, joContent, ct);
+		}
+		catch (JSONException e) {
+		    // should not happen
+	        logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 		catch (IOException e) {
-		    logger.warning(exceptionToText(e));
-			return false;
+		    logger.log(Level.WARNING, e.getMessage(), e);
 		}
 
 		return true;

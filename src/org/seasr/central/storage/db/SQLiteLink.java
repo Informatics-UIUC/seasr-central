@@ -580,37 +580,42 @@ public class SQLiteLink implements BackendStorageLink {
 	 * @param count The number of users to be returned
 	 * @return The list of retrieved users
 	 */
-	public JSONArray listUsers ( long offset, long count ) {
+	public JSONArray listUsers(long offset, long count) {
 		String query = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST).toString().trim();
 		JSONArray ja = new JSONArray();
 		ResultSet rs = null;
+
 		try {
 			PreparedStatement ps = conn.prepareStatement(query);
 			ps.setLong(1, offset);
 			ps.setLong(2, count);
 			rs = ps.executeQuery();
-			while ( rs.next() ){
+			while (rs.next()) {
 				JSONObject jo = new JSONObject();
 				try {
-					jo.put("uuid",rs.getString("uuid"));
-					jo.put("screen_name",rs.getString("screen_name"));
+					jo.put("uuid", rs.getString("uuid"));
+					jo.put("screen_name", rs.getString("screen_name"));
 					jo.put("profile", new JSONObject(rs.getString("profile")));
 					ja.put(jo);
-				} catch (JSONException e) {
+				}
+				catch (JSONException e) {
 					// Discarding user
+				    logger.log(Level.WARNING, e.getMessage(), e);
 				}
 			}
 			rs.close();
+
 			return ja;
 		}
 		catch (SQLException e) {
-			return ja;
+			return null;
 		}
 		finally {
-		    if ( rs != null )
+		    if (rs != null)
                 try {
                     rs.close();
-                } catch (SQLException e1) {
+                }
+		        catch (SQLException e1) {
                     // Tried to properly clean out
                 }
 		}

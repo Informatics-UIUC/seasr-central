@@ -93,7 +93,7 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
-		return "/services/users/?";
+		return "/services/users/(?:" + regexExtensionMatcher() + ")?$";
 	}
 
     @Override
@@ -106,24 +106,6 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 	        sendErrorNotAcceptable(response);
 	        return true;
 	    }
-
-	    String format;
-
-
-	        // format not specified, look at headers
-	        //TODO figure out how to deal with accept headers
-	        //TODO add unit tests
-	        //TODO return proper HTTP codes when all succeeded or not (201 vs 200)
-	        //TODO change the json array (ja) into a json object with 2 fields: success, error for easier parsing
-
-
-	        System.out.println(ct);
-	        format = "json"; //ct.getSubType();
-
-//	        System.out.println("      accept: " + accept);
-//	        System.out.println("content_type: " + ct.toString());
-//	        System.out.println("      format: " + format);
-
 
 		Map<String, String[]> map = extractTextPayloads(request);
 
@@ -141,52 +123,67 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 		String[] profiles = map.get("profile");
 
 		UUID uuid;
-		JSONArray ja = new JSONArray();
+
+		JSONArray jaSuccess = new JSONArray();
+		JSONArray jaErrors = new JSONArray();
 
 		for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
 		    try {
-		        JSONObject jo = new JSONObject();
-		        JSONObject joProfile = new JSONObject(profiles[i]);
-
 		        // attempt to add the user
+		        JSONObject joProfile = new JSONObject(profiles[i]);
 		        uuid = bsl.addUser(screenNames[i], passwords[i], joProfile);
 
 		        if (uuid == null) {
 		            // Could not add the user
-		            JSONObject error = new JSONObject();
+		            JSONObject joError = new JSONObject();
 		            UUID oldUUID = bsl.getUserUUID(screenNames[i]);
 
 		            if (oldUUID != null) {
-		                error.put("text", "User screen name "+screenNames[i]+" already exists");
-		                error.put("uuid", oldUUID);
-		                error.put("created_at", bsl.getUserCreationTime(oldUUID));
-		                error.put("profile", bsl.getUserProfile(screenNames[i]));
+		                joError.put("text", "User screen name "+screenNames[i]+" already exists");
+		                joError.put("uuid", oldUUID);
+		                joError.put("created_at", bsl.getUserCreationTime(oldUUID));
+		                joError.put("profile", bsl.getUserProfile(screenNames[i]));
 		            } else
-		                error.put("text", "Unable to add the user");
+		                joError.put("text", "Unable to add the user");
 
-		            jo.put("error", error);
+		            jaErrors.put(joError);
 		        } else {
 		            // User added successfully
-		            jo.put("uuid", uuid.toString());
-		            jo.put("screen_name", screenNames[i]);
-		            jo.put("created_at", bsl.getUserCreationTime(uuid));
-		            jo.put("profile", joProfile);
+		            JSONObject joUser = new JSONObject();
+		            joUser.put("uuid", uuid.toString());
+		            joUser.put("screen_name", screenNames[i]);
+		            joUser.put("created_at", bsl.getUserCreationTime(uuid));
+		            joUser.put("profile", joProfile);
 
-		            if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, jo))
+		            if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, joUser))
 		                logger.warning(String.format("Could not record the %s event for user: %s (%s)",
 		                        Event.USER_CREATED, screenNames[i], uuid));
-		        }
 
-		        ja.put(jo);
+		            jaSuccess.put(joUser);
+		        }
 		    }
 		    catch (JSONException e) {
+		        logger.log(Level.WARNING, e.getMessage(), e);
 		        sendErrorBadRequest(response);
 		        return true;
 		    }
 		}
 
 		try {
-		    sendContent(response, ja, format);
+		    JSONObject joContent = new JSONObject();
+		    joContent.put("ok", jaSuccess);
+		    joContent.put("fail", jaErrors);
+
+		    if (jaErrors.length() == 0)
+		        response.setStatus(HttpServletResponse.SC_CREATED);
+		    else
+		        response.setStatus(HttpServletResponse.SC_OK);
+
+		    sendContent(response, joContent, ct);
+		}
+		catch (JSONException e) {
+		    // should not happen
+		    logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 		catch (IOException e) {
 		    logger.log(Level.WARNING, e.getMessage(), e);

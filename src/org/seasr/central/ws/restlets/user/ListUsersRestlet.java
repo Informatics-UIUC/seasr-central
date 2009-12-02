@@ -42,18 +42,23 @@
 
 package org.seasr.central.ws.restlets.user;
 
-import static org.seasr.central.ws.restlets.Tools.exceptionToText;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
+import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 
 import com.google.gdata.util.ContentType;
@@ -83,7 +88,7 @@ public class ListUsersRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
-		return "/services/users\\.(txt|json|xml|html|sgwt)";
+		return "/services/users/(?:" + regexExtensionMatcher() + ")?$";
 	}
 
 	@Override
@@ -91,7 +96,11 @@ public class ListUsersRestlet extends BaseAbstractRestlet {
 	    // check for GET
 	    if (!method.equalsIgnoreCase("GET")) return false;
 
-		String format = values[0];
+        ContentType ct = getDesiredResponseContentType(request);
+        if (ct == null) {
+            sendErrorNotAcceptable(response);
+            return true;
+        }
 
 		long offset = 0;
 		long count  = Long.MAX_VALUE;
@@ -99,18 +108,38 @@ public class ListUsersRestlet extends BaseAbstractRestlet {
 		String sOffset = request.getParameter("offset");
 		String sCount = request.getParameter("count");
 
-		if ( sOffset!=null ) offset = Long.parseLong(sOffset);
-		if ( sCount!=null ) count = Long.parseLong(sCount);
+		try {
+		    if (sOffset != null ) offset = Long.parseLong(sOffset);
+		    if (sCount != null ) count = Long.parseLong(sCount);
+		}
+		catch (NumberFormatException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+            sendErrorBadRequest(response);
+            return true;
+		}
 
 		JSONArray ja = bsl.listUsers(offset, count);
+		if (ja == null) {
+		    logger.log(Level.SEVERE, "listUsers() returned null - possible SQLException");
+		    sendErrorInternalServerError(response);
+		    return true;
+		}
 
 		try {
-			sendContent(response, ja, format);
-			return true;
-		} catch (IOException e) {
-			logger.warning(exceptionToText(e));
-			return false;
-		}
-	}
+		    JSONObject joContent = new JSONObject();
+		    joContent.put("ok", ja);
+		    joContent.put("fail", new JSONArray());
 
+			sendContent(response, joContent, ct);
+		}
+		catch (JSONException e) {
+		    // should not happen
+	        logger.log(Level.SEVERE, e.getMessage(), e);
+		}
+		catch (IOException e) {
+	         logger.log(Level.WARNING, e.getMessage(), e);
+		}
+
+		return true;
+	}
 }

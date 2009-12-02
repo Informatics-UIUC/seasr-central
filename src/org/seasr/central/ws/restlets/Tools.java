@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringReader;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -67,10 +66,11 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.json.XML;
 
+import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 
 /**
@@ -82,9 +82,6 @@ import com.hp.hpl.jena.rdf.model.Model;
  *
  */
 public class Tools {
-
-	/** The date formatter */
-    private final static SimpleDateFormat FORMATER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
 	/** The formatter class to use for the central SC logger.
 	 *
@@ -121,7 +118,7 @@ public class Tools {
 
             srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
 
-            return String.format("%5$tm/%5$td/%5$ty %5$tH:%5$tM:%5$tS [%s]: %s\t[%s.%s]%n",
+            return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS [%s]: %s\t[%s.%s]%n",
                     record.getLevel(), msg, srcClassName, srcMethodName, new Date(record.getMillis()));
         }
     }
@@ -252,6 +249,20 @@ public class Tools {
 	}
 
 	/**
+     * Sets the servlet response code to internal server error
+     *
+     * @param response The response object
+     */
+    public static void sendErrorInternalServerError(HttpServletResponse response) {
+        try {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
+    }
+
+	/**
      * Sets the servlet response code to not acceptable
      *
      * @param response The response object
@@ -343,13 +354,19 @@ public class Tools {
 			sendErrorNotFound(response);
 	}
 
-	public static void sendContent ( HttpServletResponse response, JSONArray content, String format )
+	public static void sendContent ( HttpServletResponse response, JSONObject content, ContentType contentType )
 	throws IOException {
-		if (format.equals("json") )  {
+
+	    // JSON
+	    if (contentType.equals(ContentType.JSON)) {
 			contentAppJSON(response);
-			sendRawContent(response,content);
+			sendRawContent(response, content);
 		}
-		else if (format.equals("xml") )  {
+
+		else
+
+		// XML
+		if (contentType.getSubType().equals("xml"))  {
 			try {
 				contentAppXML(response);
 				String xmlc = XML.toString(content,"meandre_item");
@@ -360,7 +377,11 @@ public class Tools {
 				logger.warning(exceptionToText(e));
 			}
 		}
-		else if (format.equals("html") )  {
+
+		else
+
+		// HTML
+		if (contentType.getSubType().equals("html")) {
 			try {
 				contentAppHTML(response);
 				String xmlc = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><meandre_response>";
@@ -373,7 +394,11 @@ public class Tools {
 				logger.warning(exceptionToText(e));
 			}
 		}
-		else if (format.equals("txt") )  {
+
+		else
+
+		// TXT
+		if (contentType.equals(ContentType.TEXT_PLAIN)) {
 			contentTextPlain(response);
 			try {
 				sendRawContent(response, content.toString(4));
@@ -381,8 +406,10 @@ public class Tools {
 				logger.warning(exceptionToText(e));
 			}
 		}
+
 		else
-			sendErrorNotFound(response);
+
+		sendErrorNotFound(response);
 	}
 
 	/**

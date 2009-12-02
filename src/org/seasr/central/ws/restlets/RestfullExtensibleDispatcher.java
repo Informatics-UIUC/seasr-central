@@ -204,11 +204,11 @@ public class RestfullExtensibleDispatcher extends HttpServlet {
 	 * @param resp The response
 	 */
 	private void dispatch(String method, HttpServletRequest req, HttpServletResponse resp) {
-		String sUrl = req.getRequestURL().toString();
+		String sReqPath = req.getRequestURI();
 		boolean handled = false;
 
 		for (int idx = 0; idx < iNumRestlets; idx++) {
-			Matcher m = lstPatterns.get(idx).matcher(sUrl);
+			Matcher m = lstPatterns.get(idx).matcher(sReqPath);
 			if (m.find()) {
 				// The specified pattern was matched
 				// Extract the values and invoke the restlet
