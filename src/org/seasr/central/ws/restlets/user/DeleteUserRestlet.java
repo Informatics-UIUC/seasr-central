@@ -61,6 +61,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.Event;
+import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
@@ -132,11 +134,15 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 				joUser.put("uuid", uuid.toString());
 				joUser.put("screen_name", screenName);
 
+                if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_DELETED, joUser))
+                    logger.warning(String.format("Could not record the %s event for user: %s (%s)",
+                            Event.USER_DELETED, screenName, uuid));
+
 				jaSuccess.put(joUser);
 			} else {
 				// Could not add the user
 				JSONObject joError = new JSONObject();
-				joError.put("text", "User with UUID "+uuid+" could not be deleted");
+				joError.put("text", "User with UUID " + uuid + " could not be deleted");
 				joError.put("uuid", uuid.toString());
 				joError.put("screen_name", screenName);
 

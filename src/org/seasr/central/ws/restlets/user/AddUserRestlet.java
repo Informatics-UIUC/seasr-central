@@ -135,33 +135,33 @@ public class AddUserRestlet extends BaseAbstractRestlet {
 		        JSONObject joProfile = new JSONObject(profiles[i]);
 		        uuid = bsl.addUser(screenNames[i], passwords[i], joProfile);
 
-		        if (uuid == null) {
-		            // Could not add the user
-		            JSONObject joError = new JSONObject();
-		            UUID oldUUID = bsl.getUserUUID(screenNames[i]);
+		        if (uuid != null) {
+                    // User added successfully
+                    JSONObject joUser = new JSONObject();
+                    joUser.put("uuid", uuid.toString());
+                    joUser.put("screen_name", screenNames[i]);
+                    joUser.put("created_at", bsl.getUserCreationTime(uuid));
+                    joUser.put("profile", joProfile);
 
-		            if (oldUUID != null) {
-		                joError.put("text", "User screen name "+screenNames[i]+" already exists");
-		                joError.put("uuid", oldUUID);
-		                joError.put("created_at", bsl.getUserCreationTime(oldUUID));
-		                joError.put("profile", bsl.getUserProfile(screenNames[i]));
-		            } else
-		                joError.put("text", "Unable to add the user");
+                    if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, joUser))
+                        logger.warning(String.format("Could not record the %s event for user: %s (%s)",
+                                Event.USER_CREATED, screenNames[i], uuid));
 
-		            jaErrors.put(joError);
+                    jaSuccess.put(joUser);
 		        } else {
-		            // User added successfully
-		            JSONObject joUser = new JSONObject();
-		            joUser.put("uuid", uuid.toString());
-		            joUser.put("screen_name", screenNames[i]);
-		            joUser.put("created_at", bsl.getUserCreationTime(uuid));
-		            joUser.put("profile", joProfile);
+                    // Could not add the user
+                    JSONObject joError = new JSONObject();
+                    UUID oldUUID = bsl.getUserUUID(screenNames[i]);
 
-		            if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, joUser))
-		                logger.warning(String.format("Could not record the %s event for user: %s (%s)",
-		                        Event.USER_CREATED, screenNames[i], uuid));
+                    if (oldUUID != null) {
+                        joError.put("text", "User screen name "+screenNames[i]+" already exists");
+                        joError.put("uuid", oldUUID);
+                        joError.put("created_at", bsl.getUserCreationTime(oldUUID));
+                        joError.put("profile", bsl.getUserProfile(screenNames[i]));
+                    } else
+                        joError.put("text", "Unable to add the user");
 
-		            jaSuccess.put(joUser);
+                    jaErrors.put(joError);
 		        }
 		    }
 		    catch (JSONException e) {
