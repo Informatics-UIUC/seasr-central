@@ -1,6 +1,45 @@
 /**
  *
+ * University of Illinois/NCSA
+ * Open Source License
+ *
+ * Copyright (c) 2008, NCSA.  All rights reserved.
+ *
+ * Developed by:
+ * The Automated Learning Group
+ * University of Illinois at Urbana-Champaign
+ * http://www.seasr.org
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal with the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ *
+ * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimers.
+ *
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimers in
+ * the documentation and/or other materials provided with the distribution.
+ *
+ * Neither the names of The Automated Learning Group, University of
+ * Illinois at Urbana-Champaign, nor the names of its contributors may
+ * be used to endorse or promote products derived from this Software
+ * without specific prior written permission.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
+ *
  */
+
 package org.seasr.central.test.storage;
 
 import static org.junit.Assert.assertEquals;
@@ -46,7 +85,7 @@ public class BackendStorageLinkTest {
 	private static final String TEST_USER = "test";
 
 	/** The property file containing the connection information */
-	private static final String DB_PROPERTY_FILE = "conf"+File.separator+"scs-store-sqlite.xml";
+	private static final String DB_PROPERTY_FILE = "conf" + File.separator + "scs-store-sqlite.xml";
 
 	/** The loaded property file */
 	protected static Properties props;
@@ -59,18 +98,19 @@ public class BackendStorageLinkTest {
 		try {
 			props = new Properties();
 			props.loadFromXML(new FileInputStream(new File(DB_PROPERTY_FILE)));
-			if ( !props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER) ) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER);
-			if ( !props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_URL) ) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_URL);
-			if ( !props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_USER) ) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_USER);
-			if ( !props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD) ) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD);
-			if ( !props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DB) ) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DB);
-		} catch (IOException e) {
-			fail("Failed to load property file. "+e.toString());
+			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER))   fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER);
+			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_URL))      fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_URL);
+			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_USER))     fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_USER);
+			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD)) fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD);
+			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DB))       fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DB);
+		}
+		catch (IOException e) {
+			fail("Failed to load property file. " + e.toString());
 		}
 
 		try {
 			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
-			if ( !bsl.init(props) )
+			if (!bsl.init(props))
 				fail("Failed to initialize the back end link");
 		}
 		catch (Exception e) {
@@ -91,69 +131,68 @@ public class BackendStorageLinkTest {
 			profile.put("screen_name", user);
 			profile.put("tested_at", new Date());
 		}
-		catch ( JSONException e ) {
+		catch (JSONException e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());
 		}
+
 		return profile;
 	}
 
 	@Test
 	public void testCRUDCycle () {
-
 		long lUsers = bsl.userCount();
 		String sUser = generateTestUserScreenName();
 		JSONObject profile = createProfile(sUser);
+
 		try {
 			UUID uuid = bsl.addUser(sUser, "password", profile );
 
 			assertNotNull(uuid);
-			assertEquals(lUsers+1,bsl.userCount());
-			assertEquals(uuid,bsl.getUserUUID(sUser));
-			assertEquals(sUser,bsl.getUserScreenName(uuid));
+			assertEquals(lUsers+1, bsl.userCount());
+			assertEquals(uuid, bsl.getUserUUID(sUser));
+			assertEquals(sUser, bsl.getUserScreenName(uuid));
 			assertNotNull(bsl.getUserCreationTime(sUser));
 			assertNotNull(bsl.getUserCreationTime(uuid));
-			assertEquals(profile.toString(),bsl.getUserProfile(sUser).toString());
-			assertEquals(profile.toString(),bsl.getUserProfile(uuid).toString());
+			assertEquals(profile.toString(), bsl.getUserProfile(sUser).toString());
+			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
 			profile.put("tested_at", new Date());
-			assertEquals(true,bsl.updateProfile(uuid,profile));
-			assertEquals(profile.toString(),bsl.getUserProfile(sUser).toString());
-			assertEquals(profile.toString(),bsl.getUserProfile(uuid).toString());
+			assertEquals(true, bsl.updateProfile(uuid,profile));
+			assertEquals(profile.toString(), bsl.getUserProfile(sUser).toString());
+			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
 			profile.put("tested_at", new Date());
-			assertEquals(true,bsl.updateProfile(sUser,profile));
-			assertEquals(profile.toString(),bsl.getUserProfile(sUser).toString());
-			assertEquals(profile.toString(),bsl.getUserProfile(uuid).toString());
+			assertEquals(true, bsl.updateProfile(sUser,profile));
+			assertEquals(profile.toString(), bsl.getUserProfile(sUser).toString());
+			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
-			assertEquals(true,bsl.isUserPasswordValid(sUser, "password"));
-			assertEquals(true,bsl.isUserPasswordValid(uuid, "password"));
-			assertEquals(true,bsl.updateUserPassword(uuid,"new_password"));
-			assertEquals(true,bsl.isUserPasswordValid(sUser, "new_password"));
-			assertEquals(true,bsl.isUserPasswordValid(uuid, "new_password"));
-			assertEquals(true,bsl.updateUserPassword(sUser, "new_password2"));
-			assertEquals(true,bsl.isUserPasswordValid(sUser, "new_password2"));
-			assertEquals(true,bsl.isUserPasswordValid(uuid, "new_password2"));
+			assertEquals(true, bsl.isUserPasswordValid(sUser, "password"));
+			assertEquals(true, bsl.isUserPasswordValid(uuid, "password"));
+			assertEquals(true, bsl.updateUserPassword(uuid,"new_password"));
+			assertEquals(true, bsl.isUserPasswordValid(sUser, "new_password"));
+			assertEquals(true, bsl.isUserPasswordValid(uuid, "new_password"));
+			assertEquals(true, bsl.updateUserPassword(sUser, "new_password2"));
+			assertEquals(true, bsl.isUserPasswordValid(sUser, "new_password2"));
+			assertEquals(true, bsl.isUserPasswordValid(uuid, "new_password2"));
 
 			assertEquals(true, bsl.removeUser(uuid));
-			assertEquals(lUsers,bsl.userCount());
+			assertEquals(lUsers, bsl.userCount());
 
 			sUser = generateTestUserScreenName();
 			uuid = bsl.addUser(sUser, "admin", profile );
-			assertEquals(lUsers+1,bsl.userCount());
+			assertEquals(lUsers+1, bsl.userCount());
 			assertEquals(true, bsl.removeUser(sUser));
-			assertEquals(lUsers,bsl.userCount());
+			assertEquals(lUsers, bsl.userCount());
 
 			assertEquals(bsl.userCount(), bsl.listUsers(0, 1000).length());
-
 		}
-		catch ( Exception e ) {
+		catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());
 		}
-
 	}
 
 	/** Generates a new test user screen name
@@ -161,9 +200,6 @@ public class BackendStorageLinkTest {
 	 * @return The new test user screen name
 	 */
 	public static String generateTestUserScreenName() {
-		return TEST_USER+"_"+System.currentTimeMillis()+"_"+Math.abs(rnd.nextInt());
+		return TEST_USER + "_" + System.currentTimeMillis() + "_" + Math.abs(rnd.nextInt());
 	}
-
-
-
 }

@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.ContentType_SmartGWT;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
@@ -61,6 +62,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
 
@@ -73,7 +75,7 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
         supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
         supportedResponseTypes.put("html", ContentType.TEXT_HTML);
         supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+        supportedResponseTypes.put("sgwt", ContentType_SmartGWT);
     }
 
     @Override
@@ -83,7 +85,7 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(.*)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/users/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -97,10 +99,19 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
             return true;
         }
 
-        String userName = values[0];
+        String screenName = null;
+        UUID uuid = null;
 
-        UUID uuid = bsl.getUserUUID(userName);
-        if (uuid == null) {
+        try {
+            uuid = UUID.fromString(values[0]);
+            screenName = bsl.getUserScreenName(uuid);
+        }
+        catch (IllegalArgumentException e) {
+            screenName = values[0];
+            uuid = bsl.getUserUUID(screenName);
+        }
+
+        if (uuid == null || screenName == null) {
             sendErrorNotFound(response);
             return true;
         }
@@ -110,9 +121,9 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
         try {
             JSONObject joUser = new JSONObject();
             joUser.put("uuid", uuid.toString());
-            joUser.put("screen_name", userName);
-            joUser.put("created_at", bsl.getUserCreationTime(userName));
-            joUser.put("profile", bsl.getUserProfile(userName));
+            joUser.put("screen_name", screenName);
+            joUser.put("created_at", bsl.getUserCreationTime(screenName));
+            joUser.put("profile", bsl.getUserProfile(screenName));
 
             ja.put(joUser);
         }
@@ -124,8 +135,8 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
 
         try {
             JSONObject joContent = new JSONObject();
-            joContent.put("ok", ja);
-            joContent.put("fail", new JSONArray());
+            joContent.put(OperationResult.SUCCESS.name(), ja);
+            joContent.put(OperationResult.FAILURE.name(), new JSONArray());
 
             sendContent(response, joContent, ct);
         }

@@ -42,11 +42,8 @@
 
 package org.seasr.central.ws.restlets;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.io.StringReader;
 import java.util.Date;
 import java.util.Enumeration;
@@ -83,6 +80,16 @@ import com.hp.hpl.jena.rdf.model.Model;
  */
 public class Tools {
 
+    /** Define the SmartGWT ContentType */
+    public static final ContentType ContentType_SmartGWT =
+        new ContentType("smartgwt/json;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
+
+    /** Define the RDF format types RDF, TTL, NT */
+    public enum RDFFormat { RDF, TTL, NT }
+
+    /** Defines the possible REST operation results */
+    public enum OperationResult { SUCCESS, FAILURE };
+
 	/** The formatter class to use for the central SC logger.
 	 *
 	 * @author xavier
@@ -118,7 +125,7 @@ public class Tools {
 
             srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
 
-            return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS [%s]: %s\t[%s.%s]%n",
+            return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
                     record.getLevel(), msg, srcClassName, srcMethodName, new Date(record.getMillis()));
         }
     }
@@ -156,20 +163,11 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response status to OK.
-	 *
-	 * @param response The response object
-	 */
-	public static void setStatusOK ( HttpServletResponse response ) {
-		response.setStatus(HttpServletResponse.SC_OK);
-	}
-
-	/**
 	 * Sets the servlet response code to unauthorized.
 	 *
 	 * @param response The response object
 	 */
-	public static void sendErrorUnauthorized ( HttpServletResponse response ) {
+	public static void sendErrorUnauthorized(HttpServletResponse response) {
 		try {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
         }
@@ -183,7 +181,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void sendErrorNotFound ( HttpServletResponse response ) {
+	public static void sendErrorNotFound(HttpServletResponse response) {
 	    try {
 	        response.sendError(HttpServletResponse.SC_NOT_FOUND);
 	    }
@@ -197,7 +195,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void sendErrorForbidden ( HttpServletResponse response ) {
+	public static void sendErrorForbidden(HttpServletResponse response) {
 	    try {
 	        response.sendError(HttpServletResponse.SC_FORBIDDEN);
 	    }
@@ -211,7 +209,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void sendErrorBadRequest ( HttpServletResponse response ) {
+	public static void sendErrorBadRequest(HttpServletResponse response) {
 	    try {
 	        response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 	    }
@@ -225,7 +223,7 @@ public class Tools {
 	 *
 	 * @param response The response object
 	 */
-	public static void sendErrorExpectationFail ( HttpServletResponse response ) {
+	public static void sendErrorExpectationFail(HttpServletResponse response) {
 	    try {
 	        response.sendError(HttpServletResponse.SC_EXPECTATION_FAILED);
 	    }
@@ -277,48 +275,12 @@ public class Tools {
     }
 
 	/**
-	 * Sets the servlet content type to text/plain
-	 *
-	 * @param response The response object
-	 */
-	public static void contentTextPlain ( HttpServletResponse response ) {
-		response.setContentType("text/plain");
-	}
-
-	/**
-	 * Sets the servlet response content type to json
-	 *
-	 * @param response The response object
-	 */
-	public static void contentAppJSON ( HttpServletResponse response ) {
-		response.setContentType("application/json");
-	}
-
-	/**
-	 * Sets the servlet response content type to xml
-	 *
-	 * @param response The response object
-	 */
-	public static void contentAppXML ( HttpServletResponse response ) {
-		response.setContentType("application/xml");
-	}
-
-	/**
-	 * Sets the servlet response content type to html.
-	 *
-	 * @param response The response object
-	 */
-	public static void contentAppHTML ( HttpServletResponse response ) {
-		response.setContentType("text/html");
-	}
-
-	/**
 	 * Sets the servlet response content type to html.
 	 *
 	 * @param response The response object
 	 * @throws IOException A problem thrown while writing the content
 	 */
-	public static void sendRawContent ( HttpServletResponse response, Object content ) {
+	public static void sendRawContent(HttpServletResponse response, Object content) {
 		try {
 			response.getWriter().print(content.toString());
 		} catch (IOException e) {
@@ -336,62 +298,75 @@ public class Tools {
 	 * @param format The format
 	 * @throws IOException Problem thrown while writing to the response
 	 */
-	public static void sendRDFModel ( HttpServletResponse response, Model model, String format )
+	public static void sendRDFModel(HttpServletResponse response, Model model, RDFFormat format)
 	throws IOException {
-		if (format.equals("rdf") )  {
-			contentAppXML(response);
-			model.write(response.getOutputStream(),"RDF/XML-ABBREV");
-		}
-		else if ( format=="ttl" ) {
-			contentTextPlain(response);
-			model.write(response.getOutputStream(),"TTL");
-		}
-		else if ( format=="nt" ) {
-			contentTextPlain(response);
-			model.write(response.getOutputStream(),"N-TRIPLE");
-		}
-		else
-			sendErrorNotFound(response);
+	    switch (format) {
+	        case RDF:
+	            response.setContentType(ContentType.APPLICATION_XML.toString());
+	            model.write(response.getOutputStream(), "RDF/XML-ABBREV");
+	            break;
+
+	        case TTL:
+	            response.setContentType(ContentType.TEXT_PLAIN.toString());
+	            model.write(response.getOutputStream(), "TTL");
+	            break;
+
+	        case NT:
+	            response.setContentType(ContentType.TEXT_PLAIN.toString());
+	            model.write(response.getOutputStream(), "N-TRIPLE");
+	            break;
+
+	        default:
+	            throw new RuntimeException("Invalid RDF format specified");
+	    }
 	}
 
-	public static void sendContent ( HttpServletResponse response, JSONObject content, ContentType contentType )
+	public static void sendContent(HttpServletResponse response, JSONObject content, ContentType contentType)
 	throws IOException {
+
+	    response.setContentType(contentType.toString());
 
 	    // JSON
 	    if (contentType.equals(ContentType.JSON)) {
-			contentAppJSON(response);
 			sendRawContent(response, content);
 		}
 
 		else
 
+		// SmartGWT
+		if (contentType.equals(ContentType_SmartGWT)) {
+		    System.out.println(contentType);
+		}
+
+		else
+
 		// XML
-		if (contentType.getSubType().equals("xml"))  {
-			try {
-				contentAppXML(response);
-				String xmlc = XML.toString(content,"meandre_item");
-				sendRawContent(response, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><meandre_response>");
-				sendRawContent(response, xmlc);
-				sendRawContent(response, "</meandre_response>");
-			} catch (JSONException e) {
-				logger.warning(exceptionToText(e));
-			}
+		if (contentType.equals(ContentType.APPLICATION_XML)) {
+		    try {
+                String xmlc = XML.toString(content, "meandre_item");
+                sendRawContent(response, "<?xml version='1.0' encoding='UTF-8'?><meandre_response>");
+                sendRawContent(response, xmlc);
+                sendRawContent(response, "</meandre_response>");
+            }
+            catch (JSONException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
+            }
 		}
 
 		else
 
 		// HTML
-		if (contentType.getSubType().equals("html")) {
+		if (contentType.equals(ContentType.TEXT_HTML)) {
 			try {
-				contentAppHTML(response);
-				String xmlc = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><meandre_response>";
-				xmlc += XML.toString(content,"meandre_item");
+				String xmlc = "<?xml version='1.0' encoding='UTF-8'?><meandre_response>";
+				xmlc += XML.toString(content, "meandre_item");
 				xmlc += "</meandre_response>";
 				StreamSource xmlSource = new StreamSource(new StringReader(xmlc));
 		        StreamResult result = new StreamResult(response.getOutputStream());
 		        xslTrans.transform(xmlSource, result);
-			} catch (Exception e) {
-				logger.warning(exceptionToText(e));
+			}
+			catch (Exception e) {
+			    logger.log(Level.SEVERE, e.getMessage(), e);
 			}
 		}
 
@@ -399,17 +374,16 @@ public class Tools {
 
 		// TXT
 		if (contentType.equals(ContentType.TEXT_PLAIN)) {
-			contentTextPlain(response);
 			try {
 				sendRawContent(response, content.toString(4));
-			} catch (JSONException e) {
-				logger.warning(exceptionToText(e));
+			}
+			catch (JSONException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
 			}
 		}
 
 		else
-
-		sendErrorNotFound(response);
+		    sendErrorNotFound(response);
 	}
 
 	/**
@@ -417,28 +391,16 @@ public class Tools {
 	 * to the request.
 	 */
 	@SuppressWarnings("unchecked")
-	public static Map<String, String[]> extractTextPayloads ( HttpServletRequest request ) {
-		Map<String,String[]> map = new HashMap<String,String[]>();
+	public static Map<String, String[]> extractTextPayloads(HttpServletRequest request) {
+		Map<String, String[]> map = new HashMap<String, String[]>();
 
 		Enumeration it = request.getParameterNames();
-		while  ( it.hasMoreElements() ) {
+		while (it.hasMoreElements()) {
 			String name = it.nextElement().toString();
 			String[] values = request.getParameterValues(name);
 			map.put(name,values);
 		}
-		return map;
-	}
 
-	/**
-	 * Given an exception returns the text including its stack trace.
-	 *
-	 * @param e The exception to convert
-	 * @return The exception text including the stack trace
-	 */
-	public static String exceptionToText ( Exception e ) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		PrintWriter pw = new PrintWriter(new OutputStreamWriter(baos));
-		e.printStackTrace(pw);
-		return baos.toString();
+		return map;
 	}
 }

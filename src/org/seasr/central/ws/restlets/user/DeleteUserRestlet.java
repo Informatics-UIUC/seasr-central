@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.ContentType_SmartGWT;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
@@ -61,6 +62,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
 
@@ -79,7 +81,7 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
         supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
         supportedResponseTypes.put("html", ContentType.TEXT_HTML);
         supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+        supportedResponseTypes.put("sgwt", ContentType_SmartGWT);
     }
 
     @Override
@@ -89,7 +91,7 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 
 	@Override
 	public String getRestContextPathRegexp() {
-		return "/services/users/(.*)(?:/|" + regexExtensionMatcher() + ")?$";
+		return "/services/users/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
 	}
 
 	@Override
@@ -103,10 +105,19 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 	        return true;
 	    }
 
-	    String screenName = values[0];
+	    String screenName = null;
+	    UUID uuid = null;
 
-	    UUID uuid = bsl.getUserUUID(screenName);
-        if (uuid == null) {
+	    try {
+	        uuid = UUID.fromString(values[0]);
+	        screenName = bsl.getUserScreenName(uuid);
+	    }
+	    catch (IllegalArgumentException e) {
+	        screenName = values[0];
+	        uuid = bsl.getUserUUID(screenName);
+	    }
+
+	    if (uuid == null || screenName == null) {
             sendErrorNotFound(response);
             return true;
         }
@@ -140,8 +151,8 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 
 		try {
 		    JSONObject joContent = new JSONObject();
-	        joContent.put("ok", jaSuccess);
-	        joContent.put("fail", jaErrors);
+	        joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
+	        joContent.put(OperationResult.FAILURE.name(), jaErrors);
 
 		    sendContent(response, joContent, ct);
 		}

@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.ContentType_SmartGWT;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
@@ -60,6 +61,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
 
@@ -78,7 +80,7 @@ public class ListUsersRestlet extends BaseAbstractRestlet {
         supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
         supportedResponseTypes.put("html", ContentType.TEXT_HTML);
         supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", new ContentType("application/smartgwt"));
+        supportedResponseTypes.put("sgwt", ContentType_SmartGWT);
     }
 
     @Override
@@ -127,8 +129,8 @@ public class ListUsersRestlet extends BaseAbstractRestlet {
 
 		try {
 		    JSONObject joContent = new JSONObject();
-		    joContent.put("ok", ja);
-		    joContent.put("fail", new JSONArray());
+		    joContent.put(OperationResult.SUCCESS.name(), ja);
+		    joContent.put(OperationResult.FAILURE.name(), new JSONArray());
 
 			sendContent(response, joContent, ct);
 		}
