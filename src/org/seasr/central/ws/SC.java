@@ -198,7 +198,7 @@ public class SC {
 			Properties propStore = new Properties();
 			propStore.loadFromXML(new FileInputStream(sConfFolder+File.separator+sConfStr));
 			basd = (BackendStorageLink) Class.forName(propStore.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
-			if ( !basd.init(propStore) )
+			if (!basd.init(propStore))
 				throw new Exception("Failed to instantiate the backend link");
 
 			// Start the web server
