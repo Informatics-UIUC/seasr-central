@@ -27,10 +27,11 @@
   	</Call>
   </New>
 
-  <!-- The rest servlet definitions -->
+  <!-- The REST servlet definitions -->
 
+  <!-- User -->
   <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
-  	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
   <New id="userDelete" class="org.seasr.central.ws.restlets.user.DeleteUserRestlet">
   	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
@@ -44,15 +45,31 @@
   <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
     <Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
+  <New id="userFlowUpload" class="org.seasr.central.ws.restlets.user.UploadFlowRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
 
-  <!-- User rest servlet dispatcher -->
+  <!-- Repository -->
+  <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
+  <New id="repositoryRetrieveFlow" class="org.seasr.central.ws.restlets.repository.RetrieveFlowRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
 
-  <New id="userRED" class="org.seasr.central.ws.restlets.RestfullExtensibleDispatcher">
+  <!-- User REST servlet dispatcher -->
+  <New id="userRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
   		<Call name="add"><Arg><Ref id="userAdd"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userDelete"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userInfo"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userComponentUpload"/></Arg></Call>
+  </New>
+
+  <!-- Repository REST servlet dispatcher -->
+  <New id="repositoryRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+        <Call name="add"><Arg><Ref id="repositoryRetrieveComponent"/></Arg></Call>
+        <Call name="add"><Arg><Ref id="repositoryRetrieveFlow"/></Arg></Call>
   </New>
 
   <!-- The basic contexts available -->
@@ -73,6 +90,17 @@
   			</Call>
   		</New>
   	  </Item>
+      <Item>
+        <New id="repositoryContext" class="org.mortbay.jetty.servlet.Context">
+            <Set name="contextPath">/repository</Set>
+            <Call name="addServlet">
+                <Arg>
+                    <New class="org.mortbay.jetty.servlet.ServletHolder"><Arg><Ref id="repositoryRED"/></Arg></New>
+                </Arg>
+                <Arg>/</Arg>
+            </Call>
+        </New>
+      </Item>
   	  <Item>
   		<New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
   			<Set name="contextPath">/logs</Set>

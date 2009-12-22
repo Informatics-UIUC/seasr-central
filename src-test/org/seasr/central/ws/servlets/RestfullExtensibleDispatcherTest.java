@@ -63,7 +63,7 @@ import org.mortbay.jetty.servlet.ServletHolder;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.ws.SC;
 import org.seasr.central.ws.restlets.RestServlet;
-import org.seasr.central.ws.restlets.RestfullExtensibleDispatcher;
+import org.seasr.central.ws.restlets.RestfulExtensibleDispatcher;
 import org.seasr.meandre.support.generic.io.HttpUtils;
 
 import com.google.gdata.util.ContentType;
@@ -143,7 +143,7 @@ public class RestfullExtensibleDispatcherTest {
 	public void setUpFixture() {
 		server = new Server(TEST_SERVER_PORT);
 		Context context = new Context(server, "/", Context.NO_SESSIONS);
-		RestfullExtensibleDispatcher red = new RestfullExtensibleDispatcher();
+		RestfulExtensibleDispatcher red = new RestfulExtensibleDispatcher();
 		red.add(new TestRestlet());
 		context.addServlet(new ServletHolder(red), "/*");
 

@@ -64,7 +64,7 @@ import org.mortbay.jetty.servlet.ServletHolder;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.test.storage.BackendStorageLinkTest;
 import org.seasr.central.ws.restlets.RestServlet;
-import org.seasr.central.ws.restlets.RestfullExtensibleDispatcher;
+import org.seasr.central.ws.restlets.RestfulExtensibleDispatcher;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 import org.seasr.central.ws.restlets.user.AddUserRestlet;
 import org.seasr.central.ws.restlets.user.DeleteUserRestlet;
@@ -100,7 +100,7 @@ public class UserRestletTest {
 	public void setUpFixture() {
 		server = new Server(TEST_SERVER_PORT);
 		Context context = new Context(server, "/", Context.NO_SESSIONS);
-		RestfullExtensibleDispatcher red = new RestfullExtensibleDispatcher();
+		RestfulExtensibleDispatcher red = new RestfulExtensibleDispatcher();
 		RestServlet[] rsa = {
 				new AddUserRestlet(),
 				new DeleteUserRestlet(),

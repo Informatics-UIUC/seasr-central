@@ -49,6 +49,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
@@ -79,10 +80,6 @@ import com.hp.hpl.jena.rdf.model.Model;
  *
  */
 public class Tools {
-
-    /** Define the SmartGWT ContentType */
-    public static final ContentType ContentType_SmartGWT =
-        new ContentType("smartgwt/json;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
 
     /** Define the RDF format types RDF, TTL, NT */
     public enum RDFFormat { RDF, TTL, NT }
@@ -140,16 +137,24 @@ public class Tools {
 	static {
 		// Initialize the logger
 		logger = Logger.getLogger(Tools.class.getName());
-		FileHandler handler;
 		try {
-			handler = new FileHandler("logs"+File.separator+"scapi.log",true);
-			handler.setFormatter(new SCAPIFormatter());
-	        logger.addHandler(handler);
-		} catch (SecurityException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
+		    FileHandler fileHandler = new FileHandler("logs" + File.separator + "scapi.log", true);
+			fileHandler.setFormatter(new SCAPIFormatter());
+
+			ConsoleHandler consoleHandler = new ConsoleHandler();
+			consoleHandler.setFormatter(new SCAPIFormatter());
+
+	        logger.addHandler(fileHandler);
+	        logger.addHandler(consoleHandler);
 		}
+		catch (SecurityException e) {
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		logger.setLevel(Level.ALL);
 
 		// Initialize the transformation engine
 		String xsltFile = Tools.class.getSimpleName()+".xslt";
@@ -334,7 +339,7 @@ public class Tools {
 		else
 
 		// SmartGWT
-		if (contentType.equals(ContentType_SmartGWT)) {
+		if (contentType.equals(ContentTypes.SmartGWT)) {
 		    System.out.println(contentType);
 		}
 

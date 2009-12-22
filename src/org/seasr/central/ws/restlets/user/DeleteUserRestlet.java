@@ -42,7 +42,6 @@
 
 package org.seasr.central.ws.restlets.user;
 
-import static org.seasr.central.ws.restlets.Tools.ContentType_SmartGWT;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
@@ -64,6 +63,7 @@ import org.json.JSONObject;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
+import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
@@ -83,7 +83,7 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
         supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
         supportedResponseTypes.put("html", ContentType.TEXT_HTML);
         supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", ContentType_SmartGWT);
+        supportedResponseTypes.put("sgwt", ContentTypes.SmartGWT);
     }
 
     @Override

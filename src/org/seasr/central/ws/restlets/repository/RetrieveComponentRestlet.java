@@ -40,47 +40,30 @@
  *
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.repository;
 
-import static org.seasr.central.ws.restlets.Tools.logger;
-import static org.seasr.central.ws.restlets.Tools.sendContent;
-import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
-import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
-import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
 
-/**
- * This servlet implements list user functionality.
- *
- * @author xavier
- * @author Boris Capitanu
- */
-public class ListUsersRestlet extends AbstractBaseRestlet {
+
+public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
     static {
-        supportedResponseTypes.put("json", ContentType.JSON);
-        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
-        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
-        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", ContentTypes.SmartGWT);
+        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
+        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
+        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
     }
 
     @Override
@@ -88,15 +71,15 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
         return supportedResponseTypes;
     }
 
-	@Override
-	public String getRestContextPathRegexp() {
-		return "/services/users/(?:" + regexExtensionMatcher() + ")?$";
-	}
+    @Override
+    public String getRestContextPathRegexp() {
+        return "/repository/component/(.+)/(.+)/?(?:" + regexExtensionMatcher() + ")?$";
+    }
 
-	@Override
-	public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-	    // check for GET
-	    if (!method.equalsIgnoreCase("GET")) return false;
+    @Override
+    public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
+        // Check for GET
+        if (!method.equalsIgnoreCase("GET")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
@@ -104,46 +87,10 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-		long offset = 0;
-		long count  = Long.MAX_VALUE;
+        String sComponentId = values[0];
+        String sComponentVersion = values[1];
 
-		String sOffset = request.getParameter("offset");
-		String sCount = request.getParameter("count");
+        return true;
+    }
 
-		try {
-		    if (sOffset != null ) offset = Long.parseLong(sOffset);
-		    if (sCount != null ) count = Long.parseLong(sCount);
-		}
-		catch (NumberFormatException e) {
-            logger.log(Level.WARNING, e.getMessage(), e);
-            sendErrorBadRequest(response);
-            return true;
-		}
-
-		JSONArray ja = bsl.listUsers(offset, count);
-		if (ja == null) {
-		    logger.log(Level.SEVERE, "listUsers() returned null - possible SQLException");
-		    sendErrorInternalServerError(response);
-		    return true;
-		}
-
-		try {
-		    JSONObject joContent = new JSONObject();
-		    joContent.put(OperationResult.SUCCESS.name(), ja);
-		    joContent.put(OperationResult.FAILURE.name(), new JSONArray());
-
-		    response.setStatus(HttpServletResponse.SC_OK);
-
-			sendContent(response, joContent, ct);
-		}
-		catch (JSONException e) {
-		    // should not happen
-	        logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		catch (IOException e) {
-	         logger.log(Level.WARNING, e.getMessage(), e);
-		}
-
-		return true;
-	}
 }
