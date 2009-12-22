@@ -96,8 +96,14 @@ public class BackendStorageLinkTest {
 	@BeforeClass
 	public static void setUp () {
 		try {
+		    File dbFile = File.createTempFile("SCStore-test", ".sqlite");
+		    dbFile.deleteOnExit();
+
 			props = new Properties();
 			props.loadFromXML(new FileInputStream(new File(DB_PROPERTY_FILE)));
+	        props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL,
+	                "jdbc:sqlite:" + dbFile.getAbsolutePath());
+
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER))   fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER);
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_URL))      fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_URL);
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_USER))     fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_USER);
@@ -111,7 +117,7 @@ public class BackendStorageLinkTest {
 		try {
 			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
 			if (!bsl.init(props))
-				fail("Failed to initialize the back end link");
+				fail("Failed to initialize the backend link");
 		}
 		catch (Exception e) {
 			fail("Failed to load property file. "+e.toString());

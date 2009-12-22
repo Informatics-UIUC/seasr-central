@@ -45,11 +45,13 @@ package org.seasr.central.ws.servlets;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_LINK;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Properties;
 
@@ -57,6 +59,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
@@ -93,6 +96,19 @@ public class UserRestletTest {
 	/** The property file containing the connection information */
 	private static final String DB_PROPERTY_FILE = "conf" + File.separator + "scs-store-sqlite.xml";
 
+	private static File dbFile;
+
+	@BeforeClass
+	public static void setUp() {
+	    try {
+            dbFile = File.createTempFile("SCStore-test", ".sqlite");
+            dbFile.deleteOnExit();
+        }
+        catch (IOException e) {
+            fail("Failed to create test database file. Reason: " + e.getMessage());
+        }
+	}
+
 	/** Sets up the fixture starting a test server
 	 *
 	 */
@@ -111,9 +127,12 @@ public class UserRestletTest {
 		Properties props = new Properties();
 		try {
 			props.loadFromXML(new FileInputStream(DB_PROPERTY_FILE));
+			props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL,
+			        "jdbc:sqlite:" + dbFile.getAbsolutePath());
+
 			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
 			if (!bsl.init(props))
-				fail("Failed to initialize the back end link");
+				fail("Failed to initialize the backend link");
 
 			for (RestServlet rs : rsa) {
 				rs.setBackendStoreLink(bsl);
