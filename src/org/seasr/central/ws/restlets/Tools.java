@@ -163,7 +163,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to unauthorized.
+	 * Sets the servlet response code to unauthorized (401)
 	 *
 	 * @param response The response object
 	 */
@@ -177,7 +177,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to not found.
+	 * Sets the servlet response code to not found (404)
 	 *
 	 * @param response The response object
 	 */
@@ -191,7 +191,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to forbidden.
+	 * Sets the servlet response code to forbidden (403)
 	 *
 	 * @param response The response object
 	 */
@@ -205,7 +205,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to bad request.
+	 * Sets the servlet response code to bad request (400)
 	 *
 	 * @param response The response object
 	 */
@@ -219,7 +219,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to expectation failed.
+	 * Sets the servlet response code to expectation failed (417)
 	 *
 	 * @param response The response object
 	 */
@@ -233,7 +233,7 @@ public class Tools {
 	}
 
 	/**
-	 * Sets the servlet response code to unsupported media type
+	 * Sets the servlet response code to unsupported media type (415)
 	 *
 	 * @param response The response object
 	 */
@@ -247,7 +247,7 @@ public class Tools {
 	}
 
 	/**
-     * Sets the servlet response code to internal server error
+     * Sets the servlet response code to internal server error (500)
      *
      * @param response The response object
      */
@@ -261,7 +261,7 @@ public class Tools {
     }
 
 	/**
-     * Sets the servlet response code to not acceptable
+     * Sets the servlet response code to not acceptable (406)
      *
      * @param response The response object
      */
@@ -383,7 +383,7 @@ public class Tools {
 		}
 
 		else
-		    sendErrorNotFound(response);
+		    sendErrorNotAcceptable(response);
 	}
 
 	/**

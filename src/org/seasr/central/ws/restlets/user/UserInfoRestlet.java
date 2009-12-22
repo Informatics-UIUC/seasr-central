@@ -61,12 +61,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
 
-public class UserInfoRestlet extends BaseAbstractRestlet {
+public class UserInfoRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -137,6 +137,8 @@ public class UserInfoRestlet extends BaseAbstractRestlet {
             JSONObject joContent = new JSONObject();
             joContent.put(OperationResult.SUCCESS.name(), ja);
             joContent.put(OperationResult.FAILURE.name(), new JSONArray());
+
+            response.setStatus(HttpServletResponse.SC_OK);
 
             sendContent(response, joContent, ct);
         }

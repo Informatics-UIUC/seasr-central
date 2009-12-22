@@ -41,7 +41,9 @@
   <New id="userInfo" class="org.seasr.central.ws.restlets.user.UserInfoRestlet">
     <Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
-
+  <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
 
   <!-- User rest servlet dispatcher -->
 
@@ -50,6 +52,7 @@
   		<Call name="add"><Arg><Ref id="userDelete"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userInfo"/></Arg></Call>
+  		<Call name="add"><Arg><Ref id="userComponentUpload"/></Arg></Call>
   </New>
 
   <!-- The basic contexts available -->

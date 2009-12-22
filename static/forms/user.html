@@ -1,44 +1,107 @@
 <html>
 <body>
 
-<h3>Add a user</h3>
-<form method="POST" action="/services/users/">
-<table>
-<tr><td>Screen name:</td><td><input type="text" name="screen_name"></td></tr>
-<tr><td>Password:</td><td<input type="password" name="password"></td></tr>
-<tr><td>Profile:</td><td<textarea name="profile">{"foo":"true"}</textarea></td></tr>
-<tr><td colspan="2"><input type="submit"> <input type="reset"></td></tr>
-</table>
-</form>
-
 <script>
-function delUser() {
-	var req = new XMLHttpRequest();
-	var elm = document.getElementById("remove_screen_name");
+function actionBuilder(form) {
+    var re = new RegExp("\\[(.+?)\\]", "g");
+    var paramAction = form.attributes["paramAction"];
 
-	function delHandler(evt) {
-		if (evt.target.readyState == 4 && evt.target.status == 200) {
-			elm.value="";
-			alert("User deleted!");
-		} else {
-			alert("There was a problem");
+    if (paramAction != null) {
+	    var str = paramAction.value;
+
+		do {
+			var result = re.exec(str);
+			if (result != null)
+				  str = str.replace(result[0], form[result[1]].value);
 		}
+		while (result != null);
+
+		form.action = str;
+    }
+
+	function actionHandler(evt) {
+		if (evt.target.readyState == 4 && evt.target.status == 200) {
+			alert("Request successful");
+		} else
+			alert("There was a problem while processing your request!");
 	}
 
-	if (confirm("Delete user " + elm.value + "?")) {
-		req.onload = delHandler;
-		req.open("DELETE", "/services/users/" + elm.value + ".txt", false);
-		req.send("");
+	if (form.method.toUpperCase() != "GET" && form.method.toUpperCase() != "POST") {
+	    var req = new XMLHttpRequest();
+	    req.onload = actionHandler;
+	    req.open(form.method, form.action, false);
+	    req.send("");
+
+		return false;
 	}
+
+	return true;
 }
 </script>
 
-<h3>Remove a user by screen_name</h3>
-<form action="javascript:;">
+<h3>Add a user</h3>
+<form name="addUser" method="POST" action="/services/users/.txt">
 <table>
-<tr><td>Screen name:</td><td><input id="remove_screen_name" type="text" name="screen_name"></td></tr>
+    <tr>
+        <td>Screen name:</td>
+        <td><input type="text" name="screen_name"></td>
+    </tr>
+    <tr>
+        <td>Password:</td>
+        <td<input type="password" name="password"></td>
+    </tr>
+    <tr>
+        <td>Profile:</td>
+        <td<textarea name="profile">{"foo":"true"}</textarea></td>
+    </tr>
+    <tr>
+        <td colspan="2"><input type="submit" onClick="return actionBuilder(document.addUser);"> <input type="reset"></td>
+    </tr>
 </table>
-<button name="delete" onclick="delUser();">Delete</button>
 </form>
 
+<h3>Remove a user</h3>
+<form name="removeUser" method="DELETE" paramAction="/services/users/[screen_name].txt">
+<table>
+	<tr>
+		<td>Screen name:</td>
+		<td><input type="text" name="screen_name"></td>
+	</tr>
+	<tr>
+		<td colspan="2"><input type="submit" value="Delete" onClick="return actionBuilder(document.removeUser);"></td>
+	</tr>
+</table>
+</form>
 </html>
+
+<h3>List users</h3>
+<a href="/services/users/.txt">Show users</a>
+
+<h3>Upload component</h3>
+<form name="uploadComponent" method="POST" enctype="multipart/form-data;charset=UTF-8" paramAction="/services/users/[screen_name]/components.txt">
+<table>
+	<tr>
+		<td>Screen name:</td>
+		<td><input type="text" name="screen_name"></td>
+	</tr>
+	<tr>
+		<td>Component RDF file:</td>
+		<td><input type="file" name="component_rdf"></td>
+	</tr>
+	<tr>
+		<td>Context:</td>
+		<td><input type="file" name="context_0"></td>
+	</tr>
+	<tr>
+		<td>Context:</td>
+		<td><input type="file" name="context_1"></td>
+	</tr>
+	<tr>
+		<td>Context:</td>
+		<td><input type="file" name="context_2"></td>
+	</tr>
+	<tr>
+		<td colspan="2"><input type="submit" value="Upload" onClick="return actionBuilder(document.uploadComponent);"> <input type="reset"></td>
+	</tr>
+</table>
+</form>

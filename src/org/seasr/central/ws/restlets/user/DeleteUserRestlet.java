@@ -63,7 +63,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
-import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
@@ -74,7 +74,7 @@ import com.google.gdata.util.ContentType;
  * @author xavier
  * @author Boris Capitanu
  */
-public class DeleteUserRestlet extends BaseAbstractRestlet {
+public class DeleteUserRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -159,6 +159,8 @@ public class DeleteUserRestlet extends BaseAbstractRestlet {
 		    JSONObject joContent = new JSONObject();
 	        joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
 	        joContent.put(OperationResult.FAILURE.name(), jaErrors);
+
+	        response.setStatus(HttpServletResponse.SC_OK);
 
 		    sendContent(response, joContent, ct);
 		}

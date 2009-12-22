@@ -60,7 +60,7 @@ import com.google.gdata.util.ContentType;
  * @author xavier
  *
  */
-public abstract class BaseAbstractRestlet implements RestServlet {
+public abstract class AbstractBaseRestlet implements RestServlet {
 
 	/** The parent SC object */
 	protected SC sc;

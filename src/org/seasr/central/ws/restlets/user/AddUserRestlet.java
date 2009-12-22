@@ -64,7 +64,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
-import org.seasr.central.ws.restlets.BaseAbstractRestlet;
+import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
@@ -76,7 +76,7 @@ import com.google.gdata.util.ContentType;
  * @author Boris Capitanu
  *
  */
-public class AddUserRestlet extends BaseAbstractRestlet {
+public class AddUserRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
