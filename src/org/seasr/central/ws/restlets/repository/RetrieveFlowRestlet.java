@@ -73,7 +73,7 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/flow/(.+)/(.+)/?(?:" + regexExtensionMatcher() + ")?$";
+        return "/repository/flow/(.+?)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override

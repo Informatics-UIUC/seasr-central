@@ -68,6 +68,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 
@@ -341,6 +343,7 @@ public class Tools {
 		// SmartGWT
 		if (contentType.equals(ContentTypes.SmartGWT)) {
 		    System.out.println(contentType);
+		    throw new NotImplementedException();
 		}
 
 		else

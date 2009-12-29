@@ -43,15 +43,20 @@
 package org.seasr.central.ws.restlets.user;
 
 import static org.seasr.central.ws.restlets.Tools.logger;
+import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
@@ -64,14 +69,20 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
+import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.central.ws.restlets.Tools.OperationResult;
 import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.vocabulary.RDF;
 
 
 public class UploadComponentRestlet extends AbstractBaseRestlet {
@@ -113,7 +124,15 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String screen_name = values[0];
+        UUID uuid = null;
+
+        Properties userProps = getUserScreenNameAndUUID(values[0]);
+        if (userProps != null)
+            uuid = UUID.fromString(userProps.getProperty("uuid"));
+        else {
+            sendErrorNotFound(response);
+            return true;
+        }
 
         ServletFileUpload fileUpload = new ServletFileUpload(new DiskFileItemFactory());
         List<FileItem> files = null;
@@ -128,24 +147,43 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        Map<FileItem, Set<FileItem>> componentsMap = new HashMap<FileItem, Set<FileItem>>();
+        // Mapping between component uri and set of contexts
+        Map<String, Set<FileItem>> componentsMap = new HashMap<String, Set<FileItem>>();
+
+        // Accumulator for the component models
+        Model model = ModelFactory.createDefaultModel();
+
+        String currentComponentResUri = null;
+        boolean skipProcessingContexts = false;
 
         for (FileItem file : files) {
             if (file == null || file.isFormField() || file.getName().length() == 0)
                 continue;
 
+            logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
+
             if (file.getSize() == 0)
                 logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
 
-            logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
-
             if (file.getFieldName().equalsIgnoreCase("component_rdf")) {
                 try {
-                    Model model = ModelUtils.getModel(file.getInputStream(), null);
-                    QueryableRepository qr = new RepositoryImpl(model);
+                    skipProcessingContexts = false;
 
+                    // Read the component model and check that it contains a single executable component
+                    Model compModel = ModelUtils.getModel(file.getInputStream(), null);
+                    List<Resource> compResList = compModel.listSubjectsWithProperty(
+                            RDF.type, RepositoryVocabulary.executable_component).toList();
+                    if (compResList.size() != 1) {
+                        skipProcessingContexts = true;
+                        throw new Exception("RDF descriptor does not contain an executable component, or contains more than one component.");
+                    }
+
+                    // Accumulate and create a new entry in the component context hashmap
+                    model.add(compModel);
+                    currentComponentResUri = compResList.get(0).getURI();
+                    componentsMap.put(currentComponentResUri, new HashSet<FileItem>());
                 }
-                catch (IOException e) {
+                catch (Exception e) {
                     logger.log(Level.WARNING,
                             String.format("Error parsing RDF file '%s'", file.getName()), e);
 
@@ -163,9 +201,72 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                     jaErrors.put(joError);
                 }
             }
+
+            else
+
+            if (file.getFieldName().equalsIgnoreCase("context")) {
+                if (skipProcessingContexts) continue;
+
+                // Sanity check
+                if (currentComponentResUri == null) {
+                    sendErrorBadRequest(response);
+                    return true;
+                }
+
+                // Add the context file to the current component being uploaded
+                componentsMap.get(currentComponentResUri).add(file);
+            }
         }
 
-        response.setStatus(HttpServletResponse.SC_OK);
+        QueryableRepository qr = new RepositoryImpl(model);
+        for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
+            JSONObject joResult = bsl.addComponent(uuid, ecd, componentsMap.get(ecd.getExecutableComponent().getURI()));
+            try {
+                if (joResult.has("error")) {
+                    JSONObject joError = new JSONObject();
+                    joError.put("text", String.format("Failed to add component %s (%s)", ecd.getName(), ecd.getExecutableComponent().getURI()));
+                    joError.put("reason", joResult.getString("error"));
+                    jaErrors.put(joError);
+                } else {
+                    String compUUID = joResult.getString("uuid");
+                    int compVersion = joResult.getInt("version");
+
+                    String compUrl = String.format("%s://%s:%d/repository/component/%s/%d.ttl",
+                            request.getScheme(), request.getServerName(), request.getServerPort(), compUUID, compVersion);
+
+                    JSONObject joComponent = new JSONObject();
+                    joComponent.put("uuid", compUUID);
+                    joComponent.put("version", compVersion);
+                    joComponent.put("url", compUrl);
+                    jaSuccess.put(joComponent);
+                }
+            }
+            catch (JSONException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
+                sendErrorInternalServerError(response);
+                return true;
+            }
+        }
+
+        try {
+            JSONObject joContent = new JSONObject();
+            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(OperationResult.FAILURE.name(), jaErrors);
+
+            if (jaErrors.length() == 0)
+                response.setStatus(HttpServletResponse.SC_CREATED);
+            else
+                response.setStatus(HttpServletResponse.SC_OK);
+
+            sendContent(response, joContent, ct);
+        }
+        catch (JSONException e) {
+            // should not happen
+            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, e.getMessage(), e);
+        }
 
         return true;
     }

@@ -44,10 +44,13 @@ package org.seasr.central.storage;
 
 import java.util.Date;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 
+import org.apache.commons.fileupload.FileItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.meandre.core.repository.ExecutableComponentDescription;
 
 
 /**
@@ -231,6 +234,8 @@ public interface BackendStorageLink {
 	 */
 	public boolean addEvent(SourceType sourceType, UUID uuid, Event event, JSONObject description);
 
+
+	public JSONObject addComponent(UUID userId, ExecutableComponentDescription comp, Set<FileItem> contexts);
 	//-------------------------------------------------------------------------------------
 
 }

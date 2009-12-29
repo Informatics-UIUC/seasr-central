@@ -14,7 +14,7 @@
 	<entry key="org.seasr.central.storage.db.auth.schema">
 		CREATE TABLE IF NOT EXISTS sc_role (uuid CHAR(36) NOT NULL PRIMARY KEY, role VARCHAR(30) NOT NULL);
 		CREATE TABLE IF NOT EXISTS sc_user (uuid CHAR(36) NOT NULL PRIMARY KEY, screen_name VARCHAR(20) NOT NULL UNIQUE, password VARCHAR(80) NOT NULL, created_at DATETIME NOT NULL, profile TEXT NOT NULL DEFAULT "{}", deleted BOOLEAN NOT NULL DEFAULT 0);
-		CREATE TABLE IF NOT EXISTS sc_role_user (user_uuid CHAR(36) NOT NULL CONSTRAINT fk_sc_user REFERENCES sc_user(uuid) ON DELETE CASCADE, role_uuid CHAR(36) NOT NULL CONSTRAINT fk_sc_role REFERENCES sc_role(uuid) ON DELETE CASCADE);
+		CREATE TABLE IF NOT EXISTS sc_role_user (user_uuid CHAR(36) NOT NULL, role_uuid CHAR(36) NOT NULL, FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (role_uuid) REFERENCES sc_role(uuid));
 		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_screen_name ON sc_user(screen_name);
 		CREATE INDEX IF NOT EXISTS sc_user_deleted ON sc_user(deleted);
 		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_role_uuids ON sc_role_user(user_uuid, role_uuid);
@@ -27,7 +27,7 @@
 
 	<entry key="org.seasr.central.storage.db.schema">
         CREATE TABLE IF NOT EXISTS sc_event_codes (evt_code INT NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL);
-        CREATE TABLE IF NOT EXISTS sc_events (source CHAR(1) NOT NULL, uuid CHAR(36) NOT NULL, evt_code INT NOT NULL CONSTRAINT fk_evt_code REFERENCES sc_event_codes(evt_code) ON DELETE CASCADE, description TEXT NOT NULL DEFAULT "{}", timestamp DATETIME NOT NULL);
+        CREATE TABLE IF NOT EXISTS sc_events (source CHAR(1) NOT NULL, uuid CHAR(36) NOT NULL, evt_code INT NOT NULL, description TEXT NOT NULL DEFAULT "{}", timestamp DATETIME NOT NULL, FOREIGN KEY (evt_code) REFERENCES sc_event_codes(evt_code));
 
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (100, "USER_CREATED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (101, "USER_DELETED");
@@ -41,6 +41,9 @@
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (202, "GROUP_RENAMED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (203, "GROUP_JOINED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (204, "GROUP_PARTED");
+
+        CREATE TABLE IF NOT EXISTS sc_component (uuid CHAR(36) NOT NULL, version INT NOT NULL, upload_date DATETIME NOT NULL, deleted BOOLEAN NOT NULL DEFAULT 0, PRIMARY KEY (uuid, version));
+        CREATE TABLE IF NOT EXISTS sc_component_id_map (base_uri VARCHAR(255) NOT NULL, user_uuid CHAR(36) NOT NULL, comp_uuid CHAR(36) NOT NULL, PRIMARY KEY (base_uri, user_uuid), FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (comp_uuid) REFERENCES sc_component(uuid));
 	</entry>
 
     <!-- USER -->
@@ -96,8 +99,25 @@
 		SELECT uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
 	</entry>
 
+
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
         INSERT INTO sc_events (source, uuid, evt_code, description, timestamp) VALUES (?, ?, ? ,?, DATETIME('NOW'));
     </entry>
+
+    <!-- COMPONENTS -->
+    <entry key="org.seasr.central.storage.db.query.component.add">
+        INSERT INTO sc_component (uuid, version, upload_date) VALUES (?, ?, DATETIME('NOW'));
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.id">
+        INSERT INTO sc_component_id_map (base_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.component.id.baseuri.user">
+        SELECT comp_uuid FROM sc_component_id_map WHERE base_uri = ? AND user_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
+        SELECT MAX(version) FROM sc_component WHERE uuid = ?;
+    </entry>
+
+
 </properties>

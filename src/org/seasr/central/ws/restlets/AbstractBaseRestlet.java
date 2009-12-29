@@ -44,6 +44,8 @@ package org.seasr.central.ws.restlets;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -129,5 +131,34 @@ public abstract class AbstractBaseRestlet implements RestServlet {
         }
 
         return ct;
+	}
+
+	/**
+	 * Interprets a string representing either a screen name or UUID
+	 *
+	 * @param screenNameOrUuid The string representing a screen name or UUID
+	 * @return A property map keyed on "uuid" and "screen_name", or null if either could not be determined
+	 */
+	public Properties getUserScreenNameAndUUID(String screenNameOrUuid) {
+	    String screenName = null;
+	    UUID uuid = null;
+
+	    try {
+	        uuid = UUID.fromString(screenNameOrUuid);
+	        screenName = bsl.getUserScreenName(uuid);
+	    }
+	    catch (IllegalArgumentException e) {
+	        screenName = screenNameOrUuid;
+	        uuid = bsl.getUserUUID(screenName);
+	    }
+
+	    if (uuid == null || screenName == null)
+	        return null;
+
+	    Properties result = new Properties();
+	    result.put("uuid", uuid.toString());
+	    result.put("screen_name", screenName);
+
+	    return result;
 	}
 }

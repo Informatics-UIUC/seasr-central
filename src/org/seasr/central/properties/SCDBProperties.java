@@ -73,4 +73,10 @@ public abstract class SCDBProperties extends SCProperties {
 
 	// EVENTS
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
+
+	// COMPONENTS
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD = "org.seasr.central.storage.db.query.component.add";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID = "org.seasr.central.storage.db.query.component.add.id";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER = "org.seasr.central.storage.db.query.component.get.component.id.baseuri.user";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER = "org.seasr.central.storage.db.query.component.get.last.version.number";
 }

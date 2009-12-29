@@ -154,7 +154,7 @@ public class AddUserRestlet extends AbstractBaseRestlet {
                     UUID oldUUID = bsl.getUserUUID(screenNames[i]);
 
                     if (oldUUID != null) {
-                        joError.put("text", "User screen name "+screenNames[i]+" already exists");
+                        joError.put("text", "User screen name " + screenNames[i] + " already exists");
                         joError.put("uuid", oldUUID);
                         joError.put("created_at", bsl.getUserCreationTime(oldUUID));
                         joError.put("profile", bsl.getUserProfile(screenNames[i]));

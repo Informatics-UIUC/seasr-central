@@ -51,6 +51,7 @@ import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -99,19 +100,14 @@ public class UserInfoRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String screenName = null;
         UUID uuid = null;
+        String screenName = null;
 
-        try {
-            uuid = UUID.fromString(values[0]);
-            screenName = bsl.getUserScreenName(uuid);
-        }
-        catch (IllegalArgumentException e) {
-            screenName = values[0];
-            uuid = bsl.getUserUUID(screenName);
-        }
-
-        if (uuid == null || screenName == null) {
+        Properties userProps = getUserScreenNameAndUUID(values[0]);
+        if (userProps != null) {
+            uuid = UUID.fromString(userProps.getProperty("uuid"));
+            screenName = userProps.getProperty("screen_name");
+        } else {
             sendErrorNotFound(response);
             return true;
         }

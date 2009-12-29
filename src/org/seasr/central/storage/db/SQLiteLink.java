@@ -43,6 +43,10 @@
 package org.seasr.central.storage.db;
 
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT;
@@ -68,6 +72,10 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
 import static org.seasr.central.ws.restlets.Tools.logger;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -77,16 +85,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
+import org.apache.commons.fileupload.FileItem;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.meandre.core.repository.ExecutableComponentDescription;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
 import org.seasr.meandre.support.generic.crypto.Crypto;
+
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 
 /**
  * The SQLite driver to create a backend storage link
@@ -94,6 +108,8 @@ import org.seasr.meandre.support.generic.crypto.Crypto;
  * @author xavier
  */
 public class SQLiteLink implements BackendStorageLink {
+
+    private static final String REPOSITORY_FOLDER = "repository";
 
 	//-------------------------------------------------------------------------------------
 
@@ -603,7 +619,6 @@ public class SQLiteLink implements BackendStorageLink {
 				    logger.log(Level.WARNING, e.getMessage(), e);
 				}
 			}
-			rs.close();
 
 			return ja;
 		}
@@ -639,5 +654,205 @@ public class SQLiteLink implements BackendStorageLink {
         }
     }
 
+    @Override
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription comp, Set<FileItem> contexts) {
+        String queryAddId = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID);
+        String queryAdd = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD);
+
+        JSONObject joResult = new JSONObject();
+
+        String origURI = comp.getExecutableComponent().getURI();
+
+        UUID uuid = getComponentUUID(origURI, userId);
+        int version = -1;
+
+        if (uuid != null) {
+            version = getLastVersionNumberForComponent(uuid);
+            // Sanity check
+            if (version == -1)
+                logger.warning(String.format("No version found for existing component %s (uri: %s)", uuid, origURI));
+            else
+                version++;
+        } else {
+            uuid = UUID.randomUUID();
+
+            try {
+                // Add the mapping from origURI, userID to component UUID
+                PreparedStatement psAddId = conn.prepareStatement(queryAddId);
+                psAddId.setString(1, origURI);
+                psAddId.setString(2, userId.toString());
+                psAddId.setString(3, uuid.toString());
+                psAddId.executeUpdate();
+            }
+            catch (SQLException e) {
+                try {
+                    joResult.put("error", e.getMessage());
+                    return joResult;
+                }
+                catch (JSONException e1) {
+                    throw new RuntimeException(e1);
+                }
+            }
+        }
+
+        if (version == -1) version = 1;
+
+        logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s", origURI, uuid, version, userId));
+
+        // Make sure we have a place to put the components and contexts
+        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
+        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_FOLDER, "contexts");
+        fREPOSITORY_COMPONENTS.mkdirs();
+        fREPOSITORY_CONTEXTS.mkdirs();
+
+        // Clear any existing contexts
+        Set<RDFNode> compContexts = comp.getContext();
+        compContexts.clear();
+
+        Model tmpModel = comp.getExecutableComponent().getModel();
+
+        for (FileItem context : contexts) {
+            logger.finer("Processing context file: " + context.getName());
+            try {
+                File tmpFile = File.createTempFile("context", ".tmp", fREPOSITORY_CONTEXTS);
+                context.write(tmpFile);
+
+                final String md5 = Crypto.getHexString(Crypto.createMD5Checksum(tmpFile));
+
+                // Look for context files that have the same MD5 hash value
+                File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String name) {
+                        return name.startsWith(md5 + "_");
+                    }
+                });
+
+                if (files.length > 0) {
+                    logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
+                            context.getName(), files[0].getName()));
+                    tmpFile.delete();
+                    compContexts.add(tmpModel.createResource("context://localhost/" + files[0].getName()));
+                    continue;
+                }
+
+                File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
+                if (!tmpFile.renameTo(ctxFile))
+                    throw new RuntimeException("Could not rename " + tmpFile + " to " + ctxFile);
+
+                compContexts.add(tmpModel.createResource("context://localhost/" + ctxFile.getName()));
+                logger.finer("Context file saved as " + ctxFile);
+            }
+            catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
+            catch (IOException e) {
+               throw new RuntimeException(e);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        File fCompFolder = new File(fREPOSITORY_COMPONENTS, uuid.toString());
+        fCompFolder.mkdir();
+
+        try {
+            // Write the component descriptor file for this version
+            Model compModel = comp.getModel();
+            File fCompDescriptor = new File(fCompFolder, "" + version + ".ttl");
+            logger.finer("Saving component descriptor as " + fCompDescriptor);
+            FileOutputStream fos = new FileOutputStream(fCompDescriptor);
+            compModel.write(fos, "TURTLE");
+            fos.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            // Add the new component version
+            PreparedStatement psAdd = conn.prepareStatement(queryAdd);
+            psAdd.setString(1, uuid.toString());
+            psAdd.setInt(2, version);
+            psAdd.executeUpdate();
+        }
+        catch (SQLException e) {
+            try {
+                joResult.put("error", e.getMessage());
+                return joResult;
+            }
+            catch (JSONException e1) {
+                throw new RuntimeException(e1);
+            }
+        }
+
+        try {
+            joResult.put("uuid", uuid.toString());
+            joResult.put("version", version);
+        }
+        catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+        return joResult;
+    }
+
 	//-------------------------------------------------------------------------------------
+
+    private UUID getComponentUUID(String baseUri, UUID userId) {
+        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER);
+        ResultSet rs = null;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(query);
+            ps.setString(1, baseUri);
+            ps.setString(2, userId.toString());
+            rs = ps.executeQuery();
+            rs.next();
+            return UUID.fromString(rs.getString(1));
+        }
+        catch (SQLException e) {
+            return null;
+        }
+        finally {
+            if (rs != null)
+                try {
+                    rs.close();
+                }
+                catch (SQLException e1) {
+                    // Tried to properly clean out
+                }
+        }
+    }
+
+    /**
+     * Returns the highest version number for a component
+     *
+     * @param uuid The component uuid
+     * @return The version number, or -1 if no version was found, or null if SQL error
+     */
+    private int getLastVersionNumberForComponent(UUID uuid) {
+        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER);
+        ResultSet rs = null;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(query);
+            ps.setString(1, uuid.toString());
+            rs = ps.executeQuery();
+            rs.next();
+            return rs.getInt(1);
+        }
+        catch (SQLException e) {
+            return -1;
+        }
+        finally {
+            if (rs != null)
+                try {
+                    rs.close();
+                }
+                catch (SQLException e1) {
+                    // Tried to properly clean out
+                }
+        }
+    }
 }

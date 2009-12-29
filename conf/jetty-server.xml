@@ -53,6 +53,9 @@
   <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
     <Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
+  <New id="repositoryRetrieveComponentContext" class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
+    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
+  </New>
   <New id="repositoryRetrieveFlow" class="org.seasr.central.ws.restlets.repository.RetrieveFlowRestlet">
     <Set name="backendStoreLink"><Ref id="bsl"/></Set>
   </New>
@@ -69,6 +72,7 @@
   <!-- Repository REST servlet dispatcher -->
   <New id="repositoryRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
         <Call name="add"><Arg><Ref id="repositoryRetrieveComponent"/></Arg></Call>
+        <Call name="add"><Arg><Ref id="repositoryRetrieveComponentContext"/></Arg></Call>
         <Call name="add"><Arg><Ref id="repositoryRetrieveFlow"/></Arg></Call>
   </New>
 

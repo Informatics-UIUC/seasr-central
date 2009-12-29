@@ -42,57 +42,32 @@
 
 package org.seasr.central.ws.restlets.repository;
 
-import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
-
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
-import org.seasr.central.ws.restlets.ContentTypes;
 
 import com.google.gdata.util.ContentType;
 
 
-public class RetrieveComponentRestlet extends AbstractBaseRestlet {
-
-    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
-
-    static {
-        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
-        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
-        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
-    }
+public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
-        return supportedResponseTypes;
+        return null;
     }
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/(.+?)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/repository/context/(.+?)/?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // Check for GET
-        if (!method.equalsIgnoreCase("GET")) return false;
-
-        ContentType ct = getDesiredResponseContentType(request);
-        if (ct == null) {
-            sendErrorNotAcceptable(response);
-            return true;
-        }
-
-        String sComponentId = values[0];
-        String sComponentVersion = values[1];
-
-
-
-        return true;
+        // TODO Auto-generated method stub
+        return false;
     }
 
 }
