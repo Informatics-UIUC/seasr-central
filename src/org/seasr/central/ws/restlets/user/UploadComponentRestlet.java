@@ -257,7 +257,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 catch (BackendStorageException e) {
                     logger.log(Level.SEVERE, null, e);
 
-                    jaErrors.put(createJSONErrorObj(String.format("Failed to add component %s (%s)",
+                    jaErrors.put(createJSONErrorObj(String.format("Failed to add component '%s' (%s)",
                             ecd.getName(), ecd.getExecutableComponent().getURI()), e));
                 }
             }

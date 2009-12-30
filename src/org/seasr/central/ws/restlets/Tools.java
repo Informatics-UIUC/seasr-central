@@ -113,20 +113,15 @@ public abstract class Tools {
             if (msg == null || msg.length() == 0)
                 msg = null;
 
+            StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
+
             Throwable thrown = record.getThrown();
             if (thrown != null) {
+                String excClassName = thrown.getClass().getName();
                 if (msg == null)
-                    msg = getExceptionDetails(thrown);
+                    sb.append(String.format("%s: %s", excClassName, getExceptionDetails(thrown)));
                 else
-                    msg += "  (" + getExceptionDetails(thrown) + ")";
-
-                msg += " [" + thrown.getClass().getSimpleName();
-
-                Throwable cause = thrown.getCause();
-                if (cause != null)
-                    msg += ":" + cause.getClass().getSimpleName();
-
-                msg += "]";
+                    sb.append(String.format("  (%s: %s)", excClassName, getExceptionDetails(thrown)));
             }
 
             String srcClassName = record.getSourceClassName();
@@ -135,7 +130,7 @@ public abstract class Tools {
             srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
 
             return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                    record.getLevel(), msg, srcClassName, srcMethodName, new Date(record.getMillis()));
+                    record.getLevel(), sb, srcClassName, srcMethodName, new Date(record.getMillis()));
         }
     }
 
@@ -438,10 +433,10 @@ public abstract class Tools {
 	        sb.append(e.getMessage());
 
 	    if (errCauseMsg != null) {
-	        if (errMsg != null)
-	            sb.append(String.format(" (Cause: %s)", errCauseMsg));
-	        else
+	        if (errMsg == null)
 	            sb.append(errCauseMsg);
+//	        else
+//	            sb.append(String.format(" (Cause: %s)", errCauseMsg));
 	    }
 
 	    return sb.toString();
