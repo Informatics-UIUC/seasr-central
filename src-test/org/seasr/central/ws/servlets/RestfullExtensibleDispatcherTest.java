@@ -68,12 +68,12 @@ import org.seasr.meandre.support.generic.io.HttpUtils;
 
 import com.google.gdata.util.ContentType;
 
-
-/** Test class for the basic restful dispatcher
+/**
+ * Test class for the basic restful dispatcher
  *
- * @author xavier
- *
+ * @author Xavier Llora
  */
+
 public class RestfullExtensibleDispatcherTest {
 
 	/** The test server port to bind to */
@@ -88,7 +88,8 @@ public class RestfullExtensibleDispatcherTest {
 		/** The pattern to match */
 		private final static String PATTERN = "/hello/([A-Za-z /]+)/";
 
-		/** Returns the pattern to match.
+		/**
+		 * Returns the pattern to match.
 		 *
 		 * @return The regular expression to use
 		 */
@@ -97,7 +98,8 @@ public class RestfullExtensibleDispatcherTest {
 			return PATTERN;
 		}
 
-		/** Process the provided request.
+		/**
+		 * Process the provided request.
 		 *
 		 * @param request The original request object
 		 * @param response The response object
@@ -136,8 +138,8 @@ public class RestfullExtensibleDispatcherTest {
 		}
 	}
 
-	/** Sets up the fixture starting a test server
-	 *
+	/**
+	 * Sets up the fixture starting a test server
 	 */
 	@Before
 	public void setUpFixture() {
@@ -157,8 +159,8 @@ public class RestfullExtensibleDispatcherTest {
 		}
 	}
 
-	/** Tears down the fixture shutting down the test server.
-	 *
+	/**
+	 * Tears down the fixture shutting down the test server.
 	 */
 	@After
 	public void tearDownFixture() {
@@ -175,8 +177,8 @@ public class RestfullExtensibleDispatcherTest {
 		}
 	}
 
-	/** Runs a simple test against the basic servlet.
-	 *
+	/**
+	 * Runs a simple test against the basic servlet.
 	 */
 	@Test
 	public void basicRestTest() {

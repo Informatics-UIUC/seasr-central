@@ -51,6 +51,11 @@ import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 
 import com.google.gdata.util.ContentType;
 
+/**
+ * Restlet for retrieving component contexts
+ *
+ * @author Boris Capitanu
+ */
 
 public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 

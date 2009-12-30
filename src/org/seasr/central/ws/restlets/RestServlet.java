@@ -52,9 +52,9 @@ import org.seasr.central.ws.SC;
 /**
  * This interface provides the basic interface to implement a REST based service.
  *
- * @author xavier
- *
+ * @author Xavier Llora
  */
+
 public interface RestServlet {
 
 	/**

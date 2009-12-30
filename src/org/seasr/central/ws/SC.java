@@ -61,13 +61,13 @@ import com.martiansoftware.jsap.JSAP;
 import com.martiansoftware.jsap.JSAPException;
 import com.martiansoftware.jsap.JSAPResult;
 
-
 /**
  * The main entry class that starts SEASR Central.
  *
- * @author xavier
- *
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public class SC {
 
 	/** The server version */
@@ -76,7 +76,7 @@ public class SC {
 	/** The default store configuration file to assume */
 	public static final String DEFAULT_STORE_CONFIG_FILE = "scs-store-sqlite.xml";
 
-	/** The default jetty configuration file to assume */
+	/** The default Jetty configuration file to assume */
 	public static final String DEFAULT_JETTY_CONFIG_FILE = "jetty-server.xml";
 
 	/** The default configuration directory  to assume */
@@ -88,13 +88,13 @@ public class SC {
 	/** The command line store configuration parameter name */
 	public static final String CMDLINE_STORE_CONFIG = "storeconfig";
 
-	/** The command line jetty configuration parameter name */
+	/** The command line Jetty configuration parameter name */
 	public static final String CMDLINE_JETTY_CONFIG = "jettyconfig";
 
 	/** The instance configuration folder */
 	private String sConfFolder;
 
-	/** The jetty configuration file */
+	/** The Jetty configuration file */
 	private String sConfJetty;
 
 	/** The store configuration file */
@@ -110,7 +110,7 @@ public class SC {
 	 * Creates an instance of SEASR central with the default configuration.
 	 *
 	 */
-	public SC () {
+	public SC() {
 		this.sConfFolder = DEFAULT_CONFIG_FOLDER;
 		this.sConfStr = DEFAULT_STORE_CONFIG_FILE;
 		this.sConfJetty = DEFAULT_JETTY_CONFIG_FILE;
@@ -125,7 +125,7 @@ public class SC {
 	 * @param sWSConfig The web service configuration file
 	 * @param sStoreConfig The store configuration file
 	 */
-	public SC (String sConfigFolder, String sJettyConfig, String sStoreConfig ) {
+	public SC(String sConfigFolder, String sJettyConfig, String sStoreConfig) {
 		this.sConfFolder = sConfigFolder;
 		this.sConfJetty = sJettyConfig;
 		this.sConfStr = sStoreConfig;
@@ -192,34 +192,29 @@ public class SC {
 	 * @throws Exception The server could not be started. The exception wraps
 	 *                   the original exception.
 	 */
-	public void start () throws Exception {
-		try {
-			// Start the backend storage link
-			Properties propStore = new Properties();
-			propStore.loadFromXML(new FileInputStream(sConfFolder+File.separator+sConfStr));
-			basd = (BackendStorageLink) Class.forName(propStore.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
-			if (!basd.init(propStore))
-				throw new Exception("Failed to instantiate the backend link");
+	public void start() throws Exception {
+	    // Start the backend storage link
+	    Properties propStore = new Properties();
+	    propStore.loadFromXML(new FileInputStream(sConfFolder + File.separator + sConfStr));
+	    basd = (BackendStorageLink) Class.forName(propStore.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
 
-			// Start the web server
-			server = new Server();
+	    // Initialize the backend storage subsystem
+	    basd.init(propStore);
 
-			// Configuring the context
-			XmlConfiguration configuration = new XmlConfiguration(new FileInputStream(sConfFolder+File.separator+sConfJetty));
-			configuration.configure(server);
+	    // Start the web server
+	    server = new Server();
 
-			// Configuring the contest
-			//configuration = new XmlConfiguration(new FileInputStream(sConfFolder+File.separator+sConfWS));
-			//ContextHandler context = (ContextHandler)configuration.configure();
+	    // Configuring the context
+	    XmlConfiguration configuration = new XmlConfiguration(new FileInputStream(sConfFolder+File.separator+sConfJetty));
+	    configuration.configure(server);
 
-			// Getting the server ready
-			//server.setHandler(context);
-			server.start();
-		}
-		catch (Exception e) {
-			throw e;
-		}
+	    // Configuring the contest
+	    //configuration = new XmlConfiguration(new FileInputStream(sConfFolder+File.separator+sConfWS));
+	    //ContextHandler context = (ContextHandler)configuration.configure();
 
+	    // Getting the server ready
+	    //server.setHandler(context);
+	    server.start();
 	}
 
 	/**
@@ -236,12 +231,9 @@ public class SC {
 	 *
 	 * @throws Exception Will be thrown if it failed to do so.
 	 */
-	public void stop () throws Exception {
+	public void stop() throws Exception {
 		try {
 			server.stop();
-		}
-		catch ( Exception e ) {
-			throw e;
 		}
 		finally {
 			basd.close();
@@ -254,7 +246,7 @@ public class SC {
 	 * @return True if the server finished the starting process; false otherwise.
 	 * @throws Exception Will be thrown if it could not check the status.
 	 */
-	public boolean isStarted () throws Exception {
+	public boolean isStarted() throws Exception {
 		return server.isStarted();
 	}
 
@@ -264,7 +256,7 @@ public class SC {
 	 * @return True if the server finished the stopping process; false otherwise.
 	 * @throws Exception Will be thrown if it could not check the status.
 	 */
-	public boolean isStopped () throws Exception {
+	public boolean isStopped() throws Exception {
 		return server.isStopped();
 	}
 
@@ -273,8 +265,8 @@ public class SC {
 	 *
 	 * @return The back end storage link
 	 */
-	public BackendStorageLink getBackendStorageLink () {
-		return this.basd;
+	public BackendStorageLink getBackendStorageLink() {
+		return basd;
 	}
 
 	/**
@@ -284,30 +276,29 @@ public class SC {
 	 * @return The parser results
 	 * @throws JSAPException The command line could not be properly parsed
 	 */
-	public static JSAPResult processCommandLine ( String...args )
-	throws JSAPException {
+	public static JSAPResult processCommandLine(String...args) throws JSAPException {
 		JSAP jsap = new JSAP();
 
 		FlaggedOption confOption = new FlaggedOption(CMDLINE_CONFIG_FOLDER)
-		.setStringParser(JSAP.STRING_PARSER)
-		.setDefault(DEFAULT_CONFIG_FOLDER)
-		.setRequired(true)
-		.setShortFlag('c')
-		.setLongFlag(CMDLINE_CONFIG_FOLDER);
+    		.setStringParser(JSAP.STRING_PARSER)
+    		.setDefault(DEFAULT_CONFIG_FOLDER)
+    		.setRequired(true)
+    		.setShortFlag('c')
+    		.setLongFlag(CMDLINE_CONFIG_FOLDER);
 
 		FlaggedOption jettyOption = new FlaggedOption(CMDLINE_JETTY_CONFIG)
-		.setStringParser(JSAP.STRING_PARSER)
-		.setDefault(DEFAULT_JETTY_CONFIG_FILE)
-		.setRequired(true)
-		.setShortFlag('j')
-		.setLongFlag(CMDLINE_JETTY_CONFIG);
+    		.setStringParser(JSAP.STRING_PARSER)
+    		.setDefault(DEFAULT_JETTY_CONFIG_FILE)
+    		.setRequired(true)
+    		.setShortFlag('j')
+    		.setLongFlag(CMDLINE_JETTY_CONFIG);
 
 		FlaggedOption storeOption = new FlaggedOption(CMDLINE_STORE_CONFIG)
-		.setStringParser(JSAP.STRING_PARSER)
-		.setDefault(DEFAULT_STORE_CONFIG_FILE)
-		.setRequired(true)
-		.setShortFlag('s')
-		.setLongFlag(CMDLINE_STORE_CONFIG);
+    		.setStringParser(JSAP.STRING_PARSER)
+    		.setDefault(DEFAULT_STORE_CONFIG_FILE)
+    		.setRequired(true)
+    		.setShortFlag('s')
+    		.setLongFlag(CMDLINE_STORE_CONFIG);
 
 		jsap.registerParameter(confOption);
 		jsap.registerParameter(jettyOption);
@@ -327,30 +318,23 @@ public class SC {
 		return config;
 	}
 
-	public static void main ( String...args ) {
-		try {
-			JSAPResult config = processCommandLine(args);
+	public static void main(String...args) throws Exception {
 
-			logger.info("Starting SEASR Central API ("+VERSION+"-vcli) on "+new Date());
-			logger.info("Is server successfully configured: "+config.success());
-			logger.info("Configuration folder: "+config.getString(CMDLINE_CONFIG_FOLDER));
-			logger.info("Jetty configuration file: "+config.getString(CMDLINE_JETTY_CONFIG));
-			logger.info("Storage link configuration file: "+config.getString(CMDLINE_STORE_CONFIG));
+	    JSAPResult config = processCommandLine(args);
 
-			SC sc = new SC(
-			        config.getString(CMDLINE_CONFIG_FOLDER),
-			        config.getString(CMDLINE_JETTY_CONFIG),
-			        config.getString(CMDLINE_STORE_CONFIG)
-			        );
+	    logger.info("Starting SEASR Central API (" + VERSION + "-vcli) on " + new Date());
+	    logger.info("Is server successfully configured: " + config.success());
+	    logger.info("Configuration folder: " + config.getString(CMDLINE_CONFIG_FOLDER));
+	    logger.info("Jetty configuration file: " + config.getString(CMDLINE_JETTY_CONFIG));
+	    logger.info("Storage link configuration file: " + config.getString(CMDLINE_STORE_CONFIG));
 
-			sc.start();
-			sc.join();
-		}
-		catch (JSAPException e) {
-			System.err.println(e.getMessage());
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-		}
+	    SC sc = new SC(
+	            config.getString(CMDLINE_CONFIG_FOLDER),
+	            config.getString(CMDLINE_JETTY_CONFIG),
+	            config.getString(CMDLINE_STORE_CONFIG)
+	    );
+
+	    sc.start();
+	    sc.join();
 	}
-
 }

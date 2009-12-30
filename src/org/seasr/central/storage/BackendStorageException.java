@@ -43,48 +43,24 @@
 package org.seasr.central.storage;
 
 /**
- * Defines the events and associated codes
+ * Exception class used to indicate errors encountered while performing backend operations
  *
  * @author Boris Capitanu
- *
  */
 
-public enum Event {
+public class BackendStorageException extends Exception {
 
-    USER_CREATED            (100),
-    USER_DELETED            (101),
-    USER_RENAMED            (102),
-    USER_PROFILE_UPDATED    (103),
-    USER_JOINED_GROUP       (104),
-    USER_PARTED_GROUP       (105),
+    private static final long serialVersionUID = 7017702960912128011L;
 
-    GROUP_CREATED           (200),
-    GROUP_DELETED           (201),
-    GROUP_RENAMED           (202),
-    GROUP_JOINED            (203),
-    GROUP_PARTED            (204),
-
-    COMPONENT_UPLOADED      (300),
-    COMPONENT_DELETED       (301),
-    COMPONENT_UPDATED       (303),
-    COMPONENT_SHARED        (304),
-    COMPONENT_UNSHARED      (305);
-
-
-    //--------------------------------------------------------------------------------------------
-
-    private final int _code;
-
-    Event(int code) {
-        _code = code;
+    public BackendStorageException(String message) {
+        super(message);
     }
 
-    /**
-     * Returns the event code for this event
-     *
-     * @return The event code for this event
-     */
-    public int getEventCode() {
-        return _code;
+    public BackendStorageException(Throwable cause) {
+        super(cause);
+    }
+
+    public BackendStorageException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

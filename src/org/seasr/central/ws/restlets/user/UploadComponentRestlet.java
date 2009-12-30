@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
@@ -73,6 +74,9 @@ import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
+import org.seasr.central.storage.BackendStorageException;
+import org.seasr.central.storage.Event;
+import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
@@ -84,6 +88,11 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
 
+/**
+ * Restlet for uploading components
+ *
+ * @author Boris Capitanu
+ */
 
 public class UploadComponentRestlet extends AbstractBaseRestlet {
 
@@ -125,12 +134,22 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         }
 
         UUID uuid = null;
+        @SuppressWarnings("unused")
+        String screenName = null;
 
-        Properties userProps = getUserScreenNameAndUUID(values[0]);
-        if (userProps != null)
-            uuid = UUID.fromString(userProps.getProperty("uuid"));
-        else {
-            sendErrorNotFound(response);
+        try {
+            Properties userProps = getUserScreenNameAndId(values[0]);
+            if (userProps != null) {
+                uuid = UUID.fromString(userProps.getProperty("uuid"));
+                screenName = userProps.getProperty("screen_name");
+            } else {
+                sendErrorNotFound(response);
+                return true;
+            }
+        }
+        catch (BackendStorageException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
             return true;
         }
 
@@ -147,108 +166,102 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        // Mapping between component uri and set of contexts
-        Map<String, Set<FileItem>> componentsMap = new HashMap<String, Set<FileItem>>();
+        try {
+            // Mapping between component uri and set of contexts
+            Map<String, Set<FileItem>> componentsMap = new HashMap<String, Set<FileItem>>();
 
-        // Accumulator for the component models
-        Model model = ModelFactory.createDefaultModel();
+            // Accumulator for the component models
+            Model model = ModelFactory.createDefaultModel();
 
-        String currentComponentResUri = null;
-        boolean skipProcessingContexts = false;
+            String currentComponentResUri = null;
+            boolean skipProcessingContexts = false;
 
-        for (FileItem file : files) {
-            if (file == null || file.isFormField() || file.getName().length() == 0)
-                continue;
+            for (FileItem file : files) {
+                if (file == null || file.isFormField() || file.getName().length() == 0)
+                    continue;
 
-            logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
+                logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
 
-            if (file.getSize() == 0)
-                logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
+                if (file.getSize() == 0)
+                    logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
 
-            if (file.getFieldName().equalsIgnoreCase("component_rdf")) {
-                try {
-                    skipProcessingContexts = false;
-
-                    // Read the component model and check that it contains a single executable component
-                    Model compModel = ModelUtils.getModel(file.getInputStream(), null);
-                    List<Resource> compResList = compModel.listSubjectsWithProperty(
-                            RDF.type, RepositoryVocabulary.executable_component).toList();
-                    if (compResList.size() != 1) {
-                        skipProcessingContexts = true;
-                        throw new Exception("RDF descriptor does not contain an executable component, or contains more than one component.");
-                    }
-
-                    // Accumulate and create a new entry in the component context hashmap
-                    model.add(compModel);
-                    currentComponentResUri = compResList.get(0).getURI();
-                    componentsMap.put(currentComponentResUri, new HashSet<FileItem>());
-                }
-                catch (Exception e) {
-                    logger.log(Level.WARNING,
-                            String.format("Error parsing RDF file '%s'", file.getName()), e);
-
-                    JSONObject joError = new JSONObject();
+                if (file.getFieldName().equalsIgnoreCase("component_rdf")) {
                     try {
-                        joError.put("text", "Invalid component RDF descriptor received");
-                        joError.put("reason", e.getMessage());
-                        joError.put("file", file.getName());
+                        skipProcessingContexts = false;
+
+                        // Read the component model and check that it contains a single executable component
+                        Model compModel = ModelUtils.getModel(file.getInputStream(), null);
+                        List<Resource> compResList = compModel.listSubjectsWithProperty(
+                                RDF.type, RepositoryVocabulary.executable_component).toList();
+                        if (compResList.size() != 1) {
+                            skipProcessingContexts = true;
+                            throw new Exception("RDF descriptor does not contain an executable component, or contains more than one component.");
+                        }
+
+                        // Accumulate and create a new entry in the component context hashmap
+                        model.add(compModel);
+                        currentComponentResUri = compResList.get(0).getURI();
+                        componentsMap.put(currentComponentResUri, new HashSet<FileItem>());
                     }
-                    catch (JSONException e1) {
-                        logger.log(Level.SEVERE, e1.getMessage(), e1);
-                        sendErrorInternalServerError(response);
+                    catch (Exception e) {
+                        logger.log(Level.WARNING,
+                                String.format("Error parsing RDF file '%s'", file.getName()), e);
+
+                        JSONObject joError = createJSONErrorObj("Invalid component RDF descriptor received", e);
+                        joError.put("file", file.getName());
+
+                        jaErrors.put(joError);
+                    }
+                }
+
+                else
+
+                if (file.getFieldName().equalsIgnoreCase("context")) {
+                    if (skipProcessingContexts) continue;
+
+                    // Sanity check
+                    if (currentComponentResUri == null) {
+                        sendErrorBadRequest(response);
                         return true;
                     }
-                    jaErrors.put(joError);
+
+                    // Add the context file to the current component being uploaded
+                    componentsMap.get(currentComponentResUri).add(file);
                 }
             }
 
-            else
+            QueryableRepository qr = new RepositoryImpl(model);
 
-            if (file.getFieldName().equalsIgnoreCase("context")) {
-                if (skipProcessingContexts) continue;
+            for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
+                try {
+                    // Attempt to add the component to the backend storage
+                    JSONObject joResult = bsl.addComponent(uuid, ecd, componentsMap.get(ecd.getExecutableComponent().getURI()));
 
-                // Sanity check
-                if (currentComponentResUri == null) {
-                    sendErrorBadRequest(response);
-                    return true;
-                }
-
-                // Add the context file to the current component being uploaded
-                componentsMap.get(currentComponentResUri).add(file);
-            }
-        }
-
-        QueryableRepository qr = new RepositoryImpl(model);
-        for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
-            JSONObject joResult = bsl.addComponent(uuid, ecd, componentsMap.get(ecd.getExecutableComponent().getURI()));
-            try {
-                if (joResult.has("error")) {
-                    JSONObject joError = new JSONObject();
-                    joError.put("text", String.format("Failed to add component %s (%s)", ecd.getName(), ecd.getExecutableComponent().getURI()));
-                    joError.put("reason", joResult.getString("error"));
-                    jaErrors.put(joError);
-                } else {
-                    String compUUID = joResult.getString("uuid");
+                    String compId = joResult.getString("uuid");
                     int compVersion = joResult.getInt("version");
 
                     String compUrl = String.format("%s://%s:%d/repository/component/%s/%d.ttl",
-                            request.getScheme(), request.getServerName(), request.getServerPort(), compUUID, compVersion);
+                            request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
 
                     JSONObject joComponent = new JSONObject();
-                    joComponent.put("uuid", compUUID);
+                    joComponent.put("uuid", compId);
                     joComponent.put("version", compVersion);
                     joComponent.put("url", compUrl);
+
                     jaSuccess.put(joComponent);
+
+                    // Record the event
+                    Event event = (compVersion == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
+                    bsl.addEvent(SourceType.USER, uuid, event, joComponent);
+                }
+                catch (BackendStorageException e) {
+                    logger.log(Level.SEVERE, null, e);
+
+                    jaErrors.put(createJSONErrorObj(String.format("Failed to add component %s (%s)",
+                            ecd.getName(), ecd.getExecutableComponent().getURI()), e));
                 }
             }
-            catch (JSONException e) {
-                logger.log(Level.SEVERE, e.getMessage(), e);
-                sendErrorInternalServerError(response);
-                return true;
-            }
-        }
 
-        try {
             JSONObject joContent = new JSONObject();
             joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
             joContent.put(OperationResult.FAILURE.name(), jaErrors);
@@ -258,14 +271,17 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             else
                 response.setStatus(HttpServletResponse.SC_OK);
 
-            sendContent(response, joContent, ct);
+            try {
+                sendContent(response, joContent, ct);
+            }
+            catch (IOException e) {
+                logger.log(Level.WARNING, null, e);
+            }
         }
         catch (JSONException e) {
-            // should not happen
-            logger.log(Level.SEVERE, e.getMessage(), e);
-        }
-        catch (IOException e) {
-            logger.log(Level.WARNING, e.getMessage(), e);
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
         }
 
         return true;

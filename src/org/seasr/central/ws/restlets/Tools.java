@@ -77,11 +77,11 @@ import com.hp.hpl.jena.rdf.model.Model;
  * This class provides basic auxiliary tools for restlets. For instance,
  * methods for dumping, JSON, XML, TXT, RDF, TTL, NT etc.
  *
- * @author xavier
+ * @author Xavier Llora
  * @author Boris Capitanu
- *
  */
-public class Tools {
+
+public abstract class Tools {
 
     /** Define the RDF format types RDF, TTL, NT */
     public enum RDFFormat { RDF, TTL, NT }
@@ -89,14 +89,16 @@ public class Tools {
     /** Defines the possible REST operation results */
     public enum OperationResult { SUCCESS, FAILURE };
 
-	/** The formatter class to use for the central SC logger.
+	/**
+	 * A generic exception formatter
 	 *
-	 * @author xavier
+	 * @author Xavier Llora
+	 * @author Boris Capitanu
 	 */
-    private static class SCAPIFormatter extends Formatter {
+    public static class GenericExceptionFormatter extends Formatter {
 
         /** Creates the default formatter */
-        public SCAPIFormatter () {
+        public GenericExceptionFormatter () {
         }
 
         /**
@@ -114,9 +116,17 @@ public class Tools {
             Throwable thrown = record.getThrown();
             if (thrown != null) {
                 if (msg == null)
-                    msg = thrown.toString();
+                    msg = getExceptionDetails(thrown);
                 else
-                    msg += "  (" + thrown.toString() + ")";
+                    msg += "  (" + getExceptionDetails(thrown) + ")";
+
+                msg += " [" + thrown.getClass().getSimpleName();
+
+                Throwable cause = thrown.getCause();
+                if (cause != null)
+                    msg += ":" + cause.getClass().getSimpleName();
+
+                msg += "]";
             }
 
             String srcClassName = record.getSourceClassName();
@@ -139,23 +149,23 @@ public class Tools {
 	static {
 		// Initialize the logger
 		logger = Logger.getLogger(Tools.class.getName());
+		logger.setUseParentHandlers(false);
+
 		try {
 		    FileHandler fileHandler = new FileHandler("logs" + File.separator + "scapi.log", true);
-			fileHandler.setFormatter(new SCAPIFormatter());
+			fileHandler.setFormatter(new GenericExceptionFormatter());
 
 			ConsoleHandler consoleHandler = new ConsoleHandler();
-			consoleHandler.setFormatter(new SCAPIFormatter());
+			consoleHandler.setFormatter(new GenericExceptionFormatter());
 
 	        logger.addHandler(fileHandler);
 	        logger.addHandler(consoleHandler);
 		}
-		catch (SecurityException e) {
-			e.printStackTrace();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
+		catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 
+		// TODO: Maybe we should have a configuration file for SC that allows to specify the logging level
 		logger.setLevel(Level.ALL);
 
 		// Initialize the transformation engine
@@ -164,7 +174,8 @@ public class Tools {
 		TransformerFactory xslTransFact = TransformerFactory.newInstance();
 		try {
 			xslTrans = xslTransFact.newTransformer(xsltSource);
-		} catch (TransformerConfigurationException e) {
+		}
+		catch (TransformerConfigurationException e) {
 			xslTrans = null;
 		}
 	}
@@ -410,5 +421,58 @@ public class Tools {
 		}
 
 		return map;
+	}
+
+	/**
+	 * Returns a formatted string containing the exception details
+	 *
+	 * @param e The exception
+	 * @return A formatted string containing the details of the exception
+	 */
+	public static String getExceptionDetails(Throwable e) {
+	    StringBuffer sb = new StringBuffer();
+	    String errMsg = e.getMessage();
+	    String errCauseMsg = (e.getCause() != null) ? e.getCause().getMessage() : null;
+
+	    if (errMsg != null)
+	        sb.append(e.getMessage());
+
+	    if (errCauseMsg != null) {
+	        if (errMsg != null)
+	            sb.append(String.format(" (Cause: %s)", errCauseMsg));
+	        else
+	            sb.append(errCauseMsg);
+	    }
+
+	    return sb.toString();
+	}
+
+	/**
+	 * Creates a JSON error object
+	 *
+	 * @param message The message
+	 * @param reason The reason, or null
+	 * @return The JSON error object
+	 * @throws JSONException
+	 */
+	public static JSONObject createJSONErrorObj(String message, String reason) throws JSONException {
+        JSONObject joError = new JSONObject();
+        joError.put("message", message);
+        if (reason != null)
+            joError.put("reason", reason);
+
+        return joError;
+	}
+
+	/**
+	 * Creates a JSON error object
+	 *
+	 * @param message The message
+	 * @param e The exception, or null
+	 * @return The JSON error object
+	 * @throws JSONException
+	 */
+	public static JSONObject createJSONErrorObj(String message, Throwable e) throws JSONException {
+        return (e != null) ? createJSONErrorObj(message, getExceptionDetails(e)) : createJSONErrorObj(message, (String)null);
 	}
 }

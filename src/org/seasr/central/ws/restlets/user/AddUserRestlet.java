@@ -42,11 +42,13 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
 import static org.seasr.central.ws.restlets.Tools.extractTextPayloads;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
 import static org.seasr.central.ws.restlets.Tools.sendErrorExpectationFail;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 
 import java.io.IOException;
@@ -61,6 +63,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
@@ -70,12 +73,13 @@ import org.seasr.central.ws.restlets.Tools.OperationResult;
 import com.google.gdata.util.ContentType;
 
 /**
- * This servlet implements add user functionality.
+ * Restlet for adding users
  *
- * @author xavier
+ * @author Xavier Llora
  * @author Boris Capitanu
  *
  */
+
 public class AddUserRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
@@ -124,54 +128,65 @@ public class AddUserRestlet extends AbstractBaseRestlet {
 		String[] passwords = map.get("password");
 		String[] profiles = map.get("profile");
 
-		UUID uuid;
+		UUID userId;
 
 		JSONArray jaSuccess = new JSONArray();
 		JSONArray jaErrors = new JSONArray();
 
-		for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
-		    try {
-		        // attempt to add the user
-		        JSONObject joProfile = new JSONObject(profiles[i]);
-		        uuid = bsl.addUser(screenNames[i], passwords[i], joProfile);
+		try {
+		    for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
+		        try {
+		            // Check if another user with the same screen name exists
+		            userId = bsl.getUserId(screenNames[i]);
+		            if (userId != null) {
+		                JSONObject joError = createJSONErrorObj(
+		                        String.format("Unable to add user '%s'", screenNames[i]),
+		                        String.format("Screen name '%s' already exists", screenNames[i]));
+		                joError.put("uuid", userId);
+		                joError.put("created_at", bsl.getUserCreationTime(userId));
+		                joError.put("profile", bsl.getUserProfile(userId));
 
-		        if (uuid != null) {
-                    // User added successfully
-                    JSONObject joUser = new JSONObject();
-                    joUser.put("uuid", uuid.toString());
-                    joUser.put("screen_name", screenNames[i]);
-                    joUser.put("created_at", bsl.getUserCreationTime(uuid));
-                    joUser.put("profile", joProfile);
+		                jaErrors.put(joError);
+		                continue;
+		            }
 
-                    if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_CREATED, joUser))
-                        logger.warning(String.format("Could not record the %s event for user: %s (%s)",
-                                Event.USER_CREATED, screenNames[i], uuid));
+		            JSONObject joProfile;
+		            try {
+		                joProfile = new JSONObject(profiles[i]);
+		            }
+		            catch (JSONException e) {
+		                // Could not decode the user profile
+		                logger.log(Level.WARNING, "Could not decode the user profile", e);
+		                sendErrorBadRequest(response);
+		                return true;
+		            }
 
-                    jaSuccess.put(joUser);
-		        } else {
-                    // Could not add the user
-                    JSONObject joError = new JSONObject();
-                    UUID oldUUID = bsl.getUserUUID(screenNames[i]);
+		            // Add the user to the backend store
+		            userId = bsl.addUser(screenNames[i], passwords[i], joProfile);
 
-                    if (oldUUID != null) {
-                        joError.put("text", "User screen name " + screenNames[i] + " already exists");
-                        joError.put("uuid", oldUUID);
-                        joError.put("created_at", bsl.getUserCreationTime(oldUUID));
-                        joError.put("profile", bsl.getUserProfile(screenNames[i]));
-                    } else
-                        joError.put("text", "Unable to add the user");
+		            // User added successfully
+		            JSONObject joUser = new JSONObject();
+		            joUser.put("uuid", userId.toString());
+		            joUser.put("screen_name", screenNames[i]);
+		            joUser.put("created_at", bsl.getUserCreationTime(userId));
+		            joUser.put("profile", joProfile);
 
-                    jaErrors.put(joError);
+		            jaSuccess.put(joUser);
+
+		            // Record this event
+		            bsl.addEvent(SourceType.USER, userId, Event.USER_CREATED, joUser);
+		        }
+		        catch (BackendStorageException e) {
+		            logger.log(Level.SEVERE, null, e);
+
+		            jaErrors.put(createJSONErrorObj(String.format("Unable to add user '%s'", screenNames[i]), e));
+
+		            // TODO Should this construct a joError and send it back with a 200 OK or just send a 500 Internal Server Error???
+		            //sendErrorInternalServerError(response);
+		            //return true;
 		        }
 		    }
-		    catch (JSONException e) {
-		        logger.log(Level.WARNING, e.getMessage(), e);
-		        sendErrorBadRequest(response);
-		        return true;
-		    }
-		}
 
-		try {
 		    JSONObject joContent = new JSONObject();
 		    joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
 		    joContent.put(OperationResult.FAILURE.name(), jaErrors);
@@ -181,14 +196,18 @@ public class AddUserRestlet extends AbstractBaseRestlet {
 		    else
 		        response.setStatus(HttpServletResponse.SC_OK);
 
-		    sendContent(response, joContent, ct);
+		    try {
+		        sendContent(response, joContent, ct);
+		    }
+		    catch (IOException e) {
+		        logger.log(Level.WARNING, null, e);
+		    }
 		}
 		catch (JSONException e) {
-		    // should not happen
-		    logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		catch (IOException e) {
-		    logger.log(Level.WARNING, e.getMessage(), e);
+		    // Should not happen
+		    logger.log(Level.SEVERE, null, e);
+		    sendErrorInternalServerError(response);
+		    return true;
 		}
 
 		return true;

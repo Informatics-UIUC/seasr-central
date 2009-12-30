@@ -75,13 +75,13 @@ import org.seasr.central.ws.restlets.user.ListUsersRestlet;
 import org.seasr.central.ws.restlets.user.UserInfoRestlet;
 import org.seasr.meandre.support.generic.io.HttpUtils;
 
-
 /**
  * Test class for the basic restful dispatcher
  *
- * @author xavier
- *
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public class UserRestletTest {
 
 	/** The test server port to bind to */
@@ -109,8 +109,8 @@ public class UserRestletTest {
         }
 	}
 
-	/** Sets up the fixture starting a test server
-	 *
+	/**
+	 * Sets up the fixture starting a test server
 	 */
 	@Before
 	public void setUpFixture() {
@@ -131,8 +131,7 @@ public class UserRestletTest {
 			        "jdbc:sqlite:" + dbFile.getAbsolutePath());
 
 			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
-			if (!bsl.init(props))
-				fail("Failed to initialize the backend link");
+			bsl.init(props);
 
 			for (RestServlet rs : rsa) {
 				rs.setBackendStoreLink(bsl);
@@ -151,7 +150,6 @@ public class UserRestletTest {
 
 	/**
 	 * Tears down the fixture shutting down the test server.
-	 *
 	 */
 	@After
 	public void tearDownFixture() {
@@ -170,7 +168,6 @@ public class UserRestletTest {
 
 	/**
 	 * Runs a simple test against the basic servlet.
-	 *
 	 */
 	@Test
 	public void basicUserListTest() {
@@ -195,8 +192,8 @@ public class UserRestletTest {
 		}
 	}
 
-	/** Runs a simple add test against the basic servlet.
-	 *
+	/**
+	 * Runs a simple add test against the basic servlet.
 	 */
 	@Test
 	public void basicUserAddTest() {
@@ -230,47 +227,48 @@ public class UserRestletTest {
 
 	@Test
 	public void basicUserInfoTest() {
-	       try {
-	            String screenName = BackendStorageLinkTest.generateTestUserScreenName();
-	            String password = "sekret";
-	            String profile = "{\"test\": \"true\"}";
-	            String sUrlAddUser = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+	    try {
+	        String screenName = BackendStorageLinkTest.generateTestUserScreenName();
+	        String password = "sekret";
+	        String profile = "{\"test\": \"true\"}";
+	        String sUrlAddUser = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
 
-	            Properties props = new Properties();
-	            props.put("screen_name", screenName);
-	            props.put("password", password);
-	            props.put("profile", profile);
+	        Properties props = new Properties();
+	        props.put("screen_name", screenName);
+	        props.put("password", password);
+	        props.put("profile", profile);
 
-	            String responseAdd = HttpUtils.doPOST(sUrlAddUser, "application/json", props).trim();
-	            JSONObject joResp = new JSONObject(responseAdd);
-	            JSONObject joAdd = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
-	            assertTrue(joAdd.has("uuid"));
-	            assertTrue(joAdd.has("screen_name"));
-	            assertEquals(screenName, joAdd.getString("screen_name"));
-	            assertTrue(joAdd.has("created_at"));
-	            assertTrue(joAdd.has("profile"));
+	        String responseAdd = HttpUtils.doPOST(sUrlAddUser, "application/json", props).trim();
+	        JSONObject joResp = new JSONObject(responseAdd);
+	        JSONObject joAdd = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+	        assertTrue(joAdd.has("uuid"));
+	        assertTrue(joAdd.has("screen_name"));
+	        assertEquals(screenName, joAdd.getString("screen_name"));
+	        assertTrue(joAdd.has("created_at"));
+	        assertTrue(joAdd.has("profile"));
 
-	            String sUrlInfoUser =
-	                String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, joAdd.get("screen_name"));
-	            String responseInfo = HttpUtils.doGET(sUrlInfoUser, null).trim();
-	            JSONObject joInfoResp = new JSONObject(responseInfo);
-	            JSONObject jo = joInfoResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
-	            assertTrue(jo.has("uuid"));
-	            assertEquals(joAdd.getString("uuid"), jo.getString("uuid"));
-	            assertTrue(jo.has("screen_name"));
-	            assertEquals(screenName, joAdd.getString("screen_name"));
-	            assertTrue(jo.has("created_at"));
-	            assertTrue(jo.has("profile"));
+	        String sUrlInfoUser =
+	            String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, joAdd.get("screen_name"));
+	        String responseInfo = HttpUtils.doGET(sUrlInfoUser, null).trim();
+	        JSONObject joInfoResp = new JSONObject(responseInfo);
+	        JSONObject jo = joInfoResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+	        assertTrue(jo.has("uuid"));
+	        assertEquals(joAdd.getString("uuid"), jo.getString("uuid"));
+	        assertTrue(jo.has("screen_name"));
+	        assertEquals(screenName, joAdd.getString("screen_name"));
+	        assertTrue(jo.has("created_at"));
+	        assertTrue(jo.has("profile"));
 
-	        } catch (Exception e) {
-	            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	            e.printStackTrace(new PrintStream(baos));
-	            fail(baos.toString());
-	        }
+	    }
+	    catch (Exception e) {
+	        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	        e.printStackTrace(new PrintStream(baos));
+	        fail(baos.toString());
+	    }
 	}
 
-	/** Runs a simple delete test against the basic servlet using the screen name.
-	 *
+	/**
+	 * Runs a simple delete test against the basic servlet using the screen name.
 	 */
 	@Test
 	public void basicUserDeleteUsingScreenNameTest() {
@@ -304,15 +302,16 @@ public class UserRestletTest {
 			assertTrue(jo.has("screen_name"));
 			assertEquals(screenName, jo.getString("screen_name"));
 
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());
 		}
 	}
 
-	/** Runs a simple delete test against the basic servlet using the uuid.
-	 *
+	/**
+	 * Runs a simple delete test against the basic servlet using the uuid.
 	 */
 	@Test
 	public void basicUserDeleteUsingUUIDTest() {
@@ -346,7 +345,8 @@ public class UserRestletTest {
 		    assertTrue(jo.has("screen_name"));
             assertEquals(screenName, jo.getString("screen_name"));
 
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());

@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
@@ -61,11 +62,18 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
 
 import com.google.gdata.util.ContentType;
+
+/**
+ * Restlet for retrieving user info
+ *
+ * @author Boris Capitanu
+ */
 
 public class UserInfoRestlet extends AbstractBaseRestlet {
 
@@ -100,50 +108,67 @@ public class UserInfoRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID uuid = null;
+        UUID userId = null;
         String screenName = null;
 
-        Properties userProps = getUserScreenNameAndUUID(values[0]);
-        if (userProps != null) {
-            uuid = UUID.fromString(userProps.getProperty("uuid"));
-            screenName = userProps.getProperty("screen_name");
-        } else {
-            sendErrorNotFound(response);
-            return true;
-        }
-
-        JSONArray ja = new JSONArray();
-
         try {
-            JSONObject joUser = new JSONObject();
-            joUser.put("uuid", uuid.toString());
-            joUser.put("screen_name", screenName);
-            joUser.put("created_at", bsl.getUserCreationTime(screenName));
-            joUser.put("profile", bsl.getUserProfile(screenName));
-
-            ja.put(joUser);
+            Properties userProps = getUserScreenNameAndId(values[0]);
+            if (userProps != null) {
+                userId = UUID.fromString(userProps.getProperty("uuid"));
+                screenName = userProps.getProperty("screen_name");
+            } else {
+                sendErrorNotFound(response);
+                return true;
+            }
         }
-        catch (JSONException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        catch (BackendStorageException e) {
+            logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         try {
+            try {
+                JSONObject joUser = new JSONObject();
+                joUser.put("uuid", userId.toString());
+                joUser.put("screen_name", screenName);
+                joUser.put("created_at", bsl.getUserCreationTime(screenName));
+                joUser.put("profile", bsl.getUserProfile(screenName));
+
+                jaSuccess.put(joUser);
+            }
+            catch (BackendStorageException e) {
+                logger.log(Level.SEVERE, null, e);
+
+                // Could not retrieve the user info
+                JSONObject joError = createJSONErrorObj(
+                        String.format("Could not retrieve the user information for user '%s'", screenName), e);
+                joError.put("uuid", userId.toString());
+                joError.put("screen_name", screenName);
+
+                jaErrors.put(joError);
+            }
+
             JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), ja);
+            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
             joContent.put(OperationResult.FAILURE.name(), new JSONArray());
 
             response.setStatus(HttpServletResponse.SC_OK);
 
-            sendContent(response, joContent, ct);
+            try {
+                sendContent(response, joContent, ct);
+            }
+            catch (IOException e) {
+                logger.log(Level.SEVERE, null, e);
+            }
         }
         catch (JSONException e) {
-            // should not happen
-            logger.log(Level.SEVERE, e.getMessage(), e);
-        }
-        catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
         }
 
         return true;

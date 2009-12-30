@@ -42,6 +42,10 @@
 
 package org.seasr.central.properties;
 
+/**
+ * @author Xavier Llora
+ */
+
 public abstract class SCProperties {
 
 	public static final String ORG_SEASR_CENTRAL_STORAGE_DB_DB = "org.seasr.central.storage.db.db";
@@ -54,6 +58,7 @@ public abstract class SCProperties {
 
 	public static final String ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER = "org.seasr.central.storage.db.driver";
 
+	public static final String ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL = "org.seasr.central.storage.db.loglevel";
 
 	public static final String ORG_SEASR_CENTRAL_STORAGE_LINK = "org.seasr.central.storage.link";
 

@@ -8,6 +8,7 @@
 	<entry key="org.seasr.central.storage.db.user"></entry>
 	<entry key="org.seasr.central.storage.db.password"></entry>
 	<entry key="org.seasr.central.storage.db.db"></entry>
+	<entry key="org.seasr.central.storage.db.loglevel">ALL</entry>
 
 	<entry key="org.seasr.central.storage.link">org.seasr.central.storage.db.SQLiteLink</entry>
 
@@ -15,6 +16,8 @@
 		CREATE TABLE IF NOT EXISTS sc_role (uuid CHAR(36) NOT NULL PRIMARY KEY, role VARCHAR(30) NOT NULL);
 		CREATE TABLE IF NOT EXISTS sc_user (uuid CHAR(36) NOT NULL PRIMARY KEY, screen_name VARCHAR(20) NOT NULL UNIQUE, password VARCHAR(80) NOT NULL, created_at DATETIME NOT NULL, profile TEXT NOT NULL DEFAULT "{}", deleted BOOLEAN NOT NULL DEFAULT 0);
 		CREATE TABLE IF NOT EXISTS sc_role_user (user_uuid CHAR(36) NOT NULL, role_uuid CHAR(36) NOT NULL, FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (role_uuid) REFERENCES sc_role(uuid));
+		CREATE TRIGGER IF NOT EXISTS fki_sc_role_user BEFORE INSERT ON sc_role_user FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_role WHERE uuid = NEW.role_uuid) IS NULL) THEN RAISE(ABORT, 'Insert on table "sc_role_user" violates a foreign key constraint') END; END;
+        CREATE TRIGGER IF NOT EXISTS fku_sc_role_user BEFORE UPDATE ON sc_role_user FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_role WHERE uuid = NEW.role_uuid) IS NULL) THEN RAISE(ABORT, 'Update on table "sc_role_user" violates a foreign key constraint') END; END;
 		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_screen_name ON sc_user(screen_name);
 		CREATE INDEX IF NOT EXISTS sc_user_deleted ON sc_user(deleted);
 		CREATE UNIQUE INDEX IF NOT EXISTS sc_user_role_uuids ON sc_role_user(user_uuid, role_uuid);
@@ -22,12 +25,14 @@
 		INSERT OR IGNORE INTO sc_role (uuid, role) VALUES ("08b40562-138e-4ca9-86d7-561cfec1de0e", "user");
 		INSERT OR IGNORE INTO sc_role (uuid, role) VALUES ("d7cb33b8-1225-498d-a463-5b78734f93f7", "admin");
 		INSERT OR IGNORE INTO sc_user (uuid, screen_name, password, created_at) VALUES ("23e38ffa-fafc-4430-b88d-f04bd4d89104", "admin", "d033e22ae348aeb5660fc2140aec35850c4da997", DATETIME('NOW'));
-		INSERT OR IGNORE INTO sc_role_user (user_uuid, role_uuid) VALUES ("d7cb33b8-1225-498d-a463-5b78734f93f7", "23e38ffa-fafc-4430-b88d-f04bd4d89104");
+		INSERT OR IGNORE INTO sc_role_user (user_uuid, role_uuid) VALUES ("23e38ffa-fafc-4430-b88d-f04bd4d89104", "d7cb33b8-1225-498d-a463-5b78734f93f7");
 	</entry>
 
 	<entry key="org.seasr.central.storage.db.schema">
         CREATE TABLE IF NOT EXISTS sc_event_codes (evt_code INT NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL);
         CREATE TABLE IF NOT EXISTS sc_events (source CHAR(1) NOT NULL, uuid CHAR(36) NOT NULL, evt_code INT NOT NULL, description TEXT NOT NULL DEFAULT "{}", timestamp DATETIME NOT NULL, FOREIGN KEY (evt_code) REFERENCES sc_event_codes(evt_code));
+        CREATE TRIGGER IF NOT EXISTS fki_sc_events BEFORE INSERT ON sc_events FOR EACH ROW BEGIN SELECT CASE WHEN ((SELECT evt_code FROM sc_event_codes WHERE evt_code = NEW.evt_code) IS NULL) THEN RAISE(ABORT, 'Insert on table "sc_events" violates a foreign key constraint') END; END;
+        CREATE TRIGGER IF NOT EXISTS fku_sc_events BEFORE UPDATE ON sc_events FOR EACH ROW BEGIN SELECT CASE WHEN ((SELECT evt_code FROM sc_event_codes WHERE evt_code = NEW.evt_code) IS NULL) THEN RAISE(ABORT, 'Update on table "sc_events" violates a foreign key constraint') END; END;
 
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (100, "USER_CREATED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (101, "USER_DELETED");
@@ -42,8 +47,16 @@
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (203, "GROUP_JOINED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (204, "GROUP_PARTED");
 
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (300, "COMPONENT_UPLOADED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (301, "COMPONENT_DELETED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (303, "COMPONENT_UPDATED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (304, "COMPONENT_SHARED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (305, "COMPONENT_UNSHARED");
+
         CREATE TABLE IF NOT EXISTS sc_component (uuid CHAR(36) NOT NULL, version INT NOT NULL, upload_date DATETIME NOT NULL, deleted BOOLEAN NOT NULL DEFAULT 0, PRIMARY KEY (uuid, version));
         CREATE TABLE IF NOT EXISTS sc_component_id_map (base_uri VARCHAR(255) NOT NULL, user_uuid CHAR(36) NOT NULL, comp_uuid CHAR(36) NOT NULL, PRIMARY KEY (base_uri, user_uuid), FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (comp_uuid) REFERENCES sc_component(uuid));
+        CREATE TRIGGER IF NOT EXISTS fki_sc_component_id_map BEFORE INSERT ON sc_component_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_component WHERE uuid = NEW.comp_uuid) IS NULL) THEN RAISE(ABORT, 'Insert on table "sc_component_id_map" violates a foreign key constraint') END; END;
+        CREATE TRIGGER IF NOT EXISTS fku_sc_component_id_map BEFORE UPDATE ON sc_component_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_component WHERE uuid = NEW.comp_uuid) IS NULL) THEN RAISE(ABORT, 'Update on table "sc_component_id_map" violates a foreign key constraint') END; END;
 	</entry>
 
     <!-- USER -->
@@ -72,10 +85,10 @@
 		SELECT profile FROM sc_user WHERE screen_name = ? AND deleted = 0;
 	</entry>
 	<entry key="org.seasr.central.storage.db.query.user.get.createdat.uuid">
-		SELECT created_at FROM sc_user WHERE uuid = ? AND deleted = 0;
+		SELECT DATETIME(created_at, 'localtime') FROM sc_user WHERE uuid = ? AND deleted = 0;
 	</entry>
 	<entry key="org.seasr.central.storage.db.query.user.get.createdat.screen_name">
-		SELECT created_at FROM sc_user WHERE screen_name = ? AND deleted = 0;
+		SELECT DATETIME(created_at, 'localtime') FROM sc_user WHERE screen_name = ? AND deleted = 0;
 	</entry>
 	<entry key="org.seasr.central.storage.db.query.user.valid.password.uuid">
 		SELECT 1 FROM sc_user WHERE uuid = ? AND password = ? AND deleted = 0;
@@ -118,6 +131,8 @@
     <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
         SELECT MAX(version) FROM sc_component WHERE uuid = ?;
     </entry>
-
+    <entry key="org.seasr.central.storage.db.query.component.get.component.state.uuid.version">
+        SELECT deleted FROM sc_component WHERE uuid = ? AND version = ?;
+    </entry>
 
 </properties>

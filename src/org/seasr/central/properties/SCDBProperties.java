@@ -43,10 +43,12 @@
 package org.seasr.central.properties;
 
 /**
- * The properties names for a DB backend link
+ * The property names for a DB backend link
  *
- * @author xavier
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public abstract class SCDBProperties extends SCProperties {
 
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA = "org.seasr.central.storage.db.auth.schema";
@@ -79,4 +81,5 @@ public abstract class SCDBProperties extends SCProperties {
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID = "org.seasr.central.storage.db.query.component.add.id";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER = "org.seasr.central.storage.db.query.component.get.component.id.baseuri.user";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER = "org.seasr.central.storage.db.query.component.get.last.version.number";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION = "org.seasr.central.storage.db.query.component.get.component.state.uuid.version";
 }

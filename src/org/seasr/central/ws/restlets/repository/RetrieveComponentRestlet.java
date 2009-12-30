@@ -55,6 +55,11 @@ import org.seasr.central.ws.restlets.ContentTypes;
 
 import com.google.gdata.util.ContentType;
 
+/**
+ * Restlet for retrieving component descriptors
+ *
+ * @author Boris Capitanu
+ */
 
 public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 

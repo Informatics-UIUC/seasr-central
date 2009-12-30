@@ -67,15 +67,16 @@ import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
 
-
 /**
- * Test SQLite driver basic functionalities
+ * Test basic functionalities of SQLite driver
  *
- * @author xavier
- *
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public class BackendStorageLinkTest {
 
 	/** The random number generator */
@@ -94,15 +95,14 @@ public class BackendStorageLinkTest {
 	private static BackendStorageLink bsl;
 
 	@BeforeClass
-	public static void setUp () {
+	public static void setUp() {
 		try {
 		    File dbFile = File.createTempFile("SCStore-test", ".sqlite");
 		    dbFile.deleteOnExit();
 
 			props = new Properties();
 			props.loadFromXML(new FileInputStream(new File(DB_PROPERTY_FILE)));
-	        props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL,
-	                "jdbc:sqlite:" + dbFile.getAbsolutePath());
+	        props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL, "jdbc:sqlite:" + dbFile.getAbsolutePath());
 
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER))   fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER);
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_URL))      fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_URL);
@@ -115,14 +115,19 @@ public class BackendStorageLinkTest {
 		}
 
 		try {
-			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
-			if (!bsl.init(props))
-				fail("Failed to initialize the backend link");
+			String storageLink = props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK);
+            bsl = (BackendStorageLink) Class.forName(storageLink).newInstance();
 		}
 		catch (Exception e) {
-			fail("Failed to load property file. "+e.toString());
+		    fail("Failed to load the storage link class");
 		}
 
+		try {
+            bsl.init(props);
+        }
+        catch (BackendStorageException e) {
+            fail("Failed to initialize the backend link");
+        }
 	}
 
 	@AfterClass
@@ -147,17 +152,17 @@ public class BackendStorageLinkTest {
 	}
 
 	@Test
-	public void testCRUDCycle () {
-		long lUsers = bsl.userCount();
-		String sUser = generateTestUserScreenName();
-		JSONObject profile = createProfile(sUser);
-
+	public void testCRUDCycle() {
 		try {
+		    long lUsers = bsl.userCount();
+		    String sUser = generateTestUserScreenName();
+		    JSONObject profile = createProfile(sUser);
+
 			UUID uuid = bsl.addUser(sUser, "password", profile );
 
 			assertNotNull(uuid);
 			assertEquals(lUsers+1, bsl.userCount());
-			assertEquals(uuid, bsl.getUserUUID(sUser));
+			assertEquals(uuid, bsl.getUserId(sUser));
 			assertEquals(sUser, bsl.getUserScreenName(uuid));
 			assertNotNull(bsl.getUserCreationTime(sUser));
 			assertNotNull(bsl.getUserCreationTime(uuid));
@@ -165,31 +170,31 @@ public class BackendStorageLinkTest {
 			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
 			profile.put("tested_at", new Date());
-			assertEquals(true, bsl.updateProfile(uuid,profile));
+			bsl.updateProfile(uuid,profile);
 			assertEquals(profile.toString(), bsl.getUserProfile(sUser).toString());
 			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
 			profile.put("tested_at", new Date());
-			assertEquals(true, bsl.updateProfile(sUser,profile));
+			bsl.updateProfile(sUser,profile);
 			assertEquals(profile.toString(), bsl.getUserProfile(sUser).toString());
 			assertEquals(profile.toString(), bsl.getUserProfile(uuid).toString());
 
 			assertEquals(true, bsl.isUserPasswordValid(sUser, "password"));
 			assertEquals(true, bsl.isUserPasswordValid(uuid, "password"));
-			assertEquals(true, bsl.updateUserPassword(uuid,"new_password"));
+			bsl.updateUserPassword(uuid,"new_password");
 			assertEquals(true, bsl.isUserPasswordValid(sUser, "new_password"));
 			assertEquals(true, bsl.isUserPasswordValid(uuid, "new_password"));
-			assertEquals(true, bsl.updateUserPassword(sUser, "new_password2"));
+			bsl.updateUserPassword(sUser, "new_password2");
 			assertEquals(true, bsl.isUserPasswordValid(sUser, "new_password2"));
 			assertEquals(true, bsl.isUserPasswordValid(uuid, "new_password2"));
 
-			assertEquals(true, bsl.removeUser(uuid));
+			bsl.removeUser(uuid);
 			assertEquals(lUsers, bsl.userCount());
 
 			sUser = generateTestUserScreenName();
 			uuid = bsl.addUser(sUser, "admin", profile );
 			assertEquals(lUsers+1, bsl.userCount());
-			assertEquals(true, bsl.removeUser(sUser));
+			bsl.removeUser(sUser);
 			assertEquals(lUsers, bsl.userCount());
 
 			assertEquals(bsl.userCount(), bsl.listUsers(0, 1000).length());

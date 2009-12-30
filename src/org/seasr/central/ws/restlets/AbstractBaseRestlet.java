@@ -51,17 +51,19 @@ import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.ws.SC;
 
 import com.google.gdata.util.ContentType;
 
 /**
- * This servlet implements a base abstract restlet.
+ * Base restlet that provides common functionality
  *
- * @author xavier
- *
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public abstract class AbstractBaseRestlet implements RestServlet {
 
 	/** The parent SC object */
@@ -134,29 +136,30 @@ public abstract class AbstractBaseRestlet implements RestServlet {
 	}
 
 	/**
-	 * Interprets a string representing either a screen name or UUID
+	 * Interprets a string representing either a screen name or a user id
 	 *
-	 * @param screenNameOrUuid The string representing a screen name or UUID
+	 * @param screenNameOrUserId The string representing a screen name or a user id
 	 * @return A property map keyed on "uuid" and "screen_name", or null if either could not be determined
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public Properties getUserScreenNameAndUUID(String screenNameOrUuid) {
+	public Properties getUserScreenNameAndId(String screenNameOrUserId) throws BackendStorageException {
 	    String screenName = null;
-	    UUID uuid = null;
+	    UUID userId = null;
 
 	    try {
-	        uuid = UUID.fromString(screenNameOrUuid);
-	        screenName = bsl.getUserScreenName(uuid);
+	        userId = UUID.fromString(screenNameOrUserId);
+	        screenName = bsl.getUserScreenName(userId);
 	    }
 	    catch (IllegalArgumentException e) {
-	        screenName = screenNameOrUuid;
-	        uuid = bsl.getUserUUID(screenName);
+	        screenName = screenNameOrUserId;
+	        userId = bsl.getUserId(screenName);
 	    }
 
-	    if (uuid == null || screenName == null)
+	    if (userId == null || screenName == null)
 	        return null;
 
 	    Properties result = new Properties();
-	    result.put("uuid", uuid.toString());
+	    result.put("uuid", userId.toString());
 	    result.put("screen_name", screenName);
 
 	    return result;

@@ -46,6 +46,7 @@ import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STOR
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD;
@@ -67,10 +68,10 @@ import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STOR
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_UUID;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_SCHEMA;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER;
+import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
-import static org.seasr.central.ws.restlets.Tools.logger;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -83,20 +84,25 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.fileupload.FileItem;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
+import org.seasr.central.ws.restlets.Tools.GenericExceptionFormatter;
 import org.seasr.meandre.support.generic.crypto.Crypto;
 
 import com.hp.hpl.jena.rdf.model.Model;
@@ -105,13 +111,22 @@ import com.hp.hpl.jena.rdf.model.RDFNode;
 /**
  * The SQLite driver to create a backend storage link
  *
- * @author xavier
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public class SQLiteLink implements BackendStorageLink {
 
+    /** The root folder where the components and contexts are stored */
     private static final String REPOSITORY_FOLDER = "repository";
 
+    /** Date parser for the DATETIME SQLite datatype (Note: use together with 'localtime' in SQL query to retrieve correct timestamp) */
+    private static final SimpleDateFormat SQLITE_DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
 	//-------------------------------------------------------------------------------------
+
+    /** The DB logger */
+    private static Logger logger;
 
 	/** The properties available */
 	Properties properties = null;
@@ -124,580 +139,528 @@ public class SQLiteLink implements BackendStorageLink {
 
 	//-------------------------------------------------------------------------------------
 
-	/**
-	 * Initialize the back end storage driver with the given properties.
-	 *
-	 * @param properties The properties required to initialize the backend link
-	 * @return true if it could be properly initialized, false otherwise
-	 */
+	static {
+	    // Initialize the logger
+        logger = Logger.getLogger(SQLiteLink.class.getName());
+        logger.setUseParentHandlers(false);
+
+        try {
+            FileHandler fileHandler = new FileHandler("logs" + File.separator + "sqlite.log", true);
+            fileHandler.setFormatter(new GenericExceptionFormatter());
+
+            logger.addHandler(fileHandler);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+	}
+
 	@Override
-	public boolean init(Properties properties) {
+	public void init(Properties properties) throws BackendStorageException {
 		try {
 			// Retain the properties
 			this.properties = properties;
 
+			// Set the logging level
+			logger.setLevel(Level.parse(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL, Level.ALL.getName())));
+
 			// Initialize the connection
 			Class.forName(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER));
+
 			conProps = new Properties();
 			conProps.put("user", properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_USER));
 			conProps.put("password", properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD));
-			conn = DriverManager.getConnection(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL),conProps);
+			conn = DriverManager.getConnection(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL), conProps);
 
 			// Create the authentication schema if needed
-			String [] sql = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA).toString().replace('\t', ' ').replace('\r', ' ').split("\n");
-			for ( String update:sql ) {
+			String[] sql = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA).toString().replace('\t', ' ').replace('\r', ' ').split("\n");
+			for (String update : sql) {
 				update = update.trim();
-				if ( update.length()>0 )
+				if (update.length() > 0)
 					conn.createStatement().executeUpdate(update);
 			}
 
 			// Create the schema if needed
 			sql = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_SCHEMA).toString().replace('\t', ' ').replace('\r', ' ').split("\n");
-			for ( String update:sql ) {
+			for (String update : sql) {
 				update = update.trim();
-				if ( update.length()>0 )
+				if (update.length() > 0)
 					conn.createStatement().executeUpdate(update);
 			}
-
-			// Signal that everything went fine
-			return true;
 		}
-		catch ( Exception e ) {
-			// Could not initialize nicely
-			return false;
-		}
+        catch (ClassNotFoundException e) {
+            logger.log(Level.SEVERE, "Cannot load the DB driver", e);
+            close();
+            throw new BackendStorageException(e);
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            close();
+            throw new BackendStorageException(e);
+        }
 	}
 
-	/**
-	 * Closes the backend storage link.
-	 *
-	 * @return true if it could be properly closed, false otherwise
-	 */
+	@Override
 	public boolean close() {
 		try {
-			conn.close();
+		    if (conn != null)
+		        conn.close();
+
 			return true;
 		}
-		catch ( Exception e ) {
-			// Could not close nicely
+		catch (Exception e) {
 			return false;
 		}
 	}
-
 
 	//-------------------------------------------------------------------------------------
 
-	/**
-	 * Adds a user to the back end storage facility.
-	 *
-	 * @param user The user name
-	 * @param password The password for this users
-	 * @param profile The profile information for this user
-	 * @return The UUID of the created users. If the user could not be created null is returned
-	 */
-	public UUID addUser ( String user, String password, JSONObject profile ) {
+	@Override
+	public UUID addUser(String userName, String password, JSONObject profile) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD).trim();
+
 		try {
 			UUID uuid = UUID.randomUUID();
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD).toString());
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, uuid.toString());
-			ps.setString(2, user);
+			ps.setString(2, userName);
 			ps.setString(3, computeDigest(password));
 			ps.setString(4, profile.toString());
 			ps.executeUpdate();
+
 			return uuid;
-		} catch (SQLException e) {
-			return null;
-		}
-	}
-
-	/**
-	 * Computes the digest of a string and returns its hex encoded string
-	 *
-	 * @param string The string to process
-	 * @return The resulting digest
-	 */
-	private String computeDigest(String string) {
-		try {
-            return Crypto.getSHA1Hash(string);
-        }
-        catch (NoSuchAlgorithmException e) {
-            logger.log(Level.WARNING, e.getMessage(), e);
-        }
-        catch (UnsupportedEncodingException e) {
-            logger.log(Level.WARNING, e.getMessage(), e);
-        }
-
-        return null;
-	}
-
-	/**
-	 * Remove a user from the back end storage facility.
-	 *
-	 * @param uuid The UUID of the user to remove
-	 * @return True if the user could be successfully removed. False otherwise
-	 */
-	public boolean removeUser ( UUID uuid ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_UUID).toString());
-			ps.setString(1, uuid.toString());
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Remove a user from the back end storage facility.
-	 *
-	 * @param user The screen name of the user to remove
-	 * @return True if the user could be successfully removed. False otherwise
-	 */
-	public boolean removeUser ( String user ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_SCREEN_NAME).toString());
-			ps.setString(1, user);
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Updates the user's password.
-	 *
-	 * @param uuid The user UUID
-	 * @param password The new password to use
-	 * @return True if the password could be successfully updated. False otherwise
-	 */
-	public boolean updateUserPassword ( UUID uuid, String password ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_UUID).toString());
-			ps.setString(1, computeDigest(password));
-			ps.setString(2, uuid.toString());
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Updates the user's password.
-	 *
-	 * @param user The user screen_name
-	 * @param password The new password to use
-	 * @return True if the password could be successfully updated. False otherwise
-	 */
-	public boolean updateUserPassword ( String user, String password ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME).toString());
-			ps.setString(1, computeDigest(password));
-			ps.setString(2, user);
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Updates the user's profile.
-	 *
-	 * @param uuid The user UUID
-	 * @param profile The new profile to use
-	 * @return True if the profile could be successfully updated. False otherwise
-	 */
-	public boolean updateProfile ( UUID uuid, JSONObject profile ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_UUID).toString());
-			ps.setString(1, profile.toString());
-			ps.setString(2, uuid.toString());
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Updates the user's profile.
-	 *
-	 * @param user The user screen_name
-	 * @param profile The new profile to use
-	 * @return True if the profile could be successfully updated. False otherwise
-	 */
-	public boolean updateProfile ( String user, JSONObject profile ) {
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_SCREEN_NAME).toString());
-			ps.setString(1, profile.toString());
-			ps.setString(2, user);
-			ps.executeUpdate();
-			return true;
-		} catch (SQLException e) {
-			return false;
-		}
-	}
-
-	/**
-	 * Returns the UUID of a user given his screen name.
-	 *
-	 * @param user The user's screen name
-	 * @return The UUID of the user or null if the user does not exist
-	 */
-	public UUID getUserUUID ( String user ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_UUID).toString());
-			ps.setString(1, user);
-			rs = ps.executeQuery();
-			rs.next();
-			UUID uuid = UUID.fromString(rs.getString(1));
-			rs.close();
-			return uuid;
-		} catch (SQLException e) {
-		    if ( rs!=null ) {
-		        try {
-		            rs.close();
-		        } catch (SQLException e1) {
-		            // Failed to clean
-		        }
-		    }
-
-		    return null;
-		}
-	}
-
-	/**
-	 * Returns the screen name of a user given his screen name.
-	 *
-	 * @param uuid The user's UUID
-	 * @return The screen name of the user or null if the user does not exist
-	 */
-	public String getUserScreenName ( UUID uuid ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_SCREEN_NAME).toString());
-			ps.setString(1, uuid.toString());
-			rs = ps.executeQuery();
-			rs.next();
-			String screenName = rs.getString(1);
-			rs.close();
-			return screenName;
-		} catch (SQLException e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
-		}
-	}
-
-	/**
-	 * Returns the profile of a user given his screen name.
-	 *
-	 * @param user The user's screen name
-	 * @return The profile of the user or null if the user does not exist
-	 */
-	public JSONObject getUserProfile ( String user ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_SCREEN_NAME).toString());
-			ps.setString(1, user);
-			rs = ps.executeQuery();
-			rs.next();
-			JSONObject jo =  new JSONObject(rs.getString(1));
-			rs.close();
-			return jo;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
-		}
-	}
-
-
-	/**
-	 * Returns the profile of a user given his UUID.
-	 *
-	 * @param uuid The user's UUID
-	 * @return The profile of the user or null if the user does not exist
-	 */
-	public JSONObject getUserProfile ( UUID uuid ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_UUID).toString());
-			ps.setString(1, uuid.toString());
-			rs = ps.executeQuery();
-			rs.next();
-			JSONObject jo =  new JSONObject(rs.getString(1));
-			rs.close();
-			return jo;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
-		}
-	}
-
-	/**
-	 * Returns the creation time of a user given his screen name.
-	 *
-	 * @param user The user's screen name
-	 * @return The creation time of the user or null if the user does not exist
-	 */
-	public Date getUserCreationTime ( String user ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME).toString());
-			ps.setString(1, user);
-			rs = ps.executeQuery();
-			rs.next();
-			Date date = rs.getTimestamp(1);
-			rs.close();
-			return date;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
-		}
-	}
-
-	/**
-	 * Returns the creation time of a user given his UUID.
-	 *
-	 * @param uuid The user's UUID
-	 * @return The creation time of the user or null if the user does not exist
-	 */
-	public Date getUserCreationTime ( UUID uuid ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_UUID).toString());
-			ps.setString(1, uuid.toString());
-			rs = ps.executeQuery();
-			rs.next();
-			Date date = rs.getTimestamp(1);
-			rs.close();
-			return date;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return null;
-		}
-	}
-
-
-	/**
-	 * Check if the user password is valid based on user's screen name.
-	 *
-	 * @param user The user's screen name
-	 * @param password The password to check
-	 * @return True if the password matches, false otherwise
-	 */
-	public boolean isUserPasswordValid ( String user, String password ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_SCREEN_NAME).toString());
-			ps.setString(1, user);
-			ps.setString(2, computeDigest(password));
-			rs = ps.executeQuery();
-			if ( rs.next() )
-				if ( rs.getBoolean(1) ) {
-					rs.close();
-					return true;
-				}
-			rs.close();
-			return false;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return false;
-		}
-	}
-
-	/**
-	 * Check if the user password is valid based on the UUID of the user.
-	 *
-	 * @param uuid The user's UUID
-	 * @param password The password to check
-	 * @return True if the password matches, false otherwise
-	 */
-	public boolean isUserPasswordValid ( UUID uuid, String password ) {
-		ResultSet rs = null;
-		try {
-			PreparedStatement ps = conn.prepareStatement(properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_UUID).toString());
-			ps.setString(1, uuid.toString());
-			ps.setString(2, computeDigest(password));
-			rs = ps.executeQuery();
-			if ( rs.next() )
-				if ( rs.getBoolean(1) ) {
-					rs.close();
-					return true;
-				}
-			rs.close();
-			return false;
-		} catch (Exception e) {
-			if ( rs!=null )
-				try {
-					rs.close();
-				} catch (SQLException e1) {
-					// Failed to clean
-				}
-				return false;
-		}
-	}
-
-	/**
-	 * Return the number of users on the back end storage.
-	 *
-	 * @return The number of users in SC back end storage. -1 indicates failure
-	 */
-	public long userCount() {
-		String query = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT).toString().trim();
-		try {
-			ResultSet rs = conn.createStatement().executeQuery(query);
-			rs.next();
-			long res = rs.getLong(1);
-			rs.close();
-			return res;
-		} catch (SQLException e) {
-			return -1;
-		}
-	}
-
-
-	/** List the users contained on the database. Must provide number of users desired
-	 * and offset into the listing.
-	 *
-	 * @param offset The offset where to start computing
-	 * @param count The number of users to be returned
-	 * @return The list of retrieved users
-	 */
-	public JSONArray listUsers(long offset, long count) {
-		String query = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST).toString().trim();
-		JSONArray ja = new JSONArray();
-		ResultSet rs = null;
-
-		try {
-			PreparedStatement ps = conn.prepareStatement(query);
-			ps.setLong(1, offset);
-			ps.setLong(2, count);
-			rs = ps.executeQuery();
-			while (rs.next()) {
-				JSONObject jo = new JSONObject();
-				try {
-					jo.put("uuid", rs.getString("uuid"));
-					jo.put("screen_name", rs.getString("screen_name"));
-					jo.put("profile", new JSONObject(rs.getString("profile")));
-					ja.put(jo);
-				}
-				catch (JSONException e) {
-					// Discarding user
-				    logger.log(Level.WARNING, e.getMessage(), e);
-				}
-			}
-
-			return ja;
 		}
 		catch (SQLException e) {
-			return null;
+		    logger.log(Level.SEVERE, null, e);
+			throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void removeUser(UUID userId) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_UUID).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userId.toString());
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+			logger.log(Level.SEVERE, null, e);
+			throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void removeUser(String userName) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_SCREEN_NAME).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userName);
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void updateUserPassword(UUID userId, String password) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_UUID).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, computeDigest(password));
+			ps.setString(2, userId.toString());
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+			logger.log(Level.SEVERE, null, e);
+			throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void updateUserPassword(String userName, String password) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, computeDigest(password));
+			ps.setString(2, userName);
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void updateProfile(UUID userId, JSONObject profile) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_UUID).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, profile.toString());
+			ps.setString(2, userId.toString());
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public void updateProfile(String userName, JSONObject profile) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_SCREEN_NAME).trim();
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, profile.toString());
+			ps.setString(2, userName);
+			ps.executeUpdate();
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+	}
+
+	@Override
+	public UUID getUserId(String userName) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_UUID).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userName);
+			rs = ps.executeQuery();
+
+			return rs.next() ? UUID.fromString(rs.getString(1)) : null;
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
 		}
 		finally {
-		    if (rs != null)
+            if (rs != null) {
                 try {
                     rs.close();
                 }
-		        catch (SQLException e1) {
-                    // Tried to properly clean out
-                }
+                catch (SQLException e) { }
+            }
 		}
 	}
 
+	@Override
+	public String getUserScreenName(UUID userId) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_SCREEN_NAME).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userId.toString());
+			rs = ps.executeQuery();
+
+			return rs.next() ? rs.getString(1) : null;
+		}
+		catch (SQLException e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+		finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+		}
+	}
+
+	@Override
+	public JSONObject getUserProfile(String userName) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_SCREEN_NAME).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userName);
+			rs = ps.executeQuery();
+
+			return rs.next() ? new JSONObject(rs.getString(1)) : null;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+		finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+		}
+	}
+
+	@Override
+	public JSONObject getUserProfile(UUID userId) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_UUID).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userId.toString());
+			rs = ps.executeQuery();
+
+			return rs.next() ? new JSONObject(rs.getString(1)) : null;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+		finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+		}
+	}
+
+	@Override
+	public Date getUserCreationTime(String userName) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userName);
+			rs = ps.executeQuery();
+
+			return (rs.next()) ? SQLITE_DATE_PARSER.parse(rs.getString(1)) : null;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+		finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+		}
+	}
+
+	@Override
+	public Date getUserCreationTime(UUID userId) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_UUID).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userId.toString());
+			rs = ps.executeQuery();
+
+			return rs.next() ? rs.getTimestamp(1) : null;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+		finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+		}
+	}
+
+	@Override
+	public Boolean isUserPasswordValid(String userName, String password) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_SCREEN_NAME).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userName);
+			ps.setString(2, computeDigest(password));
+			rs = ps.executeQuery();
+
+			return rs.next() ? rs.getBoolean(1) : null;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+	}
+
+	@Override
+	public Boolean isUserPasswordValid(UUID userId, String password) throws BackendStorageException {
+	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_UUID).trim();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setString(1, userId.toString());
+			ps.setString(2, computeDigest(password));
+			rs = ps.executeQuery();
+
+			return rs.next() ? rs.getBoolean(1) : null;
+		}
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+	}
+
+	@Override
+	public long userCount() throws BackendStorageException {
+		String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT).trim();
+		ResultSet rs = null;
+
+		try {
+			rs = conn.createStatement().executeQuery(sqlQuery);
+			rs.next();
+			return rs.getLong(1);
+		}
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+	}
+
+	@Override
+	public JSONArray listUsers(long offset, long count) throws BackendStorageException {
+		String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST).trim();
+		JSONArray jaUsers = new JSONArray();
+		ResultSet rs = null;
+
+		try {
+			PreparedStatement ps = conn.prepareStatement(sqlQuery);
+			ps.setLong(1, offset);
+			ps.setLong(2, count);
+			rs = ps.executeQuery();
+
+			while (rs.next()) {
+				JSONObject joUser = new JSONObject();
+				joUser.put("uuid", rs.getString("uuid"));
+				joUser.put("screen_name", rs.getString("screen_name"));
+				joUser.put("profile", new JSONObject(rs.getString("profile")));
+				jaUsers.put(joUser);
+			}
+
+			return jaUsers;
+		}
+		catch (Exception e) {
+		    logger.log(Level.SEVERE, null, e);
+		    throw new BackendStorageException(e);
+		}
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+	}
+
     @Override
-    public boolean addEvent(SourceType sourceType, UUID uuid, Event eventCode, JSONObject description) {
-        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD);
+    public void addEvent(SourceType sourceType, UUID sourceId, Event eventCode, JSONObject description) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD).trim();
 
         try {
-            PreparedStatement ps = conn.prepareStatement(query);
-            ps.setString(1, "" + sourceType.getSourceTypeCode());
-            ps.setString(2, uuid.toString());
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, String.valueOf(sourceType.getSourceTypeCode()));
+            ps.setString(2, sourceId.toString());
             ps.setInt(3, eventCode.getEventCode());
             ps.setString(4, description.toString());
             ps.executeUpdate();
-            return true;
         }
         catch (SQLException e) {
-            return false;
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
     }
 
     @Override
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription comp, Set<FileItem> contexts) {
-        String queryAddId = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID);
-        String queryAdd = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD);
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<FileItem> contexts) throws BackendStorageException {
+        String sqlQueryAddId = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID).trim();
+        String sqlQueryAdd = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD).trim();
 
         JSONObject joResult = new JSONObject();
 
-        String origURI = comp.getExecutableComponent().getURI();
+        String origURI = component.getExecutableComponent().getURI();
 
-        UUID uuid = getComponentUUID(origURI, userId);
+        // Attempt to retrieve the component id for this component
+        UUID componentId = getComponentId(origURI, userId);
         int version = -1;
 
-        if (uuid != null) {
-            version = getLastVersionNumberForComponent(uuid);
+        if (componentId != null) {
+            // Found the component, get the version number of the last revision
+            version = getLastVersionNumberForComponent(componentId);
+
             // Sanity check
             if (version == -1)
-                logger.warning(String.format("No version found for existing component %s (uri: %s)", uuid, origURI));
+                logger.warning(String.format("No version found for existing component %s (uri: %s)", componentId, origURI));
             else
                 version++;
         } else {
-            uuid = UUID.randomUUID();
+            // The component was not found, create a new id for it
+            componentId = UUID.randomUUID();
 
             try {
                 // Add the mapping from origURI, userID to component UUID
-                PreparedStatement psAddId = conn.prepareStatement(queryAddId);
+                PreparedStatement psAddId = conn.prepareStatement(sqlQueryAddId);
                 psAddId.setString(1, origURI);
                 psAddId.setString(2, userId.toString());
-                psAddId.setString(3, uuid.toString());
+                psAddId.setString(3, componentId.toString());
                 psAddId.executeUpdate();
             }
             catch (SQLException e) {
-                try {
-                    joResult.put("error", e.getMessage());
-                    return joResult;
-                }
-                catch (JSONException e1) {
-                    throw new RuntimeException(e1);
-                }
+                logger.log(Level.SEVERE, null, e);
+                throw new BackendStorageException(e);
             }
         }
 
         if (version == -1) version = 1;
 
-        logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s", origURI, uuid, version, userId));
+        logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s", origURI, componentId, version, userId));
 
         // Make sure we have a place to put the components and contexts
         File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
@@ -706,17 +669,23 @@ public class SQLiteLink implements BackendStorageLink {
         fREPOSITORY_CONTEXTS.mkdirs();
 
         // Clear any existing contexts
-        Set<RDFNode> compContexts = comp.getContext();
+        Set<RDFNode> compContexts = component.getContext();
         compContexts.clear();
 
-        Model tmpModel = comp.getExecutableComponent().getModel();
+        Model tmpModel = component.getExecutableComponent().getModel();
 
         for (FileItem context : contexts) {
             logger.finer("Processing context file: " + context.getName());
             try {
                 File tmpFile = File.createTempFile("context", ".tmp", fREPOSITORY_CONTEXTS);
-                context.write(tmpFile);
+                try {
+                    context.write(tmpFile);
+                }
+                catch (Exception e) {
+                    throw new IOException(e);
+                }
 
+                // Compute the MD5 hash for the context file
                 final String md5 = Crypto.getHexString(Crypto.createMD5Checksum(tmpFile));
 
                 // Look for context files that have the same MD5 hash value
@@ -736,123 +705,186 @@ public class SQLiteLink implements BackendStorageLink {
                 }
 
                 File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
-                if (!tmpFile.renameTo(ctxFile))
-                    throw new RuntimeException("Could not rename " + tmpFile + " to " + ctxFile);
+                if (!tmpFile.renameTo(ctxFile)) {
+                    String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
+                    logger.severe(errorMsg);
+                    throw new BackendStorageException(errorMsg);
+                }
 
                 compContexts.add(tmpModel.createResource("context://localhost/" + ctxFile.getName()));
                 logger.finer("Context file saved as " + ctxFile);
             }
-            catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
             catch (IOException e) {
-               throw new RuntimeException(e);
+                logger.log(Level.SEVERE, null, e);
+                throw new BackendStorageException(e);
             }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+
         }
 
-        File fCompFolder = new File(fREPOSITORY_COMPONENTS, uuid.toString());
+        File fCompFolder = new File(fREPOSITORY_COMPONENTS, componentId.toString());
         fCompFolder.mkdir();
 
         try {
             // Write the component descriptor file for this version
-            Model compModel = comp.getModel();
-            File fCompDescriptor = new File(fCompFolder, "" + version + ".ttl");
+            Model compModel = component.getModel();
+            File fCompDescriptor = new File(fCompFolder, String.valueOf(version) + ".ttl");
             logger.finer("Saving component descriptor as " + fCompDescriptor);
             FileOutputStream fos = new FileOutputStream(fCompDescriptor);
             compModel.write(fos, "TURTLE");
             fos.close();
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
 
         try {
             // Add the new component version
-            PreparedStatement psAdd = conn.prepareStatement(queryAdd);
-            psAdd.setString(1, uuid.toString());
+            PreparedStatement psAdd = conn.prepareStatement(sqlQueryAdd);
+            psAdd.setString(1, componentId.toString());
             psAdd.setInt(2, version);
             psAdd.executeUpdate();
         }
         catch (SQLException e) {
-            try {
-                joResult.put("error", e.getMessage());
-                return joResult;
-            }
-            catch (JSONException e1) {
-                throw new RuntimeException(e1);
-            }
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
 
         try {
-            joResult.put("uuid", uuid.toString());
+            joResult.put("uuid", componentId.toString());
             joResult.put("version", version);
         }
         catch (JSONException e) {
-            throw new RuntimeException(e);
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
 
         return joResult;
     }
 
-	//-------------------------------------------------------------------------------------
-
-    private UUID getComponentUUID(String baseUri, UUID userId) {
-        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER);
+    @Override
+    public Model getComponent(UUID componentId, int version) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION).trim();
         ResultSet rs = null;
+        boolean deleted;
 
         try {
-            PreparedStatement ps = conn.prepareStatement(query);
-            ps.setString(1, baseUri);
-            ps.setString(2, userId.toString());
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, componentId.toString());
+            ps.setString(2, String.valueOf(version));
             rs = ps.executeQuery();
-            rs.next();
-            return UUID.fromString(rs.getString(1));
+
+            if (rs.next())
+                deleted = rs.getBoolean(1);
+            else
+                // Component not found
+                return null;
         }
         catch (SQLException e) {
-            return null;
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null)
+            if (rs != null) {
                 try {
                     rs.close();
                 }
-                catch (SQLException e1) {
-                    // Tried to properly clean out
+                catch (SQLException e) { }
+            }
+        }
+
+        if (deleted)
+            logger.warning(String.format("Retrieving DELETED component (id: %s, version: %d)", componentId, version));
+
+        return null;
+    }
+
+	//-------------------------------------------------------------------------------------
+
+
+    /**
+     * Returns the component id for the component matching the specified baseUri and userId
+     *
+     * @param baseUri The component's base uri
+     * @param userId The user id
+     * @return The component id, or null if one can't be found
+     * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+     */
+    protected UUID getComponentId(String baseUri, UUID userId) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER).trim();
+        ResultSet rs = null;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, baseUri);
+            ps.setString(2, userId.toString());
+            rs = ps.executeQuery();
+
+            return rs.next() ? UUID.fromString(rs.getString(1)) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
                 }
+                catch (SQLException e) { }
+            }
         }
     }
 
     /**
      * Returns the highest version number for a component
      *
-     * @param uuid The component uuid
-     * @return The version number, or -1 if no version was found, or null if SQL error
+     * @param componentId The component id
+     * @return The version number, or -1 if no version was found
+     * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
      */
-    private int getLastVersionNumberForComponent(UUID uuid) {
-        String query = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER);
+    protected int getLastVersionNumberForComponent(UUID componentId) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER).trim();
         ResultSet rs = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement(query);
-            ps.setString(1, uuid.toString());
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, componentId.toString());
             rs = ps.executeQuery();
-            rs.next();
-            return rs.getInt(1);
+
+            return rs.next() ? rs.getInt(1) : -1;
         }
         catch (SQLException e) {
-            return -1;
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null)
+            if (rs != null) {
                 try {
                     rs.close();
                 }
-                catch (SQLException e1) {
-                    // Tried to properly clean out
-                }
+                catch (SQLException e) { }
+            }
         }
+    }
+
+    /**
+     * Computes a SHA1 digest for a given string
+     *
+     * @param string The string
+     * @return The SHA1 digest
+     */
+    protected String computeDigest(String string) {
+        try {
+            return Crypto.getSHA1Hash(string);
+        }
+        catch (NoSuchAlgorithmException e) {
+            logger.log(Level.WARNING, null, e);
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.WARNING, null, e);
+        }
+
+        return null;
     }
 }

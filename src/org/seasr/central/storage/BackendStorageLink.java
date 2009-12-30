@@ -52,21 +52,25 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 
+import com.hp.hpl.jena.rdf.model.Model;
+
 
 /**
  * The interface that any back end storage driver must implement
  *
- * @author xavier
+ * @author Xavier Llora
+ * @author Boris Capitanu
  */
+
 public interface BackendStorageLink {
 
 	/**
 	 * Initialize the backend storage link with the given properties.
 	 *
 	 * @param properties The properties required to initialize the backend link
-	 * @return true if it could be properly initialized, false otherwise
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean init( Properties properties );
+	public void init(Properties properties) throws BackendStorageException;
 
 	/**
 	 * Closes the back end storage link.
@@ -78,164 +82,190 @@ public interface BackendStorageLink {
 	//-------------------------------------------------------------------------------------
 
 	/**
-	 * Adds a user to the back end storage facility.
+	 * Adds a user to the back end storage facility
 	 *
-	 * @param user The user name
-	 * @param password The password for this users
-	 * @param profile The profile information for this user
-	 * @return The UUID of the created users. If the user could not be created null is returned
+	 * @param userName The user screen name
+	 * @param password The user password
+	 * @param profile The user profile data
+	 * @return The id assigned to the created user
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public UUID addUser ( String user, String password, JSONObject profile );
+	public UUID addUser(String userName, String password, JSONObject profile) throws BackendStorageException;
 
 	/**
-	 * Remove a user from the back end storage facility.
+	 * Removes a user from the back end storage facility
 	 *
-	 * @param uuid The UUID of the user to remove
-	 * @return True if the user could be successfully removed. False otherwise
+	 * @param userId The user id
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean removeUser ( UUID uuid );
+	public void removeUser(UUID userId) throws BackendStorageException;
 
 	/**
-	 * Remove a user from the back end storage facility.
+	 * Removes a user from the back end storage facility
 	 *
-	 * @param user The screen name of the user to remove
-	 * @return True if the user could be successfully removed. False otherwise
+	 * @param userName The user's screen name
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean removeUser ( String user );
+	public void removeUser(String userName) throws BackendStorageException;
 
 	/**
-	 * Updates the user's password.
+	 * Updates a user's password
 	 *
-	 * @param uuid The user UUID
-	 * @param password The new password to use
-	 * @return True if the password could be successfully updated. False otherwise
+	 * @param userId The user id
+	 * @param password The new password
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean updateUserPassword ( UUID uuid, String password ) ;
+	public void updateUserPassword(UUID userId, String password) throws BackendStorageException;
 
 	/**
-	 * Updates the user's password.
+	 * Updates a user's password
 	 *
-	 * @param user The user screen_name
-	 * @param password The new password to use
-	 * @return True if the password could be successfully updated. False otherwise
+	 * @param userName The user's screen name
+	 * @param password The new password
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean updateUserPassword ( String user, String password );
+	public void updateUserPassword(String userName, String password) throws BackendStorageException;
 
 	/**
-	 * Updates the user's profile.
+	 * Updates a user's profile
 	 *
-	 * @param uuid The user UUID
-	 * @param profile The new profile to use
-	 * @return True if the profile could be successfully updated. False otherwise
+	 * @param userId The user id
+	 * @param profile The new profile
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean updateProfile ( UUID uuid, JSONObject profile ) ;
+	public void updateProfile(UUID userId, JSONObject profile) throws BackendStorageException;
 
 	/**
-	 * Updates the user's profile.
+	 * Updates a user's profile
 	 *
-	 * @param user The user screen_name
-	 * @param profile The new profile to use
-	 * @return True if the profile could be successfully updated. False otherwise
+	 * @param userName The user screen name
+	 * @param profile The new profile
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean updateProfile ( String user, JSONObject profile ) ;
+	public void updateProfile(String userName, JSONObject profile) throws BackendStorageException;
 
 	/**
-	 * Returns the UUID of a user given his screen name.
+	 * Returns the id of a user given the screen name
 	 *
-	 * @param user The user's screen name
-	 * @return The UUID of the user or null if the user does not exist
+	 * @param userName The user's screen name
+	 * @return The user id or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public UUID getUserUUID ( String user );
+	public UUID getUserId(String userName) throws BackendStorageException;
 
 	/**
-	 * Returns the screen name of a user given his screen name.
+	 * Returns the screen name of a user given the user id
 	 *
-	 * @param uuid The user's UUID
+	 * @param userId The user id
 	 * @return The screen name of the user or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public String getUserScreenName ( UUID uuid );
+	public String getUserScreenName(UUID userId) throws BackendStorageException;
 
 	/**
-	 * Returns the profile of a user given his screen name.
+	 * Returns the profile of a user given the screen name
 	 *
-	 * @param user The user's screen name
+	 * @param userName The user's screen name
 	 * @return The profile of the user or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public JSONObject getUserProfile ( String user );
-
+	public JSONObject getUserProfile(String userName) throws BackendStorageException;
 
 	/**
-	 * Returns the profile of a user given his UUID.
+	 * Returns the profile of a user given the user id
 	 *
-	 * @param uuid The user's UUID
+	 * @param userId The user id
 	 * @return The profile of the user or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public JSONObject getUserProfile ( UUID uuid );
+	public JSONObject getUserProfile(UUID userId) throws BackendStorageException;
 
 	/**
-	 * Returns the creation time of a user given his screen name.
+	 * Returns the creation time of a user given the screen name
 	 *
-	 * @param user The user's screen name
+	 * @param userName The user's screen name
 	 * @return The creation time of the user or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public Date getUserCreationTime ( String user );
+	public Date getUserCreationTime(String userName) throws BackendStorageException;
 
 	/**
-	 * Returns the creation time of a user given his UUID.
+	 * Returns the creation time of a user given the user id
 	 *
-	 * @param uuid The user's UUID
+	 * @param userId The user id
 	 * @return The creation time of the user or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public Date getUserCreationTime ( UUID uuid );
+	public Date getUserCreationTime(UUID userId) throws BackendStorageException;
 
 	/**
-	 * Check if the user password is valid based on user's screen name.
+	 * Checks if a user's password is valid based on the user's screen name
 	 *
-	 * @param user The user's screen name
-	 * @param password The password to check
-	 * @return True if the password matches, false otherwise
+	 * @param userName The user's screen name
+	 * @param password The password
+	 * @return True if the password matches, False if not, or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean isUserPasswordValid ( String user, String password );
+	public Boolean isUserPasswordValid(String userName, String password) throws BackendStorageException;
 
 	/**
-	 * Check if the user password is valid based on the UUID of the user.
+	 * Checks if a user's password is valid based on the user id
 	 *
-	 * @param uuid The user's UUID
-	 * @param password The password to check
-	 * @return True if the password matches, false otherwise
+	 * @param userId The user id
+	 * @param password The password
+	 * @return True if the password matches, False if not, or null if the user does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean isUserPasswordValid ( UUID uuid, String password );
+	public Boolean isUserPasswordValid(UUID userId, String password) throws BackendStorageException;
 
 	/**
-	 * Return the number of users on the back end storage.
+	 * Returns the number of users
 	 *
-	 * @return The number of users in SC back end storage. -1 indicates failure
+	 * @return The number of users
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public long userCount();
+	public long userCount() throws BackendStorageException;
 
 	/**
-	 * List the users contained on the database. Must provide number of users desired
-	 * and offset into the listing.
+	 * Lists the users stored in the backend store
 	 *
-	 * @param offset The offset where to start computing
+	 * @param offset The offset where to start
 	 * @param count The number of users to be returned
-	 * @return The list of retrieved users
+	 * @return The list of users
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public JSONArray listUsers ( long offset, long count );
+	public JSONArray listUsers(long offset, long count) throws BackendStorageException;
 
 	/**
-	 * Add a new event
+	 * Adds a new event
 	 *
 	 * @param sourceType The source of the event
-	 * @param uuid The UUID of the source
+	 * @param sourceId The id of the source
 	 * @param event The event
-	 * @param description The JSON event description
-	 * @return True if success, false otherwise
+	 * @param description The event description
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
-	public boolean addEvent(SourceType sourceType, UUID uuid, Event event, JSONObject description);
+	public void addEvent(SourceType sourceType, UUID sourceId, Event event, JSONObject description) throws BackendStorageException;
 
+	/**
+	 * Adds (or updates) a component
+	 *
+	 * @param userId The user to be credited with the upload
+	 * @param component The component
+	 * @param contexts The component context files
+	 * @return A JSON object keyed on uuid and version containing information about the component
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+	 */
+	public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<FileItem> contexts) throws BackendStorageException;
 
-	public JSONObject addComponent(UUID userId, ExecutableComponentDescription comp, Set<FileItem> contexts);
-	//-------------------------------------------------------------------------------------
+	/**
+	 * Retrieves a component given the component id and version
+	 *
+	 * @param componentId The component id
+	 * @param version The version to retrieve
+	 * @return The component descriptor, or null if the component does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+	 */
+	public Model getComponent(UUID componentId, int version) throws BackendStorageException;
 
 }

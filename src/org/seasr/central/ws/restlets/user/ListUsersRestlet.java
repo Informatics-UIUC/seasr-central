@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
@@ -59,6 +60,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
@@ -66,11 +68,12 @@ import org.seasr.central.ws.restlets.Tools.OperationResult;
 import com.google.gdata.util.ContentType;
 
 /**
- * This servlet implements list user functionality.
+ * Restlet for listing users
  *
- * @author xavier
+ * @author Xavier Llora
  * @author Boris Capitanu
  */
+
 public class ListUsersRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
@@ -115,33 +118,41 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
 		    if (sCount != null ) count = Long.parseLong(sCount);
 		}
 		catch (NumberFormatException e) {
-            logger.log(Level.WARNING, e.getMessage(), e);
+            logger.log(Level.WARNING, null, e);
             sendErrorBadRequest(response);
             return true;
 		}
 
-		JSONArray ja = bsl.listUsers(offset, count);
-		if (ja == null) {
-		    logger.log(Level.SEVERE, "listUsers() returned null - possible SQLException");
-		    sendErrorInternalServerError(response);
-		    return true;
-		}
+		JSONArray jaSuccess = new JSONArray();
+		JSONArray jaErrors = new JSONArray();
 
 		try {
+		    try {
+		        jaSuccess = bsl.listUsers(offset, count);
+		    }
+		    catch (BackendStorageException e) {
+		        logger.log(Level.SEVERE, null, e);
+		        jaErrors.put(createJSONErrorObj("Cannot obtain the user list", e));
+		    }
+
 		    JSONObject joContent = new JSONObject();
-		    joContent.put(OperationResult.SUCCESS.name(), ja);
-		    joContent.put(OperationResult.FAILURE.name(), new JSONArray());
+		    joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
+		    joContent.put(OperationResult.FAILURE.name(), jaErrors);
 
 		    response.setStatus(HttpServletResponse.SC_OK);
 
-			sendContent(response, joContent, ct);
+		    try {
+		        sendContent(response, joContent, ct);
+		    }
+		    catch (IOException e) {
+		        logger.log(Level.WARNING, null, e);
+		    }
 		}
 		catch (JSONException e) {
-		    // should not happen
-	        logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		catch (IOException e) {
-	         logger.log(Level.WARNING, e.getMessage(), e);
+            // Should not happen
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
 		}
 
 		return true;

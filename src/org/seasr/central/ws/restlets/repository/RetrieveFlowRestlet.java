@@ -55,6 +55,11 @@ import org.seasr.central.ws.restlets.ContentTypes;
 
 import com.google.gdata.util.ContentType;
 
+/**
+ * Restlet for retrieving flow descriptors
+ *
+ * @author Boris Capitanu
+ */
 
 public class RetrieveFlowRestlet extends AbstractBaseRestlet {
 

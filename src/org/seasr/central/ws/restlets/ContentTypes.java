@@ -44,6 +44,11 @@ package org.seasr.central.ws.restlets;
 
 import com.google.gdata.util.ContentType;
 
+/**
+ * Defines extra content types not included in the Google API
+ *
+ * @author Boris Capitanu
+ */
 
 public abstract class ContentTypes {
 

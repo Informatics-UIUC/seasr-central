@@ -53,13 +53,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * This class is the base for a restful usage of servlets. Servlets should not be
- * added or removed once the servlet is in use, since may introduce unexpected behavior
+ * This class is the base for a RESTful usage of servlets. Servlets should not be
+ * added or removed once the server is in use, since it may introduce unexpected behavior
  * on heavy load servlets.
  *
- * @author xavier
- *
+ * @author Xavier Llora
  */
+
 public class RestfulExtensibleDispatcher extends HttpServlet {
 
 	/** A default serial ID */

@@ -42,6 +42,7 @@
 
 package org.seasr.central.ws.restlets.user;
 
+import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
@@ -61,6 +62,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
@@ -70,11 +72,12 @@ import org.seasr.central.ws.restlets.Tools.OperationResult;
 import com.google.gdata.util.ContentType;
 
 /**
- * This servlet implements add user functionality.
+ * Restlet for deleting users
  *
- * @author xavier
+ * @author Xavier Llora
  * @author Boris Capitanu
  */
+
 public class DeleteUserRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
@@ -108,64 +111,73 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
 	        return true;
 	    }
 
-	    UUID uuid = null;
+	    UUID userId = null;
 	    String screenName = null;
 
-	    Properties userProps = getUserScreenNameAndUUID(values[0]);
-	    if (userProps != null) {
-	        uuid = UUID.fromString(userProps.getProperty("uuid"));
-	        screenName = userProps.getProperty("screen_name");
-	    } else {
-            sendErrorNotFound(response);
-            return true;
-        }
+	    try {
+	        Properties userProps = getUserScreenNameAndId(values[0]);
+	        if (userProps != null) {
+	            userId = UUID.fromString(userProps.getProperty("uuid"));
+	            screenName = userProps.getProperty("screen_name");
+	        } else {
+	            // Specified user does not exist
+	            sendErrorNotFound(response);
+	            return true;
+	        }
+	    }
+	    catch (BackendStorageException e) {
+	        logger.log(Level.SEVERE, null, e);
+	        sendErrorInternalServerError(response);
+	        return true;
+	    }
 
 		JSONArray jaSuccess = new JSONArray();
 		JSONArray jaErrors = new JSONArray();
 
 		try {
-			if (bsl.removeUser(screenName)) {
-			    // User deleted successfully
-			    JSONObject joUser = new JSONObject();
-				joUser.put("uuid", uuid.toString());
-				joUser.put("screen_name", screenName);
+		    try {
+		        // Attempt to remove the user
+		        bsl.removeUser(userId);
 
-                if (!bsl.addEvent(SourceType.USER, uuid, Event.USER_DELETED, joUser))
-                    logger.warning(String.format("Could not record the %s event for user: %s (%s)",
-                            Event.USER_DELETED, screenName, uuid));
+		        // User deleted successfully
+		        JSONObject joUser = new JSONObject();
+		        joUser.put("uuid", userId.toString());
+		        joUser.put("screen_name", screenName);
 
-				jaSuccess.put(joUser);
-			} else {
-				// Could not add the user
-				JSONObject joError = new JSONObject();
-				joError.put("text", "User with UUID " + uuid + " could not be deleted");
-				joError.put("uuid", uuid.toString());
-				joError.put("screen_name", screenName);
+		        jaSuccess.put(joUser);
 
-				jaErrors.put(joError);
-			}
-		}
-		catch (JSONException e) {
-		    logger.log(Level.SEVERE, e.getMessage(), e);
-            sendErrorInternalServerError(response);
-		    return true;
-		}
+		        // Record the event
+		        bsl.addEvent(SourceType.USER, userId, Event.USER_DELETED, joUser);
+		    }
+		    catch (BackendStorageException e) {
+		        logger.log(Level.SEVERE, null, e);
 
-		try {
+		        // Could not remove the user
+		        JSONObject joError = createJSONErrorObj(String.format("Could not remove the user '%s'", screenName), e);
+		        joError.put("uuid", userId.toString());
+		        joError.put("screen_name", screenName);
+
+		        jaErrors.put(joError);
+		    }
+
 		    JSONObject joContent = new JSONObject();
-	        joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-	        joContent.put(OperationResult.FAILURE.name(), jaErrors);
+		    joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
+		    joContent.put(OperationResult.FAILURE.name(), jaErrors);
 
-	        response.setStatus(HttpServletResponse.SC_OK);
+		    response.setStatus(HttpServletResponse.SC_OK);
 
-		    sendContent(response, joContent, ct);
+		    try {
+		        sendContent(response, joContent, ct);
+		    }
+		    catch (IOException e) {
+		        logger.log(Level.WARNING, null, e);
+		    }
 		}
 		catch (JSONException e) {
-		    // should not happen
-	        logger.log(Level.SEVERE, e.getMessage(), e);
-		}
-		catch (IOException e) {
-		    logger.log(Level.WARNING, e.getMessage(), e);
+		    // Should not happen
+		    logger.log(Level.SEVERE, null, e);
+		    sendErrorInternalServerError(response);
+		    return true;
 		}
 
 		return true;
