@@ -627,11 +627,15 @@ public class SQLiteLink implements BackendStorageLink {
 
         String origURI = component.getExecutableComponent().getURI();
 
+        boolean isNewComponent = true;
+
         // Attempt to retrieve the component id for this component
         UUID componentId = getComponentId(origURI, userId);
         int version = -1;
 
         if (componentId != null) {
+            isNewComponent = false;
+
             // Found the component, get the version number of the last revision
             version = getLastVersionNumberForComponent(componentId);
 
@@ -640,27 +644,13 @@ public class SQLiteLink implements BackendStorageLink {
                 logger.warning(String.format("No version found for existing component %s (uri: %s)", componentId, origURI));
             else
                 version++;
-        } else {
+        } else
             // The component was not found, create a new id for it
             componentId = UUID.randomUUID();
 
-            try {
-                // Add the mapping from origURI, userID to component UUID
-                PreparedStatement psAddId = conn.prepareStatement(sqlQueryAddId);
-                psAddId.setString(1, origURI);
-                psAddId.setString(2, userId.toString());
-                psAddId.setString(3, componentId.toString());
-                psAddId.executeUpdate();
-            }
-            catch (SQLException e) {
-                logger.log(Level.SEVERE, null, e);
-                throw new BackendStorageException(e);
-            }
-        }
-
         if (version == -1) version = 1;
 
-        logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s", origURI, componentId, version, userId));
+        logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s)", origURI, componentId, version, userId));
 
         // Make sure we have a place to put the components and contexts
         File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
@@ -744,6 +734,15 @@ public class SQLiteLink implements BackendStorageLink {
             psAdd.setString(1, componentId.toString());
             psAdd.setInt(2, version);
             psAdd.executeUpdate();
+
+            if (isNewComponent) {
+                // Add the mapping from origURI, userID to component UUID
+                PreparedStatement psAddId = conn.prepareStatement(sqlQueryAddId);
+                psAddId.setString(1, origURI);
+                psAddId.setString(2, userId.toString());
+                psAddId.setString(3, componentId.toString());
+                psAddId.executeUpdate();
+            }
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
