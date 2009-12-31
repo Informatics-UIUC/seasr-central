@@ -67,6 +67,7 @@
   		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userInfo"/></Arg></Call>
   		<Call name="add"><Arg><Ref id="userComponentUpload"/></Arg></Call>
+  		<Call name="add"><Arg><Ref id="userFlowUpload"/></Arg></Call>
   </New>
 
   <!-- Repository REST servlet dispatcher -->

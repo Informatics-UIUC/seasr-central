@@ -94,7 +94,7 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/(.+?)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/repository/component/(.+)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -145,6 +145,8 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
         String serverBase = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         String compUri = String.format("%s/repository/component/%s/%d", serverBase, componentId, version);
         String contextBase = String.format("%s/repository/context/", serverBase);
+
+        if (oldCompUri.endsWith("/")) compUri += "/";
 
         // Update the component URI and component context(s) URIs
         // TODO: Find a better method to do this (one that relies on direct Model manipulation)

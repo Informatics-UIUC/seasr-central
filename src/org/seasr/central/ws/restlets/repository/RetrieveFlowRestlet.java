@@ -42,18 +42,34 @@
 
 package org.seasr.central.ws.restlets.repository;
 
+import static org.seasr.central.ws.restlets.Tools.logger;
+import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.google.gdata.util.ContentType;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.vocabulary.RDF;
 
 /**
  * Restlet for retrieving flow descriptors
@@ -92,8 +108,86 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String sFlowId = values[0];
-        String sFlowVersion = values[1];
+        UUID flowId;
+        int version;
+
+        try {
+            flowId = UUID.fromString(values[0]);
+            version = Integer.parseInt(values[1]);
+            if (version < 1)
+                throw new IllegalArgumentException("The version number cannot be less than 1");
+        }
+        catch (IllegalArgumentException e) {
+            sendErrorBadRequest(response);
+            return true;
+        }
+
+        Model flowModel;
+
+        try {
+            // Attempt to retrieve the flow from the backend store
+            flowModel = bsl.getFlow(flowId, version);
+
+            if (flowModel == null) {
+                sendErrorNotFound(response);
+                return true;
+            }
+        }
+        catch (BackendStorageException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+
+        String oldFlowUri = flowModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.flow_component).nextResource().getURI();
+
+        String serverBase = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+        String flowUri = String.format("%s/repository/flow/%s/%d", serverBase, flowId, version);
+
+        if (oldFlowUri.endsWith("/")) flowUri += "/";
+
+        // Update the flow URI
+        // TODO: Find a better method to do this (one that relies on direct Model manipulation)
+        String sModel;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        flowModel.write(baos);
+        try {
+            sModel = baos.toString("UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+        sModel = sModel.replaceAll(Pattern.quote(oldFlowUri), flowUri);  // Update the flow URI
+
+        flowModel = ModelFactory.createDefaultModel();
+        try {
+            ModelUtils.readModelFromString(flowModel, sModel);
+
+            // Send the response
+            response.setContentType(ct.toString());
+            response.setStatus(HttpServletResponse.SC_OK);
+
+            if (ct.equals(ContentTypes.RDFXML))
+                flowModel.write(response.getOutputStream(), "RDF/XML");
+
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
+                flowModel.write(response.getOutputStream(), "N-TRIPLE");
+
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
+                flowModel.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
 
         return true;
     }

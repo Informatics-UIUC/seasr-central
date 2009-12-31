@@ -53,10 +53,21 @@
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (304, "COMPONENT_SHARED");
         INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (305, "COMPONENT_UNSHARED");
 
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (400, "FLOW_UPLOADED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (401, "FLOW_DELETED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (403, "FLOW_UPDATED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (404, "FLOW_SHARED");
+        INSERT OR IGNORE INTO sc_event_codes (evt_code, description) VALUES (405, "FLOW_UNSHARED");
+
         CREATE TABLE IF NOT EXISTS sc_component (uuid CHAR(36) NOT NULL, version INT NOT NULL, upload_date DATETIME NOT NULL, deleted BOOLEAN NOT NULL DEFAULT 0, PRIMARY KEY (uuid, version));
-        CREATE TABLE IF NOT EXISTS sc_component_id_map (base_uri VARCHAR(255) NOT NULL, user_uuid CHAR(36) NOT NULL, comp_uuid CHAR(36) NOT NULL, PRIMARY KEY (base_uri, user_uuid), FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (comp_uuid) REFERENCES sc_component(uuid));
+        CREATE TABLE IF NOT EXISTS sc_component_id_map (orig_uri VARCHAR(255) NOT NULL, user_uuid CHAR(36) NOT NULL, comp_uuid CHAR(36) NOT NULL, PRIMARY KEY (orig_uri, user_uuid), FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (comp_uuid) REFERENCES sc_component(uuid));
         CREATE TRIGGER IF NOT EXISTS fki_sc_component_id_map BEFORE INSERT ON sc_component_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_component WHERE uuid = NEW.comp_uuid) IS NULL) THEN RAISE(ABORT, 'Insert on table "sc_component_id_map" violates a foreign key constraint') END; END;
         CREATE TRIGGER IF NOT EXISTS fku_sc_component_id_map BEFORE UPDATE ON sc_component_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_component WHERE uuid = NEW.comp_uuid) IS NULL) THEN RAISE(ABORT, 'Update on table "sc_component_id_map" violates a foreign key constraint') END; END;
+
+        CREATE TABLE IF NOT EXISTS sc_flow (uuid CHAR(36) NOT NULL, version INT NOT NULL, upload_date DATETIME NOT NULL, deleted BOOLEAN NOT NULL DEFAULT 0, PRIMARY KEY (uuid, version));
+        CREATE TABLE IF NOT EXISTS sc_flow_id_map (orig_uri VARCHAR(255) NOT NULL, user_uuid CHAR(36) NOT NULL, flow_uuid CHAR(36) NOT NULL, PRIMARY KEY (orig_uri, user_uuid), FOREIGN KEY (user_uuid) REFERENCES sc_user(uuid), FOREIGN KEY (flow_uuid) REFERENCES sc_flow(uuid));
+        CREATE TRIGGER IF NOT EXISTS fki_sc_flow_id_map BEFORE INSERT ON sc_flow_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_flow WHERE uuid = NEW.flow_uuid) IS NULL) THEN RAISE(ABORT, 'Insert on table "sc_flow_id_map" violates a foreign key constraint') END; END;
+        CREATE TRIGGER IF NOT EXISTS fku_sc_flow_id_map BEFORE UPDATE ON sc_flow_id_map FOR EACH ROW BEGIN SELECT CASE WHEN (((SELECT uuid FROM sc_user WHERE uuid = NEW.user_uuid) IS NULL) OR (SELECT uuid FROM sc_flow WHERE uuid = NEW.flow_uuid) IS NULL) THEN RAISE(ABORT, 'Update on table "sc_flow_id_map" violates a foreign key constraint') END; END;
 	</entry>
 
     <!-- USER -->
@@ -123,17 +134,33 @@
         INSERT INTO sc_component (uuid, version, upload_date) VALUES (?, ?, DATETIME('NOW'));
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.id">
-        INSERT INTO sc_component_id_map (base_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
+        INSERT INTO sc_component_id_map (orig_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.get.component.id.baseuri.user">
-        SELECT comp_uuid FROM sc_component_id_map WHERE base_uri = ? AND user_uuid = ?;
+    <entry key="org.seasr.central.storage.db.query.component.get.id.origuri.user">
+        SELECT comp_uuid FROM sc_component_id_map WHERE orig_uri = ? AND user_uuid = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
         SELECT MAX(version) FROM sc_component WHERE uuid = ?;
     </entry>
     <!-- SELECT c.base_uri, m.deleted FROM sc_component c INNER JOIN sc_component_id_map m ON c.uuid = m.comp_uuid WHERE c.uuid = ? AND c.version = ?; -->
-    <entry key="org.seasr.central.storage.db.query.component.get.component.state.uuid.version">
+    <entry key="org.seasr.central.storage.db.query.component.get.state.uuid.version">
         SELECT deleted FROM sc_component WHERE uuid = ? AND version = ?;
     </entry>
 
+    <!-- FLOWS -->
+    <entry key="org.seasr.central.storage.db.query.flow.add">
+        INSERT INTO sc_flow (uuid, version, upload_date) VALUES (?, ?, DATETIME('NOW'));
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.add.id">
+        INSERT INTO sc_flow_id_map (orig_uri, user_uuid, flow_uuid) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.id.origuri.user">
+        SELECT flow_uuid FROM sc_flow_id_map WHERE orig_uri = ? AND user_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.last.version.number">
+        SELECT MAX(version) FROM sc_flow WHERE uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.state.uuid.version">
+        SELECT deleted FROM sc_flow WHERE uuid = ? AND version = ?;
+    </entry>
 </properties>

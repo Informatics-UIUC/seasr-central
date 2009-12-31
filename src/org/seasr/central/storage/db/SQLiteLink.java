@@ -45,10 +45,15 @@ package org.seasr.central.storage.db;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID;
-import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER;
-import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_ID_ORIGURI_USER;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_STATE_UUID_VERSION;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD_ID;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_ID_ORIGURI_USER;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_LAST_VERSION_NUMBER;
+import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_STATE_UUID_VERSION;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT;
 import static org.seasr.central.properties.SCDBProperties.ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME;
@@ -100,6 +105,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
+import org.meandre.core.repository.FlowDescription;
 import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
 import org.seasr.central.storage.Event;
@@ -767,7 +773,7 @@ public class SQLiteLink implements BackendStorageLink {
 
     @Override
     public Model getComponent(UUID componentId, int version) throws BackendStorageException {
-        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION).trim();
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_STATE_UUID_VERSION).trim();
         ResultSet rs = null;
         boolean deleted;
 
@@ -832,24 +838,158 @@ public class SQLiteLink implements BackendStorageLink {
         }
     }
 
+    @Override
+    public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStorageException {
+        String sqlQueryAddId = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD_ID).trim();
+        String sqlQueryAdd = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD).trim();
+
+        JSONObject joResult = new JSONObject();
+
+        String origURI = flow.getFlowComponent().getURI();
+
+        boolean isNewFlow = true;
+
+        // Attempt to retrieve the flow id for this flow
+        UUID flowId = getFlowId(origURI, userId);
+        int version = -1;
+
+        if (flowId != null) {
+            isNewFlow = false;
+
+            // Found the flow, get the version number of the last revision
+            version = getLastVersionNumberForFlow(flowId);
+
+            // Sanity check
+            if (version == -1)
+                logger.warning(String.format("No version found for existing flow %s (uri: %s)", flowId, origURI));
+            else
+                version++;
+        } else
+            // The component was not found, create a new id for it
+            flowId = UUID.randomUUID();
+
+        if (version == -1) version = 1;
+
+        logger.fine(String.format("Adding flow %s (uuid: %s, version %d, user: %s)", origURI, flowId, version, userId));
+
+        // Make sure we have a place to put the flows
+        File fREPOSITORY_FLOWS = new File(REPOSITORY_FOLDER, "flows");
+        fREPOSITORY_FLOWS.mkdir();
+
+        File fFlowFolder = new File(fREPOSITORY_FLOWS, flowId.toString());
+        fFlowFolder.mkdir();
+
+        try {
+            // Write the flow descriptor file for this version
+            Model flowModel = flow.getModel();
+            File fFlowDescriptor = new File(fFlowFolder, String.valueOf(version) + ".ttl");
+            logger.finer("Saving flow descriptor as " + fFlowDescriptor);
+            FileOutputStream fos = new FileOutputStream(fFlowDescriptor);
+            flowModel.write(fos, "TURTLE");
+            fos.close();
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+
+        try {
+            // Add the new flow version
+            PreparedStatement psAdd = conn.prepareStatement(sqlQueryAdd);
+            psAdd.setString(1, flowId.toString());
+            psAdd.setInt(2, version);
+            psAdd.executeUpdate();
+
+            if (isNewFlow) {
+                // Add the mapping from origURI, userID to component UUID
+                PreparedStatement psAddId = conn.prepareStatement(sqlQueryAddId);
+                psAddId.setString(1, origURI);
+                psAddId.setString(2, userId.toString());
+                psAddId.setString(3, flowId.toString());
+                psAddId.executeUpdate();
+            }
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+
+        try {
+            joResult.put("uuid", flowId.toString());
+            joResult.put("version", version);
+        }
+        catch (JSONException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+
+        return joResult;
+    }
+
+    @Override
+    public Model getFlow(UUID flowId, int version) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_STATE_UUID_VERSION).trim();
+        ResultSet rs = null;
+        boolean deleted;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, flowId.toString());
+            ps.setString(2, String.valueOf(version));
+            rs = ps.executeQuery();
+
+            if (rs.next())
+                deleted = rs.getBoolean(1);
+            else
+                // Flow not found
+                return null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+
+        if (deleted)
+            logger.warning(String.format("Retrieving DELETED flow (id: %s, version: %d)", flowId, version));
+
+        File fREPOSITORY_FLOWS = new File(REPOSITORY_FOLDER, "flows");
+        File flowFile = new File(fREPOSITORY_FLOWS, flowId.toString() + File.separator + String.valueOf(version) + ".ttl");
+
+        try {
+            return ModelUtils.getModel(flowFile.toURI(), null);
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+    }
+
 	//-------------------------------------------------------------------------------------
 
 
     /**
-     * Returns the component id for the component matching the specified baseUri and userId
+     * Returns the component id for the component matching the specified origUri and userId
      *
-     * @param baseUri The component's base uri
+     * @param origUri The component's original uri
      * @param userId The user id
      * @return The component id, or null if one can't be found
      * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
      */
-    protected UUID getComponentId(String baseUri, UUID userId) throws BackendStorageException {
-        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER).trim();
+    protected UUID getComponentId(String origUri, UUID userId) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_ID_ORIGURI_USER).trim();
         ResultSet rs = null;
 
         try {
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
-            ps.setString(1, baseUri);
+            ps.setString(1, origUri);
             ps.setString(2, userId.toString());
             rs = ps.executeQuery();
 
@@ -883,6 +1023,72 @@ public class SQLiteLink implements BackendStorageLink {
         try {
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, componentId.toString());
+            rs = ps.executeQuery();
+
+            return rs.next() ? rs.getInt(1) : -1;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+    }
+
+    /**
+     * Returns the flow id for the flow matching the specified origUri and userId
+     *
+     * @param origUri The flow's original uri
+     * @param userId The user id
+     * @return The flow id, or null if one can't be found
+     * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+     */
+    protected UUID getFlowId(String origUri, UUID userId) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_ID_ORIGURI_USER).trim();
+        ResultSet rs = null;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, origUri);
+            ps.setString(2, userId.toString());
+            rs = ps.executeQuery();
+
+            return rs.next() ? UUID.fromString(rs.getString(1)) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
+        finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                }
+                catch (SQLException e) { }
+            }
+        }
+    }
+
+    /**
+     * Returns the highest version number for a flow
+     *
+     * @param flowId The flow id
+     * @return The version number, or -1 if no version was found
+     * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+     */
+    protected int getLastVersionNumberForFlow(UUID flowId) throws BackendStorageException {
+        String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_LAST_VERSION_NUMBER).trim();
+        ResultSet rs = null;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, flowId.toString());
             rs = ps.executeQuery();
 
             return rs.next() ? rs.getInt(1) : -1;

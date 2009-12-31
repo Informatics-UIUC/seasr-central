@@ -52,6 +52,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
+import org.meandre.core.repository.FlowDescription;
 
 import com.hp.hpl.jena.rdf.model.Model;
 
@@ -277,4 +278,24 @@ public interface BackendStorageLink {
 	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
 	public InputStream getContextInputStream(String contextId) throws BackendStorageException;
+
+	/**
+	 * Adds (or updates) a flow
+	 *
+	 * @param userId The user to be credited with the upload
+	 * @param flow The flow
+	 * @return A JSON object keyed on uuid and version containing information about the flow
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+	 */
+	public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStorageException;
+
+	/**
+	 * Retrieves a flow given the flow id and version
+	 *
+	 * @param flowId The flow id
+	 * @param version The version to retrieve
+	 * @return The flow descriptor, or null if the flow does not exist
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+	 */
+	public Model getFlow(UUID flowId, int version) throws BackendStorageException;
 }

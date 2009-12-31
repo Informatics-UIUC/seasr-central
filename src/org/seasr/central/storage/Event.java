@@ -68,7 +68,13 @@ public enum Event {
     COMPONENT_DELETED       (301),
     COMPONENT_UPDATED       (303),
     COMPONENT_SHARED        (304),
-    COMPONENT_UNSHARED      (305);
+    COMPONENT_UNSHARED      (305),
+
+    FLOW_UPLOADED           (400),
+    FLOW_DELETED            (401),
+    FLOW_UPDATED            (403),
+    FLOW_SHARED             (404),
+    FLOW_UNSHARED           (405);
 
 
     //--------------------------------------------------------------------------------------------

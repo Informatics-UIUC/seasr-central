@@ -79,7 +79,15 @@ public abstract class SCDBProperties extends SCProperties {
 	// COMPONENTS
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD = "org.seasr.central.storage.db.query.component.add";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID = "org.seasr.central.storage.db.query.component.add.id";
-	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_ID_BASEURI_USER = "org.seasr.central.storage.db.query.component.get.component.id.baseuri.user";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_ID_ORIGURI_USER = "org.seasr.central.storage.db.query.component.get.id.origuri.user";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER = "org.seasr.central.storage.db.query.component.get.last.version.number";
-	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_COMPONENT_STATE_UUID_VERSION = "org.seasr.central.storage.db.query.component.get.component.state.uuid.version";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_STATE_UUID_VERSION = "org.seasr.central.storage.db.query.component.get.state.uuid.version";
+
+    // FLOWS
+    public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD = "org.seasr.central.storage.db.query.flow.add";
+    public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_ADD_ID = "org.seasr.central.storage.db.query.flow.add.id";
+    public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_ID_ORIGURI_USER = "org.seasr.central.storage.db.query.flow.get.id.origuri.user";
+    public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_LAST_VERSION_NUMBER = "org.seasr.central.storage.db.query.flow.get.last.version.number";
+    public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_STATE_UUID_VERSION = "org.seasr.central.storage.db.query.flow.get.state.uuid.version";
+
 }

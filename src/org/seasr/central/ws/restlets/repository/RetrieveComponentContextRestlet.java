@@ -74,7 +74,7 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/context/(.+?)/(.+?)/?$";
+        return "/repository/context/(.+?)(?:/.*)?$";
     }
 
     @Override
@@ -91,7 +91,7 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/octet-stream");
 
-            byte buffer[] = new byte[8192];
+            byte[] buffer = new byte[8192];
             int nRead;
 
             while ((nRead = contextStream.read(buffer)) > 0)
