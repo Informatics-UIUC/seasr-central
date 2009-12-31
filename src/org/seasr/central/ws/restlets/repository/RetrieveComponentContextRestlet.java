@@ -92,10 +92,10 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             response.setContentType("application/octet-stream");
 
             byte buffer[] = new byte[8192];
-            int bytesRead;
+            int nRead;
 
-            while ((bytesRead = contextStream.read(buffer)) > 0)
-                responseStream.write(buffer, 0, bytesRead);
+            while ((nRead = contextStream.read(buffer)) > 0)
+                responseStream.write(buffer, 0, nRead);
         }
         catch (BackendStorageException e) {
             logger.log(Level.SEVERE, null, e);
@@ -103,8 +103,9 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             return true;
         }
         catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
         }
 
         return true;

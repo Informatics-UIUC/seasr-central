@@ -269,5 +269,12 @@ public interface BackendStorageLink {
 	 */
 	public Model getComponent(UUID componentId, int version) throws BackendStorageException;
 
+	/**
+	 * Retrieves an input stream to the context file specified by an id
+	 *
+	 * @param contextId The id of the context file
+	 * @return An input stream to the context file specified
+	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+	 */
 	public InputStream getContextInputStream(String contextId) throws BackendStorageException;
 }
