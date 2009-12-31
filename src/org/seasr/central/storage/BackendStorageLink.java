@@ -42,6 +42,7 @@
 
 package org.seasr.central.storage;
 
+import java.io.InputStream;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Set;
@@ -268,4 +269,5 @@ public interface BackendStorageLink {
 	 */
 	public Model getComponent(UUID componentId, int version) throws BackendStorageException;
 
+	public InputStream getContextInputStream(String contextId) throws BackendStorageException;
 }

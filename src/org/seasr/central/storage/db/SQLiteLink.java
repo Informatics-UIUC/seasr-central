@@ -74,9 +74,11 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -108,6 +110,8 @@ import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
+
+import de.schlichtherle.io.FileInputStream;
 
 /**
  * The SQLite driver to create a backend storage link
@@ -688,28 +692,27 @@ public class SQLiteLink implements BackendStorageLink {
                 });
 
                 if (files.length > 0) {
+                    String foundFileName = files[0].getName().substring(md5.length() + 1);
                     logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
-                            context.getName(), files[0].getName()));
+                            context.getName(), foundFileName));
                     tmpFile.delete();
-                    compContexts.add(tmpModel.createResource("context://localhost/" + files[0].getName()));
-                    continue;
+                } else {
+                    File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
+                    if (!tmpFile.renameTo(ctxFile)) {
+                        String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
+                        logger.severe(errorMsg);
+                        throw new BackendStorageException(errorMsg);
+                    }
+                    logger.finer("Context file saved as " + ctxFile);
                 }
 
-                File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
-                if (!tmpFile.renameTo(ctxFile)) {
-                    String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
-                    logger.severe(errorMsg);
-                    throw new BackendStorageException(errorMsg);
-                }
-
-                compContexts.add(tmpModel.createResource("context://localhost/" + ctxFile.getName()));
-                logger.finer("Context file saved as " + ctxFile);
+                compContexts.add(tmpModel.createResource(
+                        String.format("context://localhost/%s/%s", md5, context.getName())));
             }
             catch (IOException e) {
                 logger.log(Level.SEVERE, null, e);
                 throw new BackendStorageException(e);
             }
-
         }
 
         File fCompFolder = new File(fREPOSITORY_COMPONENTS, componentId.toString());
@@ -805,6 +808,27 @@ public class SQLiteLink implements BackendStorageLink {
         catch (IOException e) {
             logger.log(Level.SEVERE, null, e);
             throw new BackendStorageException(e);
+        }
+    }
+
+    @Override
+    public InputStream getContextInputStream(final String contextId) throws BackendStorageException {
+        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_FOLDER, "contexts");
+
+        File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.startsWith(contextId + "_");
+            }
+        });
+
+        if (files.length == 0) return null;
+
+        try {
+            return new FileInputStream(files[0]);
+        }
+        catch (FileNotFoundException e) {
+            return null;
         }
     }
 

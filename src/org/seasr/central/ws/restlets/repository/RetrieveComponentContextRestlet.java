@@ -42,11 +42,19 @@
 
 package org.seasr.central.ws.restlets.repository;
 
+import static org.seasr.central.ws.restlets.Tools.logger;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Map;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 
 import com.google.gdata.util.ContentType;
@@ -66,13 +74,40 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/context/(.+?)/?$";
+        return "/repository/context/(.+?)/(.+?)/?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // TODO Auto-generated method stub
-        return false;
+        // Check for GET
+        if (!method.equalsIgnoreCase("GET")) return false;
+
+        String contextId = values[0];
+
+        try {
+            InputStream contextStream = bsl.getContextInputStream(contextId);
+            OutputStream responseStream = response.getOutputStream();
+
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/octet-stream");
+
+            byte buffer[] = new byte[8192];
+            int bytesRead;
+
+            while ((bytesRead = contextStream.read(buffer)) > 0)
+                responseStream.write(buffer, 0, bytesRead);
+        }
+        catch (BackendStorageException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+        catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return true;
     }
 
 }

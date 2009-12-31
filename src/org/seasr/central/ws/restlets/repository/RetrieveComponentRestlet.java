@@ -176,7 +176,7 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             else
 
             if (ct.equals(ContentTypes.RDFNT))
-                compModel.write(response.getOutputStream(), "N3");
+                compModel.write(response.getOutputStream(), "N-TRIPLE");
 
             else
 
