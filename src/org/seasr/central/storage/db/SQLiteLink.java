@@ -104,6 +104,7 @@ import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
 import org.seasr.central.ws.restlets.Tools.GenericExceptionFormatter;
 import org.seasr.meandre.support.generic.crypto.Crypto;
+import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
@@ -470,7 +471,7 @@ public class SQLiteLink implements BackendStorageLink {
 			ps.setString(1, userId.toString());
 			rs = ps.executeQuery();
 
-			return rs.next() ? rs.getTimestamp(1) : null;
+            return (rs.next()) ? SQLITE_DATE_PARSER.parse(rs.getString(1)) : null;
 		}
 		catch (Exception e) {
 		    logger.log(Level.SEVERE, null, e);
@@ -795,7 +796,16 @@ public class SQLiteLink implements BackendStorageLink {
         if (deleted)
             logger.warning(String.format("Retrieving DELETED component (id: %s, version: %d)", componentId, version));
 
-        return null;
+        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
+        File compFile = new File(fREPOSITORY_COMPONENTS, componentId.toString() + File.separator + String.valueOf(version) + ".ttl");
+
+        try {
+            return ModelUtils.getModel(compFile.toURI(), null);
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStorageException(e);
+        }
     }
 
 	//-------------------------------------------------------------------------------------

@@ -42,18 +42,34 @@
 
 package org.seasr.central.ws.restlets.repository;
 
+import static org.seasr.central.ws.restlets.Tools.logger;
+import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
+import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
+import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.google.gdata.util.ContentType;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.vocabulary.RDF;
 
 /**
  * Restlet for retrieving component descriptors
@@ -92,10 +108,86 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String sComponentId = values[0];
-        String sComponentVersion = values[1];
+        UUID componentId;
+        int version;
 
+        try {
+            componentId = UUID.fromString(values[0]);
+            version = Integer.parseInt(values[1]);
+            if (version < 1)
+                throw new IllegalArgumentException("The version number cannot be less than 1");
+        }
+        catch (IllegalArgumentException e) {
+            sendErrorBadRequest(response);
+            return true;
+        }
 
+        Model compModel;
+
+        try {
+            // Attempt to retrieve the component from the backend store
+            compModel = bsl.getComponent(componentId, version);
+
+            if (compModel == null) {
+                sendErrorNotFound(response);
+                return true;
+            }
+        }
+        catch (BackendStorageException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+
+        String oldCompUri = compModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.executable_component).nextResource().getURI();
+
+        String serverBase = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+        String compUri = String.format("%s/repository/component/%s/%d", serverBase, componentId, version);
+        String contextBase = String.format("%s/repository/context/", serverBase);
+
+        // Update the component URI and component context(s) URIs
+        // TODO: Find a better method to do this (one that relies on direct Model manipulation)
+        String sModel;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        compModel.write(baos);
+        try {
+            sModel = baos.toString("UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+        sModel = sModel.replaceAll(Pattern.quote(oldCompUri), compUri);  // Update the component URI
+        sModel = sModel.replaceAll("context://localhost/", contextBase); // Update the component context(s) URIs
+
+        compModel = ModelFactory.createDefaultModel();
+        try {
+            ModelUtils.readModelFromString(compModel, sModel);
+
+            // Send the response
+            response.setContentType(ct.toString());
+            response.setStatus(HttpServletResponse.SC_OK);
+
+            if (ct.equals(ContentTypes.RDFXML))
+                compModel.write(response.getOutputStream(), "RDF/XML");
+
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
+                compModel.write(response.getOutputStream(), "N3");
+
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
+                compModel.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (IOException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
 
         return true;
     }

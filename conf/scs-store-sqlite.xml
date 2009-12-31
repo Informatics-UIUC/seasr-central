@@ -131,6 +131,7 @@
     <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
         SELECT MAX(version) FROM sc_component WHERE uuid = ?;
     </entry>
+    <!-- SELECT c.base_uri, m.deleted FROM sc_component c INNER JOIN sc_component_id_map m ON c.uuid = m.comp_uuid WHERE c.uuid = ? AND c.version = ?; -->
     <entry key="org.seasr.central.storage.db.query.component.get.component.state.uuid.version">
         SELECT deleted FROM sc_component WHERE uuid = ? AND version = ?;
     </entry>
