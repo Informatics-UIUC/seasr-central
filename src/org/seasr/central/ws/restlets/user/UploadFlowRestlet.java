@@ -260,5 +260,14 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
         return true;
     }
+//
+//    protected void updateComponents(FlowDescription flow) {
+//        // Check whether the backend contains the components in this flow
+//        Set<String> components = new HashSet<String>();
+//        for (ExecutableComponentInstanceDescription ecid : flow.getExecutableComponentInstances())
+//            components.add(ecid.getExecutableComponent().getURI());
+//
+//
+//    }
 
 }

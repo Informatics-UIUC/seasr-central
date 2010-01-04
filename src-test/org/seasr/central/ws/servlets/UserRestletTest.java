@@ -53,9 +53,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.MalformedURLException;
 import java.util.Properties;
+import java.util.UUID;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -96,6 +99,7 @@ public class UserRestletTest {
 	/** The property file containing the connection information */
 	private static final String DB_PROPERTY_FILE = "conf" + File.separator + "scs-store-sqlite.xml";
 
+	/** The database file to use for this test suite */
 	private static File dbFile;
 
 	@BeforeClass
@@ -127,8 +131,7 @@ public class UserRestletTest {
 		Properties props = new Properties();
 		try {
 			props.loadFromXML(new FileInputStream(DB_PROPERTY_FILE));
-			props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL,
-			        "jdbc:sqlite:" + dbFile.getAbsolutePath());
+			props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL, "jdbc:sqlite:" + dbFile.getAbsolutePath());
 
 			bsl = (BackendStorageLink) Class.forName(props.getProperty(ORG_SEASR_CENTRAL_STORAGE_LINK)).newInstance();
 			bsl.init(props);
@@ -172,10 +175,7 @@ public class UserRestletTest {
 	@Test
 	public void basicUserListTest() {
 		try {
-			String sUrl = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
-			String response = HttpUtils.doGET(sUrl, "application/json").trim();
-
-			JSONObject joResp = new JSONObject(response);
+			JSONObject joResp = listUsers();
 			JSONArray jaUsers = joResp.getJSONArray(OperationResult.SUCCESS.name());  // get the "success" entries
 			boolean found = false;
 
@@ -192,6 +192,7 @@ public class UserRestletTest {
 		}
 	}
 
+
 	/**
 	 * Runs a simple add test against the basic servlet.
 	 */
@@ -200,17 +201,10 @@ public class UserRestletTest {
 		try {
 			String screenName = BackendStorageLinkTest.generateTestUserScreenName();
 			String password = "sekret";
-			String profile = "{\"test\": \"true\"}";
-			String sUrl = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+			JSONObject joProfile = new JSONObject().put("test", true);
 
-			Properties props = new Properties();
-			props.put("screen_name", screenName);
-			props.put("password", password);
-			props.put("profile", profile);
-
-			String response = HttpUtils.doPOST(sUrl, "application/json", props).trim();
-			JSONObject joResp = new JSONObject(response);
-			JSONObject jo = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+			JSONObject jo = createUser(screenName, password, joProfile).getJSONArray(
+			        OperationResult.SUCCESS.name()).getJSONObject(0);
 
 			assertTrue(jo.has("uuid"));
 			assertTrue(jo.has("screen_name"));
@@ -230,28 +224,20 @@ public class UserRestletTest {
 	    try {
 	        String screenName = BackendStorageLinkTest.generateTestUserScreenName();
 	        String password = "sekret";
-	        String profile = "{\"test\": \"true\"}";
-	        String sUrlAddUser = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+	        JSONObject joProfile = new JSONObject().put("test", true);
 
-	        Properties props = new Properties();
-	        props.put("screen_name", screenName);
-	        props.put("password", password);
-	        props.put("profile", profile);
+	        JSONObject joAdd = createUser(screenName, password, joProfile).getJSONArray(
+	                OperationResult.SUCCESS.name()).getJSONObject(0);
 
-	        String responseAdd = HttpUtils.doPOST(sUrlAddUser, "application/json", props).trim();
-	        JSONObject joResp = new JSONObject(responseAdd);
-	        JSONObject joAdd = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
 	        assertTrue(joAdd.has("uuid"));
 	        assertTrue(joAdd.has("screen_name"));
 	        assertEquals(screenName, joAdd.getString("screen_name"));
 	        assertTrue(joAdd.has("created_at"));
 	        assertTrue(joAdd.has("profile"));
 
-	        String sUrlInfoUser =
-	            String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, joAdd.get("screen_name"));
-	        String responseInfo = HttpUtils.doGET(sUrlInfoUser, null).trim();
-	        JSONObject joInfoResp = new JSONObject(responseInfo);
-	        JSONObject jo = joInfoResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+	        JSONObject jo = getUserInfo(screenName).getJSONArray(
+	                OperationResult.SUCCESS.name()).getJSONObject(0);
+
 	        assertTrue(jo.has("uuid"));
 	        assertEquals(joAdd.getString("uuid"), jo.getString("uuid"));
 	        assertTrue(jo.has("screen_name"));
@@ -275,33 +261,24 @@ public class UserRestletTest {
 		try {
 			String screenName = BackendStorageLinkTest.generateTestUserScreenName();
 			String password = "sekret";
-			String profile = "{\"test\": \"true\"}";
-			String sUrlAddUser = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+	        JSONObject joProfile = new JSONObject().put("test", true);
 
-			Properties props = new Properties();
-			props.put("screen_name", screenName);
-			props.put("password", password);
-			props.put("profile", profile);
+	        JSONObject joAdd = createUser(screenName, password, joProfile).getJSONArray(
+	                OperationResult.SUCCESS.name()).getJSONObject(0);
 
-			String responseAdd = HttpUtils.doPOST(sUrlAddUser, "application/json", props).trim();
-			JSONObject joResp = new JSONObject(responseAdd);
-            JSONObject joAdd = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
 			assertTrue(joAdd.has("uuid"));
 			assertTrue(joAdd.has("screen_name"));
 			assertEquals(screenName, joAdd.getString("screen_name"));
 			assertTrue(joAdd.has("created_at"));
 			assertTrue(joAdd.has("profile"));
 
-			String sUrlDeleteUser =
-			    String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, joAdd.get("screen_name"));
-			String responseDelete = HttpUtils.doDELETE(sUrlDeleteUser, null).trim();
-			JSONObject joDelResp = new JSONObject(responseDelete);
-			JSONObject jo = joDelResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+			JSONObject jo = deleteUser(screenName).getJSONArray(
+			        OperationResult.SUCCESS.name()).getJSONObject(0);
+
 			assertTrue(jo.has("uuid"));
 			assertEquals(joAdd.getString("uuid"), jo.getString("uuid"));
 			assertTrue(jo.has("screen_name"));
 			assertEquals(screenName, jo.getString("screen_name"));
-
 		}
 		catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -318,30 +295,24 @@ public class UserRestletTest {
 		try {
 		    String screenName = BackendStorageLinkTest.generateTestUserScreenName();
 		    String password = "sekret";
-		    String profile = "{\"test\": \"true\"}";
-		    String sUrlAddUser = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+            JSONObject joProfile = new JSONObject().put("test", true);
 
-		    Properties props = new Properties();
-		    props.put("screen_name", screenName);
-		    props.put("password", password);
-		    props.put("profile", profile);
+            JSONObject joAdd = createUser(screenName, password, joProfile).getJSONArray(
+                    OperationResult.SUCCESS.name()).getJSONObject(0);
 
-		    String responseAdd = HttpUtils.doPOST(sUrlAddUser, "application/json", props).trim();
-		    JSONObject joResp = new JSONObject(responseAdd);
-		    JSONObject joAdd = joResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
 		    assertTrue(joAdd.has("uuid"));
 		    assertTrue(joAdd.has("screen_name"));
 		    assertEquals(screenName, joAdd.getString("screen_name"));
 		    assertTrue(joAdd.has("created_at"));
 		    assertTrue(joAdd.has("profile"));
 
-		    String sUrlDeleteUser =
-		        String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, joAdd.get("uuid"));
-		    String responseDelete = HttpUtils.doDELETE(sUrlDeleteUser, null).trim();
-		    JSONObject joDelResp = new JSONObject(responseDelete);
-		    JSONObject jo = joDelResp.getJSONArray(OperationResult.SUCCESS.name()).getJSONObject(0);
+		    UUID uuid = UUID.fromString(joAdd.getString("uuid"));
+
+            JSONObject jo = deleteUser(uuid).getJSONArray(
+                    OperationResult.SUCCESS.name()).getJSONObject(0);
+
 		    assertTrue(jo.has("uuid"));
-		    assertEquals(joAdd.getString("uuid"), jo.getString("uuid"));
+		    assertEquals(uuid, UUID.fromString(jo.getString("uuid")));
 		    assertTrue(jo.has("screen_name"));
             assertEquals(screenName, jo.getString("screen_name"));
 
@@ -352,4 +323,50 @@ public class UserRestletTest {
 			fail(baos.toString());
 		}
 	}
+
+	@Test
+	public void basicUserComponentUploadTest() {
+
+	}
+
+    //-------------------------------------------------------------------------------------
+
+    private JSONObject createUser(String screenName, String password, JSONObject profile) throws MalformedURLException, IOException, JSONException {
+        String reqUrl = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+
+        Properties props = new Properties();
+        props.put("screen_name", screenName);
+        props.put("password", password);
+        props.put("profile", profile);
+
+        return new JSONObject(HttpUtils.doPOST(reqUrl, "application/json", props).trim());
+    }
+
+    protected JSONObject deleteUser(String screenName) throws MalformedURLException, IOException, JSONException {
+        String reqUrl = String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, screenName);
+        String responseDelete = HttpUtils.doDELETE(reqUrl, null).trim();
+
+        return new JSONObject(responseDelete);
+    }
+
+    protected JSONObject deleteUser(UUID uuid) throws MalformedURLException, IOException, JSONException {
+        String reqUrl = String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, uuid);
+        String responseDelete = HttpUtils.doDELETE(reqUrl, null).trim();
+
+        return new JSONObject(responseDelete);
+    }
+
+    protected JSONObject getUserInfo(String screenName) throws MalformedURLException, IOException, JSONException {
+        String reqUrl = String.format("http://localhost:%d/services/users/%s.json", TEST_SERVER_PORT, screenName);
+        String responseInfo = HttpUtils.doGET(reqUrl, null).trim();
+
+        return new JSONObject(responseInfo);
+    }
+
+    protected JSONObject listUsers() throws MalformedURLException, IOException, JSONException {
+        String reqUrl = "http://localhost:" + TEST_SERVER_PORT + "/services/users/";
+        String response = HttpUtils.doGET(reqUrl, "application/json").trim();
+
+        return new JSONObject(response);
+    }
 }
