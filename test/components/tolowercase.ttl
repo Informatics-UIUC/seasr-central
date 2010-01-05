@@ -1,0 +1,83 @@
+<meandre://seasr.org/components/foundry/to-lowercase/property/ignore_errors>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/property> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "Set to 'true' to ignore all unhandled exceptions and prevent the flow from being terminated. Setting this property to 'false' will result in the flow being terminated in the event an unhandled exception is thrown during the execution of this component"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/key>
+              "ignore_errors"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/value>
+              "false"^^<http://www.w3.org/2001/XMLSchema#string> .
+
+<meandre://seasr.org/components/foundry/to-lowercase/output/error>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/data_port> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "This port is used to output any unhandled errors encountered during the execution of this component"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/identifier>
+              "meandre://seasr.org/components/foundry/to-lowercase/output/error"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/name>
+              "error"^^<http://www.w3.org/2001/XMLSchema#string> .
+
+<meandre://seasr.org/components/foundry/to-lowercase/property/debug_level>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/property> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "Controls the verbosity of debug messages printed by the component during execution.<br/>Possible values are: off, severe, warning, info, config, fine, finer, finest, all<br>Append ',mirror' to any of the values above to mirror that output to the server logs."^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/key>
+              "debug_level"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/value>
+              "info"^^<http://www.w3.org/2001/XMLSchema#string> .
+
+<meandre://seasr.org/components/foundry/to-lowercase>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/executable_component> ;
+      <http://purl.org/dc/elements/1.1/creator>
+              "Lily Dong"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/date>
+              "2009-12-21T11:36:50"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "Converts a text to lowercase."^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/format>
+              "java/class"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/rights>
+              "UofINCSA"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/execution_context>
+              <http://dev-demo.seasr.org:1714/public/resources/contexts/java/org.seasr.meandre.components.transform.text.ToLowercase-to-lowercase.jar> , <http://dev-demo.seasr.org:1714/public/resources/contexts/java/protobuf-java-2.2.0.jar> , <meandre://seasr.org/components/foundry/to-lowercase/implementation/> ;
+      <http://www.meandre.org/ontology/firing_policy>
+              "all"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/input_data_port>
+              <meandre://seasr.org/components/foundry/to-lowercase/input/text> ;
+      <http://www.meandre.org/ontology/mode>
+              <http://www.meandre.org/ontology/component/type/compute> ;
+      <http://www.meandre.org/ontology/name>
+              "To Lowercase"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/output_data_port>
+              <meandre://seasr.org/components/foundry/to-lowercase/output/error> , <meandre://seasr.org/components/foundry/to-lowercase/output/text> ;
+      <http://www.meandre.org/ontology/property_set>
+              <meandre://seasr.org/components/foundry/to-lowercase/property/ignore_errors> , <meandre://seasr.org/components/foundry/to-lowercase/property/debug_level> ;
+      <http://www.meandre.org/ontology/resource_location>
+              <meandre://seasr.org/components/foundry/to-lowercase/implementation/org.seasr.meandre.components.transform.text.ToLowercase> ;
+      <http://www.meandre.org/ontology/runnable>
+              "java"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/tag>
+              "transform"^^<http://www.w3.org/2001/XMLSchema#string> , "lowercase"^^<http://www.w3.org/2001/XMLSchema#string> , "text"^^<http://www.w3.org/2001/XMLSchema#string> .
+
+<meandre://seasr.org/components/foundry/to-lowercase/input/text>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/data_port> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "The text to be converted<br>TYPE: java.lang.String<br>TYPE: org.seasr.datatypes.BasicDataTypes.Strings<br>TYPE: byte[]<br>TYPE: org.seasr.datatypes.BasicDataTypes.Bytes<br>TYPE: java.lang.Object"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/identifier>
+              "meandre://seasr.org/components/foundry/to-lowercase/input/text"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/name>
+              "text"^^<http://www.w3.org/2001/XMLSchema#string> .
+
+<meandre://seasr.org/components/foundry/to-lowercase/output/text>
+      <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>
+              <http://www.meandre.org/ontology/data_port> ;
+      <http://purl.org/dc/elements/1.1/description>
+              "The lowercase text<br>TYPE: org.seasr.datatypes.BasicDataTypes.Strings"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://purl.org/dc/elements/1.1/identifier>
+              "meandre://seasr.org/components/foundry/to-lowercase/output/text"^^<http://www.w3.org/2001/XMLSchema#string> ;
+      <http://www.meandre.org/ontology/name>
+              "text"^^<http://www.w3.org/2001/XMLSchema#string> .

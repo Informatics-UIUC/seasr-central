@@ -77,6 +77,7 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
+import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -129,7 +130,7 @@ import de.schlichtherle.io.FileInputStream;
 public class SQLiteLink implements BackendStorageLink {
 
     /** The root folder where the components and contexts are stored */
-    private static final String REPOSITORY_FOLDER = "repository";
+    private static String REPOSITORY_LOCATION = null;
 
     /** Date parser for the DATETIME SQLite datatype (Note: use together with 'localtime' in SQL query to retrieve correct timestamp) */
     private static final SimpleDateFormat SQLITE_DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -174,6 +175,13 @@ public class SQLiteLink implements BackendStorageLink {
 
 			// Set the logging level
 			logger.setLevel(Level.parse(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL, Level.ALL.getName())));
+
+			// Get the repository location and make sure it exists
+			REPOSITORY_LOCATION = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION);
+			if (REPOSITORY_LOCATION == null)
+			    throw new BackendStorageException("Missing repository location configuration entry: " +
+			            ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION);
+			new File(REPOSITORY_LOCATION).mkdirs();
 
 			// Initialize the connection
 			Class.forName(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER));
@@ -664,8 +672,8 @@ public class SQLiteLink implements BackendStorageLink {
         logger.fine(String.format("Adding component %s (uuid: %s, version %d, user: %s)", origURI, componentId, version, userId));
 
         // Make sure we have a place to put the components and contexts
-        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
-        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_FOLDER, "contexts");
+        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_LOCATION, "components");
+        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_LOCATION, "contexts");
         fREPOSITORY_COMPONENTS.mkdirs();
         fREPOSITORY_CONTEXTS.mkdirs();
 
@@ -805,7 +813,7 @@ public class SQLiteLink implements BackendStorageLink {
         if (deleted)
             logger.warning(String.format("Retrieving DELETED component (id: %s, version: %d)", componentId, version));
 
-        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_FOLDER, "components");
+        File fREPOSITORY_COMPONENTS = new File(REPOSITORY_LOCATION, "components");
         File compFile = new File(fREPOSITORY_COMPONENTS, componentId.toString() + File.separator + String.valueOf(version) + ".ttl");
 
         try {
@@ -819,7 +827,7 @@ public class SQLiteLink implements BackendStorageLink {
 
     @Override
     public InputStream getContextInputStream(final String contextId) throws BackendStorageException {
-        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_FOLDER, "contexts");
+        File fREPOSITORY_CONTEXTS = new File(REPOSITORY_LOCATION, "contexts");
 
         File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
             @Override
@@ -873,7 +881,7 @@ public class SQLiteLink implements BackendStorageLink {
         logger.fine(String.format("Adding flow %s (uuid: %s, version %d, user: %s)", origURI, flowId, version, userId));
 
         // Make sure we have a place to put the flows
-        File fREPOSITORY_FLOWS = new File(REPOSITORY_FOLDER, "flows");
+        File fREPOSITORY_FLOWS = new File(REPOSITORY_LOCATION, "flows");
         fREPOSITORY_FLOWS.mkdir();
 
         File fFlowFolder = new File(fREPOSITORY_FLOWS, flowId.toString());
@@ -960,7 +968,7 @@ public class SQLiteLink implements BackendStorageLink {
         if (deleted)
             logger.warning(String.format("Retrieving DELETED flow (id: %s, version: %d)", flowId, version));
 
-        File fREPOSITORY_FLOWS = new File(REPOSITORY_FOLDER, "flows");
+        File fREPOSITORY_FLOWS = new File(REPOSITORY_LOCATION, "flows");
         File flowFile = new File(fREPOSITORY_FLOWS, flowId.toString() + File.separator + String.valueOf(version) + ".ttl");
 
         try {

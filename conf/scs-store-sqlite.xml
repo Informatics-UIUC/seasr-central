@@ -9,6 +9,7 @@
 	<entry key="org.seasr.central.storage.db.password"></entry>
 	<entry key="org.seasr.central.storage.db.db"></entry>
 	<entry key="org.seasr.central.storage.db.loglevel">ALL</entry>
+	<entry key="org.seasr.central.storage.repository.location">repository</entry>
 
 	<entry key="org.seasr.central.storage.link">org.seasr.central.storage.db.SQLiteLink</entry>
 

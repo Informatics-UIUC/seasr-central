@@ -60,6 +60,8 @@ public abstract class SCProperties {
 
 	public static final String ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL = "org.seasr.central.storage.db.loglevel";
 
+	public static final String ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION = "org.seasr.central.storage.repository.location";
+
 	public static final String ORG_SEASR_CENTRAL_STORAGE_LINK = "org.seasr.central.storage.link";
 
 }

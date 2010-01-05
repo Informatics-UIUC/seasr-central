@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+    xmlns:meandre="http://www.meandre.org/ontology/"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <meandre:executable_component rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer">
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/maxent-2.4.0.jar"/>
+    <dc:rights rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >UofINCSA</dc:rights>
+    <dc:format rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >java/class</dc:format>
+    <meandre:resource_location rdf:resource="meandre://seasr.org/components/tools/opennlp-tokenizer/implementation/org.seasr.meandre.component.opennlp.OpenNLPTokenizer"/>
+    <dc:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime"
+    >2009-06-08T18:06:33</dc:date>
+    <meandre:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >tools</meandre:tag>
+
+    <meandre:property_set>
+      <meandre:property rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer/property/ignore_errors">
+        <meandre:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >ignore_errors</meandre:key>
+        <meandre:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >false</meandre:value>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Set to 'true' to ignore all unhandled exceptions and prevent the flow from being terminated. Setting this property to 'false' will result in the flow being terminated in the event an unhandled exception is thrown during the execution of this component</dc:description>
+      </meandre:property>
+    </meandre:property_set>
+
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/opennlp-tools-1.3.0.jar"/>
+    <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >This component breaks the text contained in the input unsing OpenNLP tokenizing facilities.</dc:description>
+    <meandre:property_set>
+      <meandre:property rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer/property/debug_level">
+        <meandre:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >debug_level</meandre:key>
+        <meandre:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >info</meandre:value>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Controls the verbosity of debug messages printed by the component during execution.&lt;br/&gt;Possible values are: off, severe, warning, info, config, fine, finer, finest, all&lt;br&gt;Append ',mirror' to any of the values above to mirror that output to the server logs.</dc:description>
+
+      </meandre:property>
+    </meandre:property_set>
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/org.seasr.meandre.component.opennlp.OpenNLPTokenizer.jar"/>
+    <meandre:input_data_port>
+      <meandre:data_port rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer/input/text">
+        <dc:identifier rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >meandre://seasr.org/components/tools/opennlp-tokenizer/input/text</dc:identifier>
+        <meandre:name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >text</meandre:name>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >The text to be tokenized</dc:description>
+
+      </meandre:data_port>
+    </meandre:input_data_port>
+    <meandre:property_set>
+      <meandre:property rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer/property/language">
+        <meandre:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >language</meandre:key>
+        <meandre:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >english</meandre:value>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >The language to use in the tokenizer. </dc:description>
+
+      </meandre:property>
+    </meandre:property_set>
+    <meandre:firing_policy rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >all</meandre:firing_policy>
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/jwnl-1.3.3.jar"/>
+    <meandre:output_data_port>
+      <meandre:data_port rdf:about="meandre://seasr.org/components/tools/opennlp-tokenizer/output/tokens">
+        <dc:identifier rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >meandre://seasr.org/components/tools/opennlp-tokenizer/output/tokens</dc:identifier>
+        <meandre:name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >tokens</meandre:name>
+
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >The sequence of tokens</dc:description>
+      </meandre:data_port>
+    </meandre:output_data_port>
+    <meandre:name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >OpenNLP Tokenizer</meandre:name>
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/protobuf-java-2.0.3.jar"/>
+    <meandre:runnable rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >java</meandre:runnable>
+    <meandre:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >semantic</meandre:tag>
+
+    <meandre:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >opennlp</meandre:tag>
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/maxent-models.jar"/>
+    <dc:creator rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >Xavier Llora</dc:creator>
+    <meandre:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >text</meandre:tag>
+    <meandre:mode rdf:resource="http://www.meandre.org/ontology/component/type/compute"/>
+    <meandre:execution_context rdf:resource="meandre://seasr.org/components/tools/opennlp-tokenizer/implementation/"/>
+    <meandre:execution_context rdf:resource="http://demo.seasr.org:1714/public/resources/contexts/java/trove-2.0.3.jar"/>
+
+    <meandre:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >tokenizer</meandre:tag>
+  </meandre:executable_component>
+</rdf:RDF>
+

@@ -49,7 +49,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.net.MalformedURLException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -193,12 +192,7 @@ public class RestfullExtensibleDispatcherTest {
 			assertEquals("any", values[3]);
 			assertEquals("mary", values[4]);
 		}
-		catch (MalformedURLException e) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			e.printStackTrace(new PrintStream(baos));
-			fail(baos.toString());
-		}
-		catch (IOException e) {
+		catch (Exception e) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(baos));
 			fail(baos.toString());

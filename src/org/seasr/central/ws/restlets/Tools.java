@@ -42,8 +42,10 @@
 
 package org.seasr.central.ws.restlets;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.StringReader;
 import java.util.Date;
 import java.util.Enumeration;
@@ -441,6 +443,19 @@ public abstract class Tools {
 
 	    return sb.toString();
 	}
+
+	/**
+	 * Returns the stack trace for an exception as a string
+	 *
+	 * @param e The exception
+	 * @return The stack trace for the exception as a string
+	 */
+    public static String getExceptionTrace(Throwable e) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        e.printStackTrace(new PrintStream(baos));
+
+        return baos.toString();
+    }
 
 	/**
 	 * Creates a JSON error object

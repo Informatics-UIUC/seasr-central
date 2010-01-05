@@ -1,0 +1,555 @@
+<rdf:RDF
+    xmlns:j.0="http://www.meandre.org/ontology/"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0/property/wb_top_pix_pos">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >214</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >wb_top_pix_pos</j.0:key>
+  </j.0:property>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/4">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/table-to-item-sets/input/table"/>
+    <j.0:connector_instance_target>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/table-to-item-sets/6">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/table-to-item-sets/6/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >15</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/table-to-item-sets/6/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >559</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;This module reads a Table and extracts from it items for use in mining association rules with the Apriori algorithm. &lt;/p&gt;&lt;p&gt;Detailed Description: This module takes as input a Table or an Example Table, and extracts items that are used by the Apriori rule association algorithm. An item is an [attribute,value] pair that occurs in the input table. The module uses information from the original table to determine which attributes should be used to form items being considered as possible rule antecedents and rule consequents. A compact representation is created indicating which items are contained in rows in the original table. The items and other information used by the Apriori algorithm are written to the &lt;i&gt;Item Sets&lt;/i&gt; output port. &lt;/p&gt;&lt;p&gt;If a Table or an Example Table with no specified input or output attributes is loaded, all attributes (columns) will be used to form items being considered as possible antecedents and consequents for the association rules. If an Example Table with only input attributes or only output attributes is loaded, the chosen attributes will be used to form items considered as possible rule antecedents and possible rule consequents. If an Example Table with both input and output attributes is loaded, the inputs will be used to form items considered as possible rule antecedents, and the outputs used to form items considered as possible rule consequents. &lt;/p&gt;&lt;p&gt; The computational complexity of the Apriori algorithm depends on the number of possible antecedents and consequents, so narrowing the search prior to this step is highly recommended.   Use the module &lt;i&gt;Choose Attributes&lt;/i&gt; to specify the subset of table attributes that are of interest. If the table has continuous attributes as possible rule antecedents or targets, a &lt;i&gt;Binning&lt;/i&gt; module should be used prior to this module to reduce the number of possible values for those continuous attributes. &lt;/p&gt;&lt;p&gt;In a typical itinerary the &lt;i&gt;Item Sets&lt;/i&gt; output port from this module is connected to a &lt;i&gt;Generate Multiple Outputs&lt;/i&gt; module and then to an &lt;i&gt;Apriori&lt;/i&gt; module which forms frequent itemsets based on a minimum support value, and to a &lt;i&gt;Compute Confidence&lt;/i&gt; module which forms association rules that satisfy a minimum confidence value. &lt;/p&gt;&lt;p&gt;Limitations: The &lt;i&gt;Apriori&lt;/i&gt; and &lt;i&gt;Compute Confidence&lt;/i&gt; modules currently build rules with a single item in the consequent.  &lt;/p&gt;&lt;p&gt;Data Handling: This module does not modify the input Table in any way. &lt;/p&gt;&lt;p&gt;Scalability: A representation of each row of the table is stored in memory. The representation is usually smaller than the original data.    &lt;/p&gt;</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Table To Item Sets</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/table-to-item-sets"/>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_target>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/choose-attributes/output/example_table"/>
+    <j.0:connector_instance_source>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1/property/require_output_selection">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >true</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >require_output_selection</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >15</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >432</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;This module allows the user to choose which columns of a table are inputs and outputs.&lt;/p&gt;&lt;p&gt;Detailed Description: This module outputs an &lt;i&gt;Example Table&lt;/i&gt; with the input and output features assigned. Inputs and outputs do not have to be selected, nor do they have to be mutually exclusive. &lt;/p&gt;&lt;p&gt;Data Handling: This module does not modify the data in the table. It only sets the input and output features.</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Choose Attributes</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/choose-attributes"/>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_source>
+  </j.0:data_connector_configuration>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/typesRowIndex">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >1</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >typesRowIndex</j.0:key>
+  </j.0:property>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/wb_top_pix_pos">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >210</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >wb_top_pix_pos</j.0:key>
+  </j.0:property>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/max_items">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >6</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >max_items</j.0:key>
+  </j.0:property>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/wb_left_pix_pos">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >164</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >wb_left_pix_pos</j.0:key>
+  </j.0:property>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/labelsRowIndex">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >0</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >labelsRowIndex</j.0:key>
+  </j.0:property>
+  <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0">
+    <j.0:property_set>
+      <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0/property/username">
+        <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >null</j.0:value>
+        <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >username</j.0:key>
+      </j.0:property>
+    </j.0:property_set>
+    <j.0:property_set>
+      <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0/property/wb_top_pix_pos">
+        <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >11</j.0:value>
+        <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >wb_top_pix_pos</j.0:key>
+      </j.0:property>
+    </j.0:property_set>
+    <j.0:property_set>
+      <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0/property/password">
+        <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >null</j.0:value>
+        <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >password</j.0:key>
+      </j.0:property>
+    </j.0:property_set>
+    <j.0:property_set>
+      <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0/property/file_url">
+        <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >http://repository.seasr.org/Datasets/UCI/csv/mushroom.csv</j.0:value>
+        <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >file_url</j.0:key>
+      </j.0:property>
+    </j.0:property_set>
+    <j.0:property_set>
+      <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0/property/wb_left_pix_pos">
+        <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >10</j.0:value>
+        <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >wb_left_pix_pos</j.0:key>
+      </j.0:property>
+    </j.0:property_set>
+    <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >This module is used to enter the url to a local or remote resource. Detailed Description: Collect a URL or local path, and create a WebdavClient to access it. The module provides a properties editor that can be used to enter a url to a local or remote resource.  If the url points to a local file, the user can enter the name directly into a text area.If the url points to a remote file, the user has to type in the host url, which include protocol, path and port in the text area for host url, and the relative path of the resource to the server in the text area for file name.This module does not perform any checks to verify that the url exists and is accessible with the username and password given by the user. A check is performed to make sure that a file name has been entered and an exception is thrown if the editor text area is blank. The WebdavClient is made available on the WebdavClient output port.  For local url, a path may or may not be included in the file name string.</dc:description>
+    <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >Input URL Or Path</j.0:instance_name>
+    <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/input-url-or-path"/>
+  </j.0:instance_configuration>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7/property/wb_top_pix_pos">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >15</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >wb_top_pix_pos</j.0:key>
+  </j.0:property>
+  <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/webrulevis/9/property/verbose">
+    <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >false</j.0:value>
+    <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >verbose</j.0:key>
+  </j.0:property>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/8">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/compute-confidence/input/freq_item_sets"/>
+    <j.0:connector_instance_target>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >214</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2/property/confidence">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >70.0</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >confidence</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2/property/debug">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >False</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >debug</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2/property/verbose">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >False</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >verbose</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >294</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;This module works in conjunction with other modules implementing the Apriori rule association algorithm to generate association rules satisfying a minimum confidence threshold. &lt;/p&gt;&lt;p&gt;Detailed Description: This module takes as input an &lt;i&gt;Item Sets&lt;/i&gt; object generated by the &lt;i&gt;Table To Item Sets&lt;/i&gt; module, and &lt;i&gt;Frequent Itemsets&lt;/i&gt; generated by the &lt;i&gt;Apriori&lt;/i&gt; or &lt;i&gt;FPGrowth&lt;/i&gt; module.  From these inputs, it develops a set of possible association rules, each with a single target item, where an item consists of an [attribute,value] pair. For each possible rule, this module computes the &lt;i&gt;Confidence&lt;/i&gt; in the prediction, and accepts those rules that meet a minimum confidence threshold specified via the property editor. &lt;/p&gt;&lt;p&gt;For a rule of the form Antecedent A implies Consequent C, the &lt;i&gt;Confidence&lt;/i&gt; is the percentage of examples in the original data that contain A that also contain C.   The formula to compute the confidence of the rule A-&gt;C is: &lt;br&gt; Confidence = ( (# of examples with A and C) / (# of examples with A ) ) * 100.00 &lt;/p&gt;&lt;p&gt;Limitations: The &lt;i&gt;Apriori&lt;/i&gt;, &lt;i&gt;FPGrowth&lt;/i&gt;and &lt;i&gt;Compute Confidence&lt;/i&gt; modules currently build rules with a single item in the consequent.  &lt;/p&gt;&lt;p&gt;Scalability: This module searches all the Items Sets to compute the confidence for each Frequent Itemset. The module allocated memory for the resulting Rule Table. &lt;/p&gt;</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Compute Confidence</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/compute-confidence"/>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_target>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/fp-growth/output/freq_item_sets"/>
+    <j.0:connector_instance_source>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5">
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/wb_left_pix_pos"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >164</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/max_items"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/verbose">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >false</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >verbose</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >FP Growth</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/fp-growth"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/min_support">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >20.0</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >min_support</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fp-growth/5/property/debug">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >False</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >debug</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;This component implements the FPGrowth algorithm to generate frequent itemsets consisting of items that occur in a sufficient number of examples to satisfy the minimum support criteria. &lt;/p&gt;&lt;p&gt;Detailed Description: This component takes an &lt;i&gt;Item Sets&lt;/i&gt; object that has been generated by a &lt;i&gt;Table To Item Sets&lt;/i&gt; component and uses the FPGrowth algorithm to find the combinations of items that satisfy a minimum support criteria. An item is an [attribute,value] pair that occurs in the set of examples being mined. The user controls the support criteria via the &lt;i&gt;Minimum Support %&lt;/i&gt; property that specifies the percentage of all examples that must contain a given combination of items before that combination is included in the generated output. Each combination of items that satisfies the &lt;i&gt;Minimum Support %&lt;/i&gt; is called a &lt;i&gt;Frequent Itemset&lt;/i&gt;. &lt;/p&gt;&lt;p&gt; The user can restrict the maximum number of items included in any frequent itemset with the &lt;i&gt;Maximum Items Per Rule&lt;/i&gt; property.  The generation of sets with large number of items can be computationally expensive, so setting this property in conjunction with the &lt;i&gt;Minimum Support %&lt;/i&gt; property helps keep the component runtime reasonable. &lt;/p&gt;&lt;p&gt;In a typical flow the &lt;i&gt;Frequent Item Sets&lt;/i&gt; output port from this component is connected to a &lt;i&gt;Compute Confidence&lt;/i&gt; component which forms association rules that satisfy a minimum confidence value. &lt;/p&gt;&lt;p&gt;References: For more information on the FPGrowth frequent pattern mining algorithm, see &amp;quot;Mining Frequent Patterns without Candidate Generation&amp;quot;Jiawei Han, Jian Pei, and Yiwen Yin, 2000. &lt;/p&gt;&lt;p&gt;Limitations: The &lt;i&gt;FPGrowth&lt;/i&gt; and &lt;i&gt;Compute Confidence&lt;/i&gt; components currently build rules with a single item in the consequent.  &lt;/p&gt;&lt;p&gt;Data Type Restrictions: While this component can operate on attributes of any datatype, in practice it is usually infeasible to use it with continuous-valued attributes.   The component considers each [attribute,value] pair that occurs in the examples individually when building the frequent itemsets.  Continuous attributes (and categorical attributes with a large number of values) are less likely to meet the Minimum Support requirements and can result in unacceptably long execution time.  Typically &lt;i&gt;Choose Attributes&lt;/i&gt; and &lt;i&gt;Binning&lt;/i&gt; components should appear in the itinerary prior to the &lt;i&gt;Table to Item Sets&lt;/i&gt; component, whose output produces the &lt;i&gt;Item Sets&lt;/i&gt; object used as input by this component.   The Choosing/Binning components can reduce the number of distinct [attribute,value] pairs that must be considered in this component to a reasonable number. &lt;/p&gt;&lt;p&gt;Data Handling: This component does not modify the input Item Sets in any way. &lt;/p&gt;&lt;p&gt;Scalability: This component creates an array of integers to hold the indices of the items in each frequent itemset. The component may be computationally intensive, and scales with the number of Item Sets entries to search. The user can limit the size of the frequent itemsets although this will have little effect on performance for this algorithm. Choosing/Binning components can be included in the itinerary prior to this components to reduce the number of Item Sets entries.  &lt;/p&gt;</dc:description>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_source>
+  </j.0:data_connector_configuration>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/5">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/foundry/fork-x2/input/object"/>
+    <j.0:connector_instance_target>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >32</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/ignore_errors">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >false</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >ignore_errors</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;Description: This component takes in any Java objectand distributes it (or copies of it) across multiple outputs.  The user can choose from five object replication methods -- by reference, shallow copy by clone, deep copy via serialization, copy via constructor, or copy via custom method.&lt;/p&gt;</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Fork x2</j.0:instance_name>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/replication_method_name">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            ></j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >replication_method_name</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/foundry/fork-x2"/>
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/wb_top_pix_pos"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/debug_level">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >info</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >debug_level</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/fork-x2/0/property/replication_mode">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >0</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >replication_mode</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_target>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/table-to-item-sets/output/item_sets"/>
+    <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/table-to-item-sets/6"/>
+  </j.0:data_connector_configuration>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/11">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/parse-file-to-table/input/table_factory"/>
+    <j.0:connector_instance_target>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7">
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7/property/wb_top_pix_pos"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7/property/use_blanks">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >True</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >use_blanks</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >299</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Given a FlatFileParser, this module creates a Table initialized with the contents of a flat file from disk.</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Parse File To Table</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/parse-file-to-table"/>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_target>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/basic-table-factory-injector/output/table_factory"/>
+    <j.0:connector_instance_source>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/basic-table-factory-injector/0">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/basic-table-factory-injector/0/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >87</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/basic-table-factory-injector/0/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >122</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >&lt;p&gt;Overview: Outputs a &lt;i&gt;TableFactory&lt;/i&gt; suitable for creating D2K Tables from the ncsa.d2k.modules.core.datatype.table.basic package. This is a standard Table suitable for most applications.&lt;/p&gt;</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Basic Table Factory Injector</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/basic-table-factory-injector"/>
+      </j.0:instance_configuration>
+    </j.0:connector_instance_source>
+  </j.0:data_connector_configuration>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/6">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/fp-growth/input/item_sets"/>
+    <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/fp-growth/5"/>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/foundry/fork-x2/output/object"/>
+    <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/fork-x2/0"/>
+  </j.0:data_connector_configuration>
+  <j.0:instance_set rdf:about="http://seasr.org/flows/fpgrowth/components/set">
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2"/>
+    <j.0:executable_component_instance>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0">
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0/property/wb_top_pix_pos"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >419</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Write a RuleAssociationModel out in PMML(Predictive Model Markup Language) format complying with the PMML 2.0 DTD.</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Write Rule Assoc PMML</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/write-rule-assoc-pmml"/>
+      </j.0:instance_configuration>
+    </j.0:executable_component_instance>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/fp-growth/5"/>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0"/>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/table-to-item-sets/6"/>
+    <j.0:executable_component_instance>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3">
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/labelsRowIndex"/>
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/typesRowIndex"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >11</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/delimiter">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >default</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >delimiter</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >122</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >This module creates a parser for the specified WevdavClient. The file is expected to have a consistent delimiter character.&lt;/p&gt;&lt;p&gt;Detailed Description: &lt;br/&gt;This module creates a parser that can be used to read data from a file that uses a single delimiter character to separate the data into fields. The delimiter can be found automatically, or it can be input in the properties editor.  If the delimiter is to be found automatically, the file must contain at least 2 rows. The file can contain a row of labels, and a row of data types.  These are also specified via the properties editor.Properties are used to specify the delimiter, the labels row number, and the types row number. The row numbers are indexed from zero.Typically the File Parser output port of this module is connected to the File Parser input port of a module whose name begins with 'Parse File', for example, Parse File To Table or  Parse File To Paging Table.Data Type Restrictions: The input to this module must be a delimited file. If the file is large a java OutOfMemory error might occur. &lt;p&gt;Data Handling: The module does not destroy or modify the input data.</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >Create Delimited File Parser</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/create-delimited-file-parser"/>
+      </j.0:instance_configuration>
+    </j.0:executable_component_instance>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1"/>
+    <j.0:executable_component_instance>
+      <j.0:instance_configuration rdf:about="http://seasr.org/flows/fpgrowth/instance/webrulevis/9">
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/webrulevis/9/property/wb_top_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >214</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_top_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <j.0:property_set rdf:resource="http://seasr.org/flows/fpgrowth/instance/webrulevis/9/property/verbose"/>
+        <j.0:property_set>
+          <j.0:property rdf:about="http://seasr.org/flows/fpgrowth/instance/webrulevis/9/property/wb_left_pix_pos">
+            <j.0:value rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >577</j.0:value>
+            <j.0:key rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >wb_left_pix_pos</j.0:key>
+          </j.0:property>
+        </j.0:property_set>
+        <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >This module provides a visual representation of the association rules encapsulated in the input Rule Table. Detailed Description: This module presents a visual representation of association rules identified by a discovery algorithm. Seasr includes several modules that implement association rule discovery algorithms, all of which save their results in a Rule Table structure that can be used as input to this module. The main region of the display contains a matrix that visually depicts the rules. Each numbered column in the matrix corresponds to an association rule  that met the minimum support and confidence requirements specified by the user in the rule discovery modules. Items used in the rules, that is attribute-value pairs, are listed along the left  side of the matrix. Note that some items in the original data set may not be included in any rule because there was insufficient support and/or confidence to consider the item significant. An icon in the matrix cell corresponding to ( row = item i, column = rule r) indicates that item i is included in rule r. If the matrix cell icon is a box, then the item is part of the rule antecedent. If the icon is a check mark, then the item is part of the rule consequent. For example, if the rules being displayed indicate whether or not a mushroom is edible, a rule might be odor=none and ring_number=one then edibility=edible. This rule would be displayed in a column with a box in the row for the item odor=none and a box in the row for ring_number=one, and there would be a check in the row for edibility=edible. Above the main matrix are two rows of bars labeled Confidence and Support. These bars align with the corresponding rule columns in the main matrix.  For any given rule, the confidence and support values for that rule are represented by the degree to which the bars above the rule column are filled in.   Brushing the mouse on a confidence or support bar displays the exact value that is graphically represented by the bar height. The rules can be ordered by confidence or by support. To sort the rules, click either the support or the confidence label -- these labels are clickable radio buttons. If support is selected, rules will be sorted using support as the primary key and confidence as the secondary key. Conversely, if the confidence button is chosen, confidence is the primary sort key and support is the secondary key.  Directly above the confidence and support display is a toolbar that provides additional functionality.  On the left side of the toolbar are two buttons that allow the rows of the table to be displayed according to different sorting schemes. One of the buttons is active at all times. The Alphabetize button sorts the attribute-value pairs alphabetically.  The Rank button sorts the rows based on the current Confidence/Support selection, moving the consequents and antecedents of the highest ranking rules to the top of the attribute-value list. On the right side of the toolbar are four additional buttons: Restore Original reverts back to the original table that was displayed before any sorting was done. Filter provides an interface that allows the user to display a subset of the generated rules. The user can scroll to different part of the matrix to get the full picture of a large matrix. Help displays information describing the visualization. Scalability: While the visualization can display a large number of items and rules, there can be a noticeable delay in opening the visualization when a large number of cells are involved. Also, as the number of cells increases beyond a certain point, it is difficult to gain insights from the display.  Advanced features to help in these cases are being discussed for a future release.</dc:description>
+        <j.0:instance_name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+        >WebRuleVis</j.0:instance_name>
+        <j.0:instance_resource rdf:resource="meandre://seasr.org/components/data-mining/webrulevis"/>
+      </j.0:instance_configuration>
+    </j.0:executable_component_instance>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7"/>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/basic-table-factory-injector/0"/>
+    <j.0:executable_component_instance rdf:resource="http://seasr.org/flows/fpgrowth/instance/fork-x2/0"/>
+  </j.0:instance_set>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/10">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/webrulevis/input/document"/>
+    <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/webrulevis/9"/>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/write-rule-assoc-pmml/output/document"/>
+    <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0"/>
+  </j.0:data_connector_configuration>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/0">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/create-delimited-file-parser/input/url"/>
+    <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3"/>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/input-url-or-path/output/url"/>
+    <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0"/>
+  </j.0:data_connector_configuration>
+  <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/7">
+    <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/compute-confidence/input/item_sets"/>
+    <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2"/>
+    <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/foundry/fork-x2/output/object2"/>
+    <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/fork-x2/0"/>
+  </j.0:data_connector_configuration>
+  <j.0:flow_component rdf:about="http://seasr.org/flows/fpgrowth/">
+    <j.0:components_instances rdf:resource="http://seasr.org/flows/fpgrowth/components/set"/>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >rule association</j.0:tag>
+    <dc:creator rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >admin</dc:creator>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >discovery</j.0:tag>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >frequent pattern</j.0:tag>
+    <dc:description rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >This flow loads a delimited data set into a table. The first row has
+attribute labels and the second row has attribute types. Input csv file
+from webdav, find frequent patterns with fpgrowth, convert rules to
+pmml to communicate with the rulevis applet.</dc:description>
+    <j.0:name rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >FPGrowth</j.0:name>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >visualization</j.0:tag>
+    <dc:rights rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >University of Illinois/NCSA Open Source License
+
+</dc:rights>
+    <dc:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime"
+    >2009-10-07T21:20:58</dc:date>
+    <j.0:connectors>
+      <j.0:connector_set rdf:about="http://seasr.org/flows/fpgrowth/connector/set">
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/5"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/0"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/4"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/7"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/6"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/11"/>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/10"/>
+        <j.0:data_connector>
+          <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/9">
+            <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/write-rule-assoc-pmml/input/ruletable"/>
+            <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/write-rule-assoc-pmml/0"/>
+            <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/compute-confidence/output/rule_table"/>
+            <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/compute-confidence/2"/>
+          </j.0:data_connector_configuration>
+        </j.0:data_connector>
+        <j.0:data_connector>
+          <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/3">
+            <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/choose-attributes/input/table"/>
+            <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/choose-attributes/1"/>
+            <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/parse-file-to-table/output/table"/>
+            <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7"/>
+          </j.0:data_connector_configuration>
+        </j.0:data_connector>
+        <j.0:data_connector rdf:resource="http://seasr.org/flows/fpgrowth/connector/8"/>
+        <j.0:data_connector>
+          <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/2">
+            <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/parse-file-to-table/input/parser"/>
+            <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/parse-file-to-table/7"/>
+            <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/create-delimited-file-parser/output/parser"/>
+            <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3"/>
+          </j.0:data_connector_configuration>
+        </j.0:data_connector>
+        <j.0:data_connector>
+          <j.0:data_connector_configuration rdf:about="http://seasr.org/flows/fpgrowth/connector/1">
+            <j.0:connector_instance_data_port_target rdf:resource="meandre://seasr.org/components/data-mining/create-delimited-file-parser/input/webdavclient"/>
+            <j.0:connector_instance_target rdf:resource="http://seasr.org/flows/fpgrowth/instance/create-delimited-file-parser/3"/>
+            <j.0:connector_instance_data_port_source rdf:resource="meandre://seasr.org/components/data-mining/input-url-or-path/output/webdavclient"/>
+            <j.0:connector_instance_source rdf:resource="http://seasr.org/flows/fpgrowth/instance/input-url-or-path/0"/>
+          </j.0:data_connector_configuration>
+        </j.0:data_connector>
+      </j.0:connector_set>
+    </j.0:connectors>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >pmml</j.0:tag>
+    <j.0:tag rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >pattern mining</j.0:tag>
+  </j.0:flow_component>
+</rdf:RDF>

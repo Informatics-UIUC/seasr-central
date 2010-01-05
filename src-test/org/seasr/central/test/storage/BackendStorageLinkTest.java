@@ -69,6 +69,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
+import org.seasr.central.ws.restlets.Tools;
 
 /**
  * Test basic functionalities of SQLite driver
@@ -94,6 +95,7 @@ public class BackendStorageLinkTest {
 	/** The back end storage link */
 	private static BackendStorageLink bsl;
 
+
 	@BeforeClass
 	public static void setUp() {
 		try {
@@ -111,7 +113,7 @@ public class BackendStorageLinkTest {
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DB))       fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DB);
 		}
 		catch (IOException e) {
-			fail("Failed to load property file. " + e.toString());
+			fail("Failed to load property file. Reason: " + Tools.getExceptionDetails(e));
 		}
 
 		try {
@@ -119,14 +121,14 @@ public class BackendStorageLinkTest {
             bsl = (BackendStorageLink) Class.forName(storageLink).newInstance();
 		}
 		catch (Exception e) {
-		    fail("Failed to load the storage link class");
+		    fail("Failed to load the storage link class. Reason: " + Tools.getExceptionDetails(e));
 		}
 
 		try {
             bsl.init(props);
         }
         catch (BackendStorageException e) {
-            fail("Failed to initialize the backend link");
+            fail("Failed to initialize the backend link. Reason: " + Tools.getExceptionDetails(e));
         }
 	}
 
@@ -134,21 +136,6 @@ public class BackendStorageLinkTest {
 	public static void tearDown() {
 		props = null;
 		bsl.close();
-	}
-
-	private JSONObject createProfile(String user)  {
-		JSONObject profile = new JSONObject();
-		try {
-			profile.put("screen_name", user);
-			profile.put("tested_at", new Date());
-		}
-		catch (JSONException e) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			e.printStackTrace(new PrintStream(baos));
-			fail(baos.toString());
-		}
-
-		return profile;
 	}
 
 	@Test
@@ -206,11 +193,29 @@ public class BackendStorageLinkTest {
 		}
 	}
 
-	/** Generates a new test user screen name
+    //-------------------------------------------------------------------------------------
+
+	/**
+	 * Generates a new test user screen name
 	 *
 	 * @return The new test user screen name
 	 */
 	public static String generateTestUserScreenName() {
 		return TEST_USER + "_" + System.currentTimeMillis() + "_" + Math.abs(rnd.nextInt());
 	}
+
+    private JSONObject createProfile(String user)  {
+        JSONObject profile = new JSONObject();
+        try {
+            profile.put("screen_name", user);
+            profile.put("tested_at", new Date());
+        }
+        catch (JSONException e) {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            e.printStackTrace(new PrintStream(baos));
+            fail(baos.toString());
+        }
+
+        return profile;
+    }
 }
