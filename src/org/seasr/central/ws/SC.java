@@ -232,12 +232,12 @@ public class SC {
 	 * @throws Exception Will be thrown if it failed to do so.
 	 */
 	public void stop() throws Exception {
-		try {
+//		try {
 			server.stop();
-		}
-		finally {
-			basd.close();
-		}
+//		}
+//		finally {
+//			basd.close();
+//		}
 	}
 
 	/**

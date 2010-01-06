@@ -434,7 +434,6 @@ public class UserRestletTest {
             assertEquals(1, joComponent1.getInt("version"));
             assertTrue(joComponent2.has("url"));
 
-
             // Now re-upload one of the components and check the version number
             components.remove(comp2Rdf);
             joResult = uploadComponents(screenName, components);
@@ -486,7 +485,6 @@ public class UserRestletTest {
 	        assertTrue(joFlow2.has("version"));
 	        assertEquals(1, joFlow1.getInt("version"));
 	        assertTrue(joFlow2.has("url"));
-
 
 	        // Now re-upload one of the flows and check the version number
 	        joResult = uploadFlows(screenName, new File[] { flow1Rdf });

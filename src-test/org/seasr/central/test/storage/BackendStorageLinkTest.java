@@ -51,12 +51,12 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_LINK;
+import static org.seasr.central.ws.restlets.Tools.getExceptionDetails;
+import static org.seasr.central.ws.restlets.Tools.getExceptionTrace;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Random;
@@ -69,7 +69,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
-import org.seasr.central.ws.restlets.Tools;
 
 /**
  * Test basic functionalities of SQLite driver
@@ -113,7 +112,7 @@ public class BackendStorageLinkTest {
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DB))       fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DB);
 		}
 		catch (IOException e) {
-			fail("Failed to load property file. Reason: " + Tools.getExceptionDetails(e));
+			fail("Failed to load property file. Reason: " + getExceptionDetails(e));
 		}
 
 		try {
@@ -121,25 +120,24 @@ public class BackendStorageLinkTest {
             bsl = (BackendStorageLink) Class.forName(storageLink).newInstance();
 		}
 		catch (Exception e) {
-		    fail("Failed to load the storage link class. Reason: " + Tools.getExceptionDetails(e));
+		    fail("Failed to load the storage link class. Reason: " + getExceptionDetails(e));
 		}
 
 		try {
             bsl.init(props);
         }
         catch (BackendStorageException e) {
-            fail("Failed to initialize the backend link. Reason: " + Tools.getExceptionDetails(e));
+            fail("Failed to initialize the backend link. Reason: " + getExceptionDetails(e));
         }
 	}
 
 	@AfterClass
 	public static void tearDown() {
 		props = null;
-		bsl.close();
 	}
 
 	@Test
-	public void testCRUDCycle() {
+	public void testUserCRUDCycle() {
 		try {
 		    long lUsers = bsl.userCount();
 		    String sUser = generateTestUserScreenName();
@@ -187,10 +185,22 @@ public class BackendStorageLinkTest {
 			assertEquals(bsl.userCount(), bsl.listUsers(0, 1000).length());
 		}
 		catch (Exception e) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			e.printStackTrace(new PrintStream(baos));
-			fail(baos.toString());
+			fail(getExceptionTrace(e));
 		}
+	}
+
+	@Test
+	public void testComponentUpload() {
+	    try {
+	        // Create a test user
+	        String screenName = generateTestUserScreenName();
+	        UUID testUserId = bsl.addUser(screenName, "sekret", createProfile(screenName));
+	        assertNotNull(testUserId);
+
+	    }
+	    catch (Exception e) {
+	        fail(getExceptionTrace(e));
+	    }
 	}
 
     //-------------------------------------------------------------------------------------
@@ -211,9 +221,7 @@ public class BackendStorageLinkTest {
             profile.put("tested_at", new Date());
         }
         catch (JSONException e) {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            e.printStackTrace(new PrintStream(baos));
-            fail(baos.toString());
+            fail(getExceptionTrace(e));
         }
 
         return profile;

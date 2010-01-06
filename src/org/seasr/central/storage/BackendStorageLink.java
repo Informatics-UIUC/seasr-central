@@ -74,13 +74,6 @@ public interface BackendStorageLink {
 	 */
 	public void init(Properties properties) throws BackendStorageException;
 
-	/**
-	 * Closes the back end storage link.
-	 *
-	 * @return true if it could be properly close, false otherwise
-	 */
-	public boolean close();
-
 	//-------------------------------------------------------------------------------------
 
 	/**
@@ -254,11 +247,23 @@ public interface BackendStorageLink {
 	 *
 	 * @param userId The user to be credited with the upload
 	 * @param component The component
-	 * @param contexts The component context files
+	 * @param contexts The component context files, as URLs
 	 * @return A JSON object keyed on uuid and version containing information about the component
 	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
 	 */
 	public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<FileItem> contexts) throws BackendStorageException;
+
+    /**
+     * Adds (or updates) a component
+     *
+     * @param userId The user to be credited with the upload
+     * @param component The component
+     * @param contexts The component context files
+     * @param copyFiles Flag to indicate whether the File instances should be copied (true) or moved (false) into the repository
+     * @return A JSON object keyed on uuid and version containing information about the component
+     * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
+     */
+   // public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<File> contexts, boolean copyFiles) throws BackendStorageException;
 
 	/**
 	 * Retrieves a component given the component id and version

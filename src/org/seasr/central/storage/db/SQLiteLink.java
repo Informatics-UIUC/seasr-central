@@ -88,12 +88,13 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -117,6 +118,7 @@ import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 
 import de.schlichtherle.io.FileInputStream;
 
@@ -143,11 +145,12 @@ public class SQLiteLink implements BackendStorageLink {
 	/** The properties available */
 	Properties properties = null;
 
-	/** The connection object to queue SQLite database */
-	private Connection conn = null;
+	private final ComboPooledDataSource dataSource = new ComboPooledDataSource();
 
 	/** The connection properties. */
 	private Properties conProps;
+
+	private final Map<String, Object> md5MutexMap = new HashMap<String, Object>();
 
 	//-------------------------------------------------------------------------------------
 
@@ -169,6 +172,7 @@ public class SQLiteLink implements BackendStorageLink {
 
 	@Override
 	public void init(Properties properties) throws BackendStorageException {
+	    Connection conn = null;
 		try {
 			// Retain the properties
 			this.properties = properties;
@@ -186,15 +190,18 @@ public class SQLiteLink implements BackendStorageLink {
 			// Initialize the connection
 			Class.forName(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER));
 
-			conProps = new Properties();
-			conProps.put("user", properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_USER));
-			conProps.put("password", properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD));
-			conn = DriverManager.getConnection(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL), conProps);
+			dataSource.setDriverClass(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER));
+			dataSource.setJdbcUrl(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL));
+			dataSource.setUser(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_USER));
+			dataSource.setPassword(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_PASSWORD));
+			dataSource.setAutoCommitOnClose(true);
+
+			conn = dataSource.getConnection();
 
 			// Create the authentication schema if needed
 			String[] sql = properties.get(ORG_SEASR_CENTRAL_STORAGE_DB_AUTH_SCHEMA).toString().replace('\t', ' ').replace('\r', ' ').split("\n");
 			for (String update : sql) {
-				update = update.trim();
+			    update = update.trim();
 				if (update.length() > 0)
 					conn.createStatement().executeUpdate(update);
 			}
@@ -206,30 +213,22 @@ public class SQLiteLink implements BackendStorageLink {
 				if (update.length() > 0)
 					conn.createStatement().executeUpdate(update);
 			}
+
+			conn.close();
 		}
         catch (ClassNotFoundException e) {
             logger.log(Level.SEVERE, "Cannot load the DB driver", e);
-            close();
             throw new BackendStorageException(e);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
-            close();
+            rollbackTransaction(conn);
             throw new BackendStorageException(e);
         }
-	}
-
-	@Override
-	public boolean close() {
-		try {
-		    if (conn != null)
-		        conn.close();
-
-			return true;
-		}
-		catch (Exception e) {
-			return false;
-		}
+        catch (Exception e) {
+            logger.log(Level.SEVERE, "Cannot load the DB driver", e);
+            throw new BackendStorageException(e);
+        }
 	}
 
 	//-------------------------------------------------------------------------------------
@@ -238,19 +237,24 @@ public class SQLiteLink implements BackendStorageLink {
 	public UUID addUser(String userName, String password, JSONObject profile) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD).trim();
 
-		try {
-			UUID uuid = UUID.randomUUID();
+	    UUID uuid = UUID.randomUUID();
+
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, uuid.toString());
 			ps.setString(2, userName);
 			ps.setString(3, computeDigest(password));
 			ps.setString(4, profile.toString());
 			ps.executeUpdate();
+			conn.close();
 
 			return uuid;
 		}
 		catch (SQLException e) {
 		    logger.log(Level.SEVERE, null, e);
+		    rollbackTransaction(conn);
 			throw new BackendStorageException(e);
 		}
 	}
@@ -259,13 +263,17 @@ public class SQLiteLink implements BackendStorageLink {
 	public void removeUser(UUID userId) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_UUID).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userId.toString());
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 			logger.log(Level.SEVERE, null, e);
+			rollbackTransaction(conn);
 			throw new BackendStorageException(e);
 		}
 	}
@@ -274,13 +282,17 @@ public class SQLiteLink implements BackendStorageLink {
 	public void removeUser(String userName) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_SCREEN_NAME).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userName);
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 		    logger.log(Level.SEVERE, null, e);
+		    rollbackTransaction(conn);
 		    throw new BackendStorageException(e);
 		}
 	}
@@ -289,14 +301,18 @@ public class SQLiteLink implements BackendStorageLink {
 	public void updateUserPassword(UUID userId, String password) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_UUID).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, computeDigest(password));
 			ps.setString(2, userId.toString());
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 			logger.log(Level.SEVERE, null, e);
+			rollbackTransaction(conn);
 			throw new BackendStorageException(e);
 		}
 	}
@@ -305,14 +321,18 @@ public class SQLiteLink implements BackendStorageLink {
 	public void updateUserPassword(String userName, String password) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, computeDigest(password));
 			ps.setString(2, userName);
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 		    logger.log(Level.SEVERE, null, e);
+		    rollbackTransaction(conn);
 		    throw new BackendStorageException(e);
 		}
 	}
@@ -321,14 +341,18 @@ public class SQLiteLink implements BackendStorageLink {
 	public void updateProfile(UUID userId, JSONObject profile) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_UUID).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, profile.toString());
 			ps.setString(2, userId.toString());
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 		    logger.log(Level.SEVERE, null, e);
+		    rollbackTransaction(conn);
 		    throw new BackendStorageException(e);
 		}
 	}
@@ -337,14 +361,18 @@ public class SQLiteLink implements BackendStorageLink {
 	public void updateProfile(String userName, JSONObject profile) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PROFILE_SCREEN_NAME).trim();
 
-		try {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, profile.toString());
 			ps.setString(2, userName);
 			ps.executeUpdate();
+			conn.close();
 		}
 		catch (SQLException e) {
 		    logger.log(Level.SEVERE, null, e);
+		    rollbackTransaction(conn);
 		    throw new BackendStorageException(e);
 		}
 	}
@@ -352,9 +380,11 @@ public class SQLiteLink implements BackendStorageLink {
 	@Override
 	public UUID getUserId(String userName) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_UUID).trim();
-		ResultSet rs = null;
+	    Connection conn = null;
+	    ResultSet rs = null;
 
 		try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userName);
 			rs = ps.executeQuery();
@@ -372,15 +402,23 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public String getUserScreenName(UUID userId) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_SCREEN_NAME).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userId.toString());
 			rs = ps.executeQuery();
@@ -398,15 +436,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public JSONObject getUserProfile(String userName) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_SCREEN_NAME).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userName);
 			rs = ps.executeQuery();
@@ -424,15 +471,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public JSONObject getUserProfile(UUID userId) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_PROFILE_UUID).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userId.toString());
 			rs = ps.executeQuery();
@@ -450,15 +506,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public Date getUserCreationTime(String userName) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_SCREEN_NAME).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userName);
 			rs = ps.executeQuery();
@@ -476,15 +541,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public Date getUserCreationTime(UUID userId) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_GET_CREATEDAT_UUID).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userId.toString());
 			rs = ps.executeQuery();
@@ -502,15 +576,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
 		}
 	}
 
 	@Override
 	public Boolean isUserPasswordValid(String userName, String password) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_SCREEN_NAME).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userName);
 			ps.setString(2, computeDigest(password));
@@ -529,15 +612,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
 	}
 
 	@Override
 	public Boolean isUserPasswordValid(UUID userId, String password) throws BackendStorageException {
 	    String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_VALID_PASSWORD_UUID).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setString(1, userId.toString());
 			ps.setString(2, computeDigest(password));
@@ -556,15 +648,24 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
 	}
 
 	@Override
 	public long userCount() throws BackendStorageException {
 		String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT).trim();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			rs = conn.createStatement().executeQuery(sqlQuery);
 			rs.next();
 			return rs.getLong(1);
@@ -580,6 +681,12 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
 	}
 
@@ -587,9 +694,12 @@ public class SQLiteLink implements BackendStorageLink {
 	public JSONArray listUsers(long offset, long count) throws BackendStorageException {
 		String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST).trim();
 		JSONArray jaUsers = new JSONArray();
-		ResultSet rs = null;
+        Connection conn = null;
+        ResultSet rs = null;
 
-		try {
+        try {
+            conn = dataSource.getConnection();
+
 			PreparedStatement ps = conn.prepareStatement(sqlQuery);
 			ps.setLong(1, offset);
 			ps.setLong(2, count);
@@ -616,6 +726,12 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
 	}
 
@@ -623,16 +739,20 @@ public class SQLiteLink implements BackendStorageLink {
     public void addEvent(SourceType sourceType, UUID sourceId, Event eventCode, JSONObject description) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD).trim();
 
+        Connection conn = null;
         try {
+            conn = dataSource.getConnection();
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, String.valueOf(sourceType.getSourceTypeCode()));
             ps.setString(2, sourceId.toString());
             ps.setInt(3, eventCode.getEventCode());
             ps.setString(4, description.toString());
             ps.executeUpdate();
+            conn.close();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStorageException(e);
         }
     }
@@ -697,27 +817,41 @@ public class SQLiteLink implements BackendStorageLink {
                 // Compute the MD5 hash for the context file
                 final String md5 = Crypto.getHexString(Crypto.createMD5Checksum(tmpFile));
 
-                // Look for context files that have the same MD5 hash value
-                File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
-                    @Override
-                    public boolean accept(File dir, String name) {
-                        return name.startsWith(md5 + "_");
+                // Do synchronization on the MD5 value
+                // We don't want multiple user requests uploading the same context file(s)
+                // to interfere with one another (writing the same context file at the same time)
+                Object lock;
+                synchronized (md5MutexMap) {
+                    lock = md5MutexMap.get(md5);
+                    if (lock == null) {
+                        lock = new Object();
+                        md5MutexMap.put(md5, lock);
                     }
-                });
+                }
 
-                if (files.length > 0) {
-                    String foundFileName = files[0].getName().substring(md5.length() + 1);
-                    logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
-                            context.getName(), foundFileName));
-                    tmpFile.delete();
-                } else {
-                    File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
-                    if (!tmpFile.renameTo(ctxFile)) {
-                        String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
-                        logger.severe(errorMsg);
-                        throw new BackendStorageException(errorMsg);
+                synchronized (lock) {
+                    // Look for context files that have the same MD5 hash value
+                    File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
+                        @Override
+                        public boolean accept(File dir, String name) {
+                            return name.startsWith(md5 + "_");
+                        }
+                    });
+
+                    if (files.length > 0) {
+                        String foundFileName = files[0].getName().substring(md5.length() + 1);
+                        logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
+                                context.getName(), foundFileName));
+                        tmpFile.delete();
+                    } else {
+                        File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
+                        if (!tmpFile.renameTo(ctxFile)) {
+                            String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
+                            logger.severe(errorMsg);
+                            throw new BackendStorageException(errorMsg);
+                        }
+                        logger.finer("Context file saved as " + ctxFile);
                     }
-                    logger.finer("Context file saved as " + ctxFile);
                 }
 
                 compContexts.add(tmpModel.createResource(
@@ -746,7 +880,10 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
 
+        Connection conn = null;
         try {
+            conn = dataSource.getConnection();
+
             // Add the new component version
             PreparedStatement psAdd = conn.prepareStatement(sqlQueryAdd);
             psAdd.setString(1, componentId.toString());
@@ -761,9 +898,12 @@ public class SQLiteLink implements BackendStorageLink {
                 psAddId.setString(3, componentId.toString());
                 psAddId.executeUpdate();
             }
+
+            conn.close();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStorageException(e);
         }
 
@@ -782,10 +922,13 @@ public class SQLiteLink implements BackendStorageLink {
     @Override
     public Model getComponent(UUID componentId, int version) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_STATE_UUID_VERSION).trim();
-        ResultSet rs = null;
         boolean deleted;
+        Connection conn = null;
+        ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, componentId.toString());
             ps.setString(2, String.valueOf(version));
@@ -807,6 +950,12 @@ public class SQLiteLink implements BackendStorageLink {
                     rs.close();
                 }
                 catch (SQLException e) { }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
             }
         }
 
@@ -901,7 +1050,10 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
 
+        Connection conn = null;
         try {
+            conn = dataSource.getConnection();
+
             // Add the new flow version
             PreparedStatement psAdd = conn.prepareStatement(sqlQueryAdd);
             psAdd.setString(1, flowId.toString());
@@ -916,9 +1068,12 @@ public class SQLiteLink implements BackendStorageLink {
                 psAddId.setString(3, flowId.toString());
                 psAddId.executeUpdate();
             }
+
+            conn.close();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStorageException(e);
         }
 
@@ -937,10 +1092,13 @@ public class SQLiteLink implements BackendStorageLink {
     @Override
     public Model getFlow(UUID flowId, int version) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_STATE_UUID_VERSION).trim();
-        ResultSet rs = null;
         boolean deleted;
+        Connection conn = null;
+        ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, flowId.toString());
             ps.setString(2, String.valueOf(version));
@@ -962,6 +1120,12 @@ public class SQLiteLink implements BackendStorageLink {
                     rs.close();
                 }
                 catch (SQLException e) { }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
             }
         }
 
@@ -993,9 +1157,12 @@ public class SQLiteLink implements BackendStorageLink {
      */
     protected UUID getComponentId(String origUri, UUID userId) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_ID_ORIGURI_USER).trim();
+        Connection conn = null;
         ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, origUri);
             ps.setString(2, userId.toString());
@@ -1014,6 +1181,12 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
     }
 
@@ -1026,9 +1199,12 @@ public class SQLiteLink implements BackendStorageLink {
      */
     protected int getLastVersionNumberForComponent(UUID componentId) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_GET_LAST_VERSION_NUMBER).trim();
+        Connection conn = null;
         ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, componentId.toString());
             rs = ps.executeQuery();
@@ -1046,6 +1222,12 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
     }
 
@@ -1059,9 +1241,12 @@ public class SQLiteLink implements BackendStorageLink {
      */
     protected UUID getFlowId(String origUri, UUID userId) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_ID_ORIGURI_USER).trim();
+        Connection conn = null;
         ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, origUri);
             ps.setString(2, userId.toString());
@@ -1080,6 +1265,12 @@ public class SQLiteLink implements BackendStorageLink {
                 }
                 catch (SQLException e) { }
             }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
         }
     }
 
@@ -1092,9 +1283,12 @@ public class SQLiteLink implements BackendStorageLink {
      */
     protected int getLastVersionNumberForFlow(UUID flowId) throws BackendStorageException {
         String sqlQuery = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_FLOW_GET_LAST_VERSION_NUMBER).trim();
+        Connection conn = null;
         ResultSet rs = null;
 
         try {
+            conn = dataSource.getConnection();
+
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, flowId.toString());
             rs = ps.executeQuery();
@@ -1111,6 +1305,12 @@ public class SQLiteLink implements BackendStorageLink {
                     rs.close();
                 }
                 catch (SQLException e) { }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
             }
         }
     }
@@ -1134,4 +1334,29 @@ public class SQLiteLink implements BackendStorageLink {
 
         return null;
     }
+
+    /**
+     * Rolls back the last DB transaction
+     *
+     * @return True if success / False otherwise
+     */
+    protected boolean rollbackTransaction(Connection conn) {
+        if (conn == null) return false;
+
+        try {
+            conn.rollback();
+            return true;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            return false;
+        }
+        finally {
+            try {
+                conn.close();
+            }
+            catch (SQLException e) {}
+        }
+    }
+
 }
