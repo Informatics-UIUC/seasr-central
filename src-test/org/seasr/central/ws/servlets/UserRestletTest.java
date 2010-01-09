@@ -48,6 +48,7 @@ import static org.junit.Assert.fail;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_LINK;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION;
+import static org.seasr.central.ws.restlets.Tools.createTempFolder;
 import static org.seasr.central.ws.restlets.Tools.getExceptionTrace;
 
 import java.io.File;
@@ -150,8 +151,7 @@ public class UserRestletTest {
 		Properties props = new Properties();
 		try {
 	        // Get a temporary folder location to store the SC repository
-	        repositoryFolder = File.createTempFile("repository-test", "");
-	        repositoryFolder.delete();
+	        repositoryFolder = createTempFolder("repository-test");
 	        repositoryFolder.deleteOnExit();
 
 	        // Load the DB configuration file and override properties to accommodate unit tests

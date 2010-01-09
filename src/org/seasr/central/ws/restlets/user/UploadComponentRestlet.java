@@ -43,6 +43,7 @@
 package org.seasr.central.ws.restlets.user;
 
 import static org.seasr.central.ws.restlets.Tools.createJSONErrorObj;
+import static org.seasr.central.ws.restlets.Tools.createTempFolder;
 import static org.seasr.central.ws.restlets.Tools.logger;
 import static org.seasr.central.ws.restlets.Tools.sendContent;
 import static org.seasr.central.ws.restlets.Tools.sendErrorBadRequest;
@@ -50,7 +51,10 @@ import static org.seasr.central.ws.restlets.Tools.sendErrorInternalServerError;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotAcceptable;
 import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -67,6 +71,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -154,9 +159,9 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         }
 
         ServletFileUpload fileUpload = new ServletFileUpload(new DiskFileItemFactory());
-        List<FileItem> files = null;
+        List<FileItem> uploadedFiles = null;
         try {
-            files = fileUpload.parseRequest(request);
+            uploadedFiles = fileUpload.parseRequest(request);
         }
         catch (FileUploadException e) {
             sendErrorBadRequest(response);
@@ -167,8 +172,9 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         JSONArray jaErrors = new JSONArray();
 
         try {
-            // Mapping between component uri and set of contexts
-            Map<String, Set<FileItem>> componentsMap = new HashMap<String, Set<FileItem>>();
+            // Mapping between component uri and set of contexts, and temp context folders
+            Map<String, Set<URL>> componentsMap = new HashMap<String, Set<URL>>();
+            Map<String, File> contextTempFolderMap = new HashMap<String, File>();
 
             // Accumulator for the component models
             Model model = ModelFactory.createDefaultModel();
@@ -176,14 +182,16 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             String currentComponentResUri = null;
             boolean skipProcessingContexts = false;
 
-            for (FileItem file : files) {
-                if (file == null || file.isFormField() || file.getName().length() == 0)
+            for (FileItem file : uploadedFiles) {
+                if (file == null || (file.isFormField() && !file.getFieldName().equals("context")) ||
+                        (!file.isFormField() && file.getName().trim().length() == 0))
                     continue;
 
-                logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
-
-                if (file.getSize() == 0)
-                    logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
+                if (!file.isFormField()) {
+                    logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
+                    if (file.getSize() == 0)
+                        logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
+                }
 
                 if (file.getFieldName().equalsIgnoreCase("component_rdf")) {
                     try {
@@ -201,7 +209,16 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         // Accumulate and create a new entry in the component context hashmap
                         model.add(compModel);
                         currentComponentResUri = compResList.get(0).getURI();
-                        componentsMap.put(currentComponentResUri, new HashSet<FileItem>());
+                        componentsMap.put(currentComponentResUri, new HashSet<URL>());
+
+                        // Create a temp folder to store any context files for this component
+                        File tempFolder = createTempFolder(String.format("%s_%d_", request.getRemoteAddr(), request.getRemotePort()));
+                        if (tempFolder == null) {
+                            logger.severe("Cannot create temp context folder!");
+                            sendErrorInternalServerError(response);
+                            return true;
+                        }
+                        contextTempFolderMap.put(currentComponentResUri, tempFolder);
                     }
                     catch (Exception e) {
                         logger.log(Level.WARNING,
@@ -225,8 +242,37 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         return true;
                     }
 
-                    // Add the context file to the current component being uploaded
-                    componentsMap.get(currentComponentResUri).add(file);
+                    // If we're uploading a context file as a form field (non-file)
+                    // then assume it's specifying a full URL, otherwise the field
+                    // is assumed to be the context file uploaded
+                    if (file.isFormField()) {
+                        try {
+                            componentsMap.get(currentComponentResUri).add(new URL(file.getString()));
+                        }
+                        catch (MalformedURLException e) {
+                            sendErrorBadRequest(response);
+                            return true;
+                        }
+                    } else {
+                        // Add the context file to the current component being uploaded
+                        File contextFile = new File(contextTempFolderMap.get(currentComponentResUri), file.getName());
+                        try {
+                            file.write(contextFile);
+                        }
+                        catch (Exception e) {
+                            logger.log(Level.SEVERE, "Cannot save uploaded context file: " + contextFile, e);
+                            sendErrorInternalServerError(response);
+                            return true;
+                        }
+
+                        try {
+                            componentsMap.get(currentComponentResUri).add(contextFile.toURI().toURL());
+                        }
+                        catch (MalformedURLException e) {
+                            // Should never happen
+                            throw new RuntimeException(e);
+                        }
+                    }
                 }
             }
 
@@ -235,7 +281,8 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
                 try {
                     // Attempt to add the component to the backend storage
-                    JSONObject joResult = bsl.addComponent(uuid, ecd, componentsMap.get(ecd.getExecutableComponent().getURI()));
+                    Set<URL> contexts = componentsMap.get(ecd.getExecutableComponent().getURI());
+                    JSONObject joResult = bsl.addComponent(uuid, ecd, contexts, false);
 
                     String compId = joResult.getString("uuid");
                     int compVersion = joResult.getInt("version");
@@ -262,6 +309,15 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 }
             }
 
+            // Clean up the temp folders
+            for (File tempFolder : contextTempFolderMap.values())
+                try {
+                    FileUtils.deleteDirectory(tempFolder);
+                }
+                catch (IOException e) {
+                    logger.log(Level.WARNING, "Cannot delete temp context folder: " + tempFolder, e);
+                }
+
             JSONObject joContent = new JSONObject();
             joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
             joContent.put(OperationResult.FAILURE.name(), jaErrors);
@@ -286,5 +342,4 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
         return true;
     }
-
 }

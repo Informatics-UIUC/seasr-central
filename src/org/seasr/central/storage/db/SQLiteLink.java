@@ -86,6 +86,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -93,8 +94,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -102,7 +101,7 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -145,12 +144,8 @@ public class SQLiteLink implements BackendStorageLink {
 	/** The properties available */
 	Properties properties = null;
 
+	/** The DB connection pool */
 	private final ComboPooledDataSource dataSource = new ComboPooledDataSource();
-
-	/** The connection properties. */
-	private Properties conProps;
-
-	private final Map<String, Object> md5MutexMap = new HashMap<String, Object>();
 
 	//-------------------------------------------------------------------------------------
 
@@ -181,10 +176,12 @@ public class SQLiteLink implements BackendStorageLink {
 			logger.setLevel(Level.parse(properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_LOGLEVEL, Level.ALL.getName())));
 
 			// Get the repository location and make sure it exists
-			REPOSITORY_LOCATION = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION);
-			if (REPOSITORY_LOCATION == null)
+			if (properties.containsKey(ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION))
+			    REPOSITORY_LOCATION = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION);
+			else
 			    throw new BackendStorageException("Missing repository location configuration entry: " +
 			            ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION);
+
 			new File(REPOSITORY_LOCATION).mkdirs();
 
 			// Initialize the connection
@@ -396,18 +393,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -430,18 +416,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -465,18 +440,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -500,18 +464,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -535,18 +488,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -570,18 +512,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
 		finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
 		}
 	}
 
@@ -606,18 +537,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 	}
 
@@ -642,18 +562,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 	}
 
@@ -675,18 +584,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 	}
 
@@ -720,18 +618,7 @@ public class SQLiteLink implements BackendStorageLink {
 		    throw new BackendStorageException(e);
 		}
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 	}
 
@@ -758,7 +645,7 @@ public class SQLiteLink implements BackendStorageLink {
     }
 
     @Override
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<FileItem> contexts) throws BackendStorageException {
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts, boolean copyContextFiles) throws BackendStorageException {
         String sqlQueryAddId = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD_ID).trim();
         String sqlQueryAdd = properties.getProperty(ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_COMPONENT_ADD).trim();
 
@@ -803,61 +690,60 @@ public class SQLiteLink implements BackendStorageLink {
 
         Model tmpModel = component.getExecutableComponent().getModel();
 
-        for (FileItem context : contexts) {
-            logger.finer("Processing context file: " + context.getName());
+        for (URL contextURL : contexts) {
+            String ctxFileName = contextURL.toString().substring(contextURL.toString().lastIndexOf("/") + 1);
+            if (ctxFileName.length() == 0) ctxFileName = "unnamed";
+
+            logger.finer("Processing context file: " + ctxFileName);
+
             try {
-                File tmpFile = File.createTempFile("context", ".tmp", fREPOSITORY_CONTEXTS);
-                try {
-                    context.write(tmpFile);
-                }
-                catch (Exception e) {
-                    throw new IOException(e);
+                File tmpFile;
+
+                if (contextURL.getProtocol().equals("file") && !copyContextFiles)
+                    tmpFile = new File(contextURL.toURI());
+                else {
+                    tmpFile = File.createTempFile("context", ".tmp", fREPOSITORY_CONTEXTS);
+                    // TODO: We should probably use a timeout in case the URL is not responding to prevent hangs
+                    FileUtils.copyURLToFile(contextURL, tmpFile);
                 }
 
                 // Compute the MD5 hash for the context file
                 final String md5 = Crypto.getHexString(Crypto.createMD5Checksum(tmpFile));
 
-                // Do synchronization on the MD5 value
-                // We don't want multiple user requests uploading the same context file(s)
-                // to interfere with one another (writing the same context file at the same time)
-                Object lock;
-                synchronized (md5MutexMap) {
-                    lock = md5MutexMap.get(md5);
-                    if (lock == null) {
-                        lock = new Object();
-                        md5MutexMap.put(md5, lock);
+                // Look for context files that have the same MD5 hash value
+                File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String name) {
+                        return name.startsWith(md5 + "_");
                     }
-                }
+                });
 
-                synchronized (lock) {
-                    // Look for context files that have the same MD5 hash value
-                    File[] files = fREPOSITORY_CONTEXTS.listFiles(new FilenameFilter() {
-                        @Override
-                        public boolean accept(File dir, String name) {
-                            return name.startsWith(md5 + "_");
-                        }
-                    });
-
-                    if (files.length > 0) {
-                        String foundFileName = files[0].getName().substring(md5.length() + 1);
-                        logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
-                                context.getName(), foundFileName));
-                        tmpFile.delete();
-                    } else {
-                        File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + context.getName());
+                if (files.length > 0) {
+                    String foundFileName = files[0].getName().substring(md5.length() + 1);
+                    logger.fine(String.format("Context file %s already exists (hashed to: %s), skipping it...",
+                            ctxFileName, foundFileName));
+                    tmpFile.delete();
+                } else {
+                    File ctxFile = new File(fREPOSITORY_CONTEXTS, md5 + "_" + ctxFileName);
+                    // We need to synchronize access to ctxFile so that multiple threads don't try to
+                    // write to the same context file at the same time. Using FileLock seems to be
+                    // discouraged by the JavaDocs. Using createNewFile() seems to also be discouraged
+                    // but the operation is atomic and for now I think it will do the trick
+                    if (ctxFile.createNewFile()) {
                         if (!tmpFile.renameTo(ctxFile)) {
                             String errorMsg = String.format("Could not rename context file %s to %s", tmpFile, ctxFile);
                             logger.severe(errorMsg);
+                            ctxFile.delete();
                             throw new BackendStorageException(errorMsg);
                         }
                         logger.finer("Context file saved as " + ctxFile);
-                    }
+                    } else
+                        logger.info(String.format("Context file %s created in another thread. Skipping it...", ctxFile));
                 }
 
-                compContexts.add(tmpModel.createResource(
-                        String.format("context://localhost/%s/%s", md5, context.getName())));
+                compContexts.add(tmpModel.createResource(String.format("context://localhost/%s/%s", md5, ctxFileName)));
             }
-            catch (IOException e) {
+            catch (Exception e) {
                 logger.log(Level.SEVERE, null, e);
                 throw new BackendStorageException(e);
             }
@@ -928,7 +814,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, componentId.toString());
             ps.setString(2, String.valueOf(version));
@@ -945,18 +830,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 
         if (deleted)
@@ -1098,7 +972,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, flowId.toString());
             ps.setString(2, String.valueOf(version));
@@ -1115,18 +988,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
 
         if (deleted)
@@ -1162,7 +1024,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, origUri);
             ps.setString(2, userId.toString());
@@ -1175,18 +1036,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
     }
 
@@ -1204,7 +1054,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, componentId.toString());
             rs = ps.executeQuery();
@@ -1216,18 +1065,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
     }
 
@@ -1246,7 +1084,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, origUri);
             ps.setString(2, userId.toString());
@@ -1259,18 +1096,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
     }
 
@@ -1288,7 +1114,6 @@ public class SQLiteLink implements BackendStorageLink {
 
         try {
             conn = dataSource.getConnection();
-
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, flowId.toString());
             rs = ps.executeQuery();
@@ -1300,18 +1125,7 @@ public class SQLiteLink implements BackendStorageLink {
             throw new BackendStorageException(e);
         }
         finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                }
-                catch (SQLException e) { }
-            }
-            if (conn != null) {
-                try {
-                    conn.close();
-                }
-                catch (Exception e) {}
-            }
+            releaseConnection(conn, rs);
         }
     }
 
@@ -1336,15 +1150,16 @@ public class SQLiteLink implements BackendStorageLink {
     }
 
     /**
-     * Rolls back the last DB transaction
+     * Rolls back the last DB transaction for a connection
      *
+     * @param connection The connection
      * @return True if success / False otherwise
      */
-    protected boolean rollbackTransaction(Connection conn) {
-        if (conn == null) return false;
+    protected boolean rollbackTransaction(Connection connection) {
+        if (connection == null) return false;
 
         try {
-            conn.rollback();
+            connection.rollback();
             return true;
         }
         catch (SQLException e) {
@@ -1352,11 +1167,32 @@ public class SQLiteLink implements BackendStorageLink {
             return false;
         }
         finally {
-            try {
-                conn.close();
-            }
-            catch (SQLException e) {}
+            releaseConnection(connection);
         }
     }
 
+    /**
+     * Returns a connection back to the connection pool
+     *
+     * @param connection The connection
+     * @param resultSet (Optional) Any ResultSet(s) that need to be closed before the connection is released
+     */
+    private void releaseConnection(Connection connection, ResultSet... resultSet) {
+        if (resultSet != null) {
+            for (ResultSet rs : resultSet)
+                if (rs != null) {
+                    try {
+                        rs.close();
+                    }
+                    catch (SQLException e) { }
+                }
+        }
+
+        if (connection != null) {
+            try {
+                connection.close();
+            }
+            catch (Exception e) { }
+        }
+    }
 }

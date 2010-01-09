@@ -43,12 +43,12 @@
 package org.seasr.central.storage;
 
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 
-import org.apache.commons.fileupload.FileItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
@@ -242,28 +242,17 @@ public interface BackendStorageLink {
 	 */
 	public void addEvent(SourceType sourceType, UUID sourceId, Event event, JSONObject description) throws BackendStorageException;
 
-	/**
-	 * Adds (or updates) a component
-	 *
-	 * @param userId The user to be credited with the upload
-	 * @param component The component
-	 * @param contexts The component context files, as URLs
-	 * @return A JSON object keyed on uuid and version containing information about the component
-	 * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
-	 */
-	public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<FileItem> contexts) throws BackendStorageException;
-
     /**
      * Adds (or updates) a component
      *
      * @param userId The user to be credited with the upload
      * @param component The component
      * @param contexts The component context files
-     * @param copyFiles Flag to indicate whether the File instances should be copied (true) or moved (false) into the repository
+     * @param copyContextFiles Flag to indicate whether any file:/// context references should be copied (true) or moved (false) into the repository
      * @return A JSON object keyed on uuid and version containing information about the component
      * @throws BackendStorageException Thrown if an error occurred while communicating with the backend
      */
-   // public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<File> contexts, boolean copyFiles) throws BackendStorageException;
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts, boolean copyContextFiles) throws BackendStorageException;
 
 	/**
 	 * Retrieves a component given the component id and version
