@@ -61,7 +61,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.storage.BackendStorageException;
+import org.seasr.central.storage.exceptions.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.io.ModelUtils;

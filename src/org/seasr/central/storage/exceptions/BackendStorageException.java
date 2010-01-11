@@ -40,7 +40,7 @@
  *
  */
 
-package org.seasr.central.storage;
+package org.seasr.central.storage.exceptions;
 
 /**
  * Exception class used to indicate errors encountered while performing backend operations

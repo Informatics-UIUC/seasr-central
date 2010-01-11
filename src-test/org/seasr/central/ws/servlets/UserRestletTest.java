@@ -446,6 +446,17 @@ public class UserRestletTest {
             assertTrue(joComponent1.has("version"));
             assertEquals(2, joComponent1.getInt("version"));
             assertTrue(joComponent1.has("url"));
+
+            // Now delete the user and try to upload a component (should fail)
+            joResult = deleteUser(screenName);
+            assertEquals(0, joResult.getJSONArray(OperationResult.FAILURE.name()).length());
+            try {
+                joResult = uploadComponents(screenName, components);
+                fail("Uploading components for a deleted user should fail.");
+            }
+            catch (IOException e) {
+                // Expected
+            }
         }
         catch (Exception e) {
             fail(getExceptionTrace(e));

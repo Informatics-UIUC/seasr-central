@@ -54,7 +54,7 @@ import java.util.logging.Level;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.seasr.central.storage.BackendStorageException;
+import org.seasr.central.storage.exceptions.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 
 import com.google.gdata.util.ContentType;

@@ -54,6 +54,7 @@ import static org.seasr.central.ws.restlets.Tools.sendErrorNotFound;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,9 +80,9 @@ import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.SourceType;
+import org.seasr.central.storage.exceptions.BackendStorageException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.central.ws.restlets.Tools.OperationResult;
@@ -183,8 +184,13 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             boolean skipProcessingContexts = false;
 
             for (FileItem file : uploadedFiles) {
-                if (file == null || (file.isFormField() && !file.getFieldName().equals("context")) ||
-                        (!file.isFormField() && file.getName().trim().length() == 0))
+                // Check for proper request parameters
+                if (file == null || !file.getFieldName().equals("context") && !file.getFieldName().equals("component_rdf"))
+                    continue;
+
+                // Make sure we have non-empty fields
+                if ((!file.isFormField() && file.getName().trim().length() == 0) ||
+                    (file.isFormField() && file.getString().trim().length() == 0))
                     continue;
 
                 if (!file.isFormField()) {
@@ -198,7 +204,10 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         skipProcessingContexts = false;
 
                         // Read the component model and check that it contains a single executable component
-                        Model compModel = ModelUtils.getModel(file.getInputStream(), null);
+                        Model compModel = file.isFormField() ?
+                                // TODO: Add mechanism for request timeouts when retrieving remote descriptors
+                                ModelUtils.getModel(new URI(file.getString()), null) :
+                                ModelUtils.getModel(file.getInputStream(), null);
                         List<Resource> compResList = compModel.listSubjectsWithProperty(
                                 RDF.type, RepositoryVocabulary.executable_component).toList();
                         if (compResList.size() != 1) {
@@ -221,11 +230,11 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         contextTempFolderMap.put(currentComponentResUri, tempFolder);
                     }
                     catch (Exception e) {
-                        logger.log(Level.WARNING,
-                                String.format("Error parsing RDF file '%s'", file.getName()), e);
+                        String descriptorName = file.isFormField() ? file.getString().trim() : file.getName();
+                        logger.log(Level.WARNING, String.format("Error parsing RDF from '%s'", descriptorName), e);
 
                         JSONObject joError = createJSONErrorObj("Invalid component RDF descriptor received", e);
-                        joError.put("file", file.getName());
+                        joError.put("descriptor", descriptorName);
 
                         jaErrors.put(joError);
                     }

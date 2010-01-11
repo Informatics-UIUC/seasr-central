@@ -123,6 +123,9 @@
 	<entry key="org.seasr.central.storage.db.query.user.db.list">
 		SELECT uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
 	</entry>
+	<entry key="org.seasr.central.storage.db.query.user.deleted">
+        SELECT deleted FROM sc_user WHERE uuid = ?;
+	</entry>
 
 
     <!-- EVENTS -->

@@ -44,6 +44,7 @@ package org.seasr.central.test.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_DB;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER;
@@ -51,24 +52,37 @@ import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAG
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_URL;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_DB_USER;
 import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_LINK;
+import static org.seasr.central.properties.SCProperties.ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION;
+import static org.seasr.central.ws.restlets.Tools.createTempFolder;
 import static org.seasr.central.ws.restlets.Tools.getExceptionDetails;
 import static org.seasr.central.ws.restlets.Tools.getExceptionTrace;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.seasr.central.storage.BackendStorageException;
+import org.meandre.core.repository.ExecutableComponentDescription;
+import org.meandre.core.repository.FlowDescription;
+import org.meandre.core.repository.RepositoryImpl;
 import org.seasr.central.storage.BackendStorageLink;
+import org.seasr.central.storage.exceptions.BackendStorageException;
+import org.seasr.central.storage.exceptions.InactiveUserException;
+import org.seasr.meandre.support.generic.io.ModelUtils;
+
+import com.hp.hpl.jena.rdf.model.Model;
 
 /**
  * Test basic functionalities of SQLite driver
@@ -94,6 +108,9 @@ public class BackendStorageLinkTest {
 	/** The back end storage link */
 	private static BackendStorageLink bsl;
 
+	/** The location of the SC repository */
+    private static File repositoryFolder;
+
 
 	@BeforeClass
 	public static void setUp() {
@@ -101,9 +118,14 @@ public class BackendStorageLinkTest {
 		    File dbFile = File.createTempFile("SCStore-test", ".sqlite");
 		    dbFile.deleteOnExit();
 
+	        // Get a temporary folder location to store the SC repository
+            repositoryFolder = createTempFolder("repository-test");
+            repositoryFolder.deleteOnExit();
+
 			props = new Properties();
 			props.loadFromXML(new FileInputStream(new File(DB_PROPERTY_FILE)));
 	        props.setProperty(ORG_SEASR_CENTRAL_STORAGE_DB_URL, "jdbc:sqlite:" + dbFile.getAbsolutePath());
+            props.setProperty(ORG_SEASR_CENTRAL_STORAGE_REPOSITORY_LOCATION, repositoryFolder.getAbsolutePath());
 
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER))   fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_DRIVER);
 			if (!props.containsKey(ORG_SEASR_CENTRAL_STORAGE_DB_URL))      fail("Missing property "+ORG_SEASR_CENTRAL_STORAGE_DB_URL);
@@ -134,6 +156,11 @@ public class BackendStorageLinkTest {
 	@AfterClass
 	public static void tearDown() {
 		props = null;
+        try {
+            FileUtils.deleteDirectory(repositoryFolder);
+        }
+        catch (IOException e) {
+        }
 	}
 
 	@Test
@@ -197,6 +224,79 @@ public class BackendStorageLinkTest {
 	        UUID testUserId = bsl.addUser(screenName, "sekret", createProfile(screenName));
 	        assertNotNull(testUserId);
 
+	        Model model = ModelUtils.getModel(new FileInputStream("test/components/tolowercase.ttl"), null);
+	        ExecutableComponentDescription component = new RepositoryImpl(model).getAvailableExecutableComponentDescriptions().iterator().next();
+
+	        Set<URL> contexts = new HashSet<URL>();
+	        contexts.add(new File("test/components/test.jar").toURI().toURL());
+
+	        // Add a component
+	        JSONObject joResult = bsl.addComponent(testUserId, component, contexts, true);
+	        assertTrue(joResult.has("uuid"));
+	        assertTrue(joResult.has("version"));
+	        assertEquals(1, joResult.getInt("version"));
+
+	        // Add the component again
+	        joResult = bsl.addComponent(testUserId, component, contexts, true);
+	        assertTrue(joResult.has("uuid"));
+	        assertTrue(joResult.has("version"));
+	        assertEquals(2, joResult.getInt("version"));
+
+	        // Now delete the user and try to upload the component again (should fail)
+	        bsl.removeUser(testUserId);
+	        try {
+	            bsl.addComponent(testUserId, component, contexts, true);
+	            fail("Should not be able to add a component for a deleted user");
+	        }
+	        catch (BackendStorageException e) {
+	            if (e.getCause() instanceof InactiveUserException) {
+	                InactiveUserException iue = (InactiveUserException)e.getCause();
+	                assertEquals(testUserId, iue.getUserId());
+	            } else
+	                throw e;
+	        }
+	    }
+	    catch (Exception e) {
+	        fail(getExceptionTrace(e));
+	    }
+	}
+
+	@Test
+	public void testFlowUpload() {
+	    try {
+	        // Create a test user
+	        String screenName = generateTestUserScreenName();
+	        UUID testUserId = bsl.addUser(screenName, "sekret", createProfile(screenName));
+	        assertNotNull(testUserId);
+
+	        Model model = ModelUtils.getModel(new FileInputStream("test/flows/fpgrowth.rdf"), null);
+	        FlowDescription flow = new RepositoryImpl(model).getAvailableFlowDescriptions().iterator().next();
+
+	        // Add a flow
+	        JSONObject joResult = bsl.addFlow(testUserId, flow);
+	        assertTrue(joResult.has("uuid"));
+	        assertTrue(joResult.has("version"));
+	        assertEquals(1, joResult.getInt("version"));
+
+	        // Add the flow again
+	        joResult = bsl.addFlow(testUserId, flow);
+	        assertTrue(joResult.has("uuid"));
+	        assertTrue(joResult.has("version"));
+	        assertEquals(2, joResult.getInt("version"));
+
+	        // Now delete the user and try to upload the flow again (should fail)
+	        bsl.removeUser(testUserId);
+	        try {
+	            bsl.addFlow(testUserId, flow);
+	            fail("Should not be able to add a flow for a deleted user");
+	        }
+	        catch (BackendStorageException e) {
+	            if (e.getCause() instanceof InactiveUserException) {
+	                InactiveUserException iue = (InactiveUserException)e.getCause();
+	                assertEquals(testUserId, iue.getUserId());
+	            } else
+	                throw e;
+	        }
 	    }
 	    catch (Exception e) {
 	        fail(getExceptionTrace(e));

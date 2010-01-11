@@ -55,6 +55,7 @@ public abstract class SCDBProperties extends SCProperties {
 
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_SCHEMA = "org.seasr.central.storage.db.schema";
 
+	// USERS
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_ADD = "org.seasr.central.storage.db.query.user.add";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_REMOVE_UUID = "org.seasr.central.storage.db.query.user.remove.uuid";
@@ -72,6 +73,7 @@ public abstract class SCDBProperties extends SCProperties {
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_UUID = "org.seasr.central.storage.db.query.user.update.password.uuid";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_UPDATE_PASSWORD_SCREEN_NAME = "org.seasr.central.storage.db.query.user.update.password.screen_name";
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_LIST = "org.seasr.central.storage.db.query.user.db.list";
+	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_USER_DELETED = "org.seasr.central.storage.db.query.user.deleted";
 
 	// EVENTS
 	public final static String ORG_SEASR_CENTRAL_STORAGE_DB_QUERY_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";

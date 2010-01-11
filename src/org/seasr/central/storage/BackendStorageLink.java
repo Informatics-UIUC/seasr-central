@@ -53,6 +53,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
+import org.seasr.central.storage.exceptions.BackendStorageException;
 
 import com.hp.hpl.jena.rdf.model.Model;
 

@@ -51,8 +51,8 @@ import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.seasr.central.storage.BackendStorageException;
 import org.seasr.central.storage.BackendStorageLink;
+import org.seasr.central.storage.exceptions.BackendStorageException;
 import org.seasr.central.ws.SC;
 
 import com.google.gdata.util.ContentType;
