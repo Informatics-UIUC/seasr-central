@@ -218,6 +218,8 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
             QueryableRepository qr = new RepositoryImpl(model);
 
             for (FlowDescription fd : qr.getAvailableFlowDescriptions()) {
+                String origUri = fd.getFlowComponent().getURI();
+
                 try {
                     // Attempt to add the flow to the backend storage
                     JSONObject joResult = bsl.addFlow(uuid, fd);
@@ -229,6 +231,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                             request.getScheme(), request.getServerName(), request.getServerPort(), flowId, flowVersion);
 
                     JSONObject joFlow = new JSONObject();
+                    joFlow.put("orig_uri", origUri);
                     joFlow.put("uuid", flowId);
                     joFlow.put("version", flowVersion);
                     joFlow.put("url", flowUrl);
@@ -243,7 +246,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     logger.log(Level.SEVERE, null, e);
 
                     jaErrors.put(createJSONErrorObj(String.format("Failed to add flow '%s' (%s)",
-                            fd.getName(), fd.getFlowComponent().getURI()), e));
+                            fd.getName(), origUri), e));
                 }
             }
 

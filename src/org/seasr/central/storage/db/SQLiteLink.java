@@ -660,13 +660,10 @@ public class SQLiteLink implements BackendStorageLink {
         String origURI = component.getExecutableComponent().getURI();
         boolean isNewComponent = true;
 
-        // temporary --- this provides the maximum parallelism for requests
-        synchronized ((userId.toString() + origURI).intern()) {
-
         Connection conn = null;
         try {
             conn = dataSource.getConnection();
-            //conn.setAutoCommit(false);
+            conn.setAutoCommit(false);
 
             if (!isUserActive(userId, conn))
                 throw new InactiveUserException(userId);
@@ -737,16 +734,15 @@ public class SQLiteLink implements BackendStorageLink {
             joResult.put("uuid", componentId.toString());
             joResult.put("version", version);
 
-            //conn.commit();
+            conn.commit();
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
-            //rollbackTransaction(conn);
+            rollbackTransaction(conn);
             throw new BackendStorageException(e);
         }
         finally {
             releaseConnection(conn);
-        }
         }
 
         return joResult;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
-	<comment>SEASR CENTRAL storage schema</comment>
+	<comment>SEASR CENTRAL storage schema for SQLite</comment>
 
 	<entry key="org.seasr.central.storage.db.driver">org.sqlite.JDBC</entry>
 	<entry key="org.seasr.central.storage.db.url">jdbc:sqlite:db/SCStore.sqlite</entry>
@@ -138,13 +138,13 @@
         INSERT INTO sc_component (uuid, version, upload_date) VALUES (?, ?, DATETIME('NOW'));
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.id">
-        INSERT INTO sc_component_id_map (orig_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
+        INSERT OR IGNORE INTO sc_component_id_map (orig_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.id.origuri.user">
         SELECT comp_uuid FROM sc_component_id_map WHERE orig_uri = ? AND user_uuid = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
-        SELECT MAX(version) FROM sc_component WHERE uuid = ?;
+        SELECT MAX(version) FROM sc_component WHERE uuid = ? FOR UPDATE;
     </entry>
     <!-- SELECT c.base_uri, m.deleted FROM sc_component c INNER JOIN sc_component_id_map m ON c.uuid = m.comp_uuid WHERE c.uuid = ? AND c.version = ?; -->
     <entry key="org.seasr.central.storage.db.query.component.get.state.uuid.version">
@@ -156,13 +156,13 @@
         INSERT INTO sc_flow (uuid, version, upload_date) VALUES (?, ?, DATETIME('NOW'));
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.add.id">
-        INSERT INTO sc_flow_id_map (orig_uri, user_uuid, flow_uuid) VALUES (?, ?, ?);
+        INSERT OR IGNORE INTO sc_flow_id_map (orig_uri, user_uuid, flow_uuid) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.get.id.origuri.user">
         SELECT flow_uuid FROM sc_flow_id_map WHERE orig_uri = ? AND user_uuid = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.get.last.version.number">
-        SELECT MAX(version) FROM sc_flow WHERE uuid = ?;
+        SELECT MAX(version) FROM sc_flow WHERE uuid = ? FOR UPDATE;
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.get.state.uuid.version">
         SELECT deleted FROM sc_flow WHERE uuid = ? AND version = ?;

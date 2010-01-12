@@ -288,9 +288,11 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             QueryableRepository qr = new RepositoryImpl(model);
 
             for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
+                String origUri = ecd.getExecutableComponent().getURI();
+
                 try {
                     // Attempt to add the component to the backend storage
-                    Set<URL> contexts = componentsMap.get(ecd.getExecutableComponent().getURI());
+                    Set<URL> contexts = componentsMap.get(origUri);
                     JSONObject joResult = bsl.addComponent(uuid, ecd, contexts, false);
 
                     String compId = joResult.getString("uuid");
@@ -300,6 +302,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                             request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
 
                     JSONObject joComponent = new JSONObject();
+                    joComponent.put("orig_uri", origUri);
                     joComponent.put("uuid", compId);
                     joComponent.put("version", compVersion);
                     joComponent.put("url", compUrl);
@@ -314,7 +317,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                     logger.log(Level.SEVERE, null, e);
 
                     jaErrors.put(createJSONErrorObj(String.format("Failed to add component '%s' (%s)",
-                            ecd.getName(), ecd.getExecutableComponent().getURI()), e));
+                            ecd.getName(), origUri), e));
                 }
             }
 
