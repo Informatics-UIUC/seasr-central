@@ -19,7 +19,7 @@
   			<New class="java.util.Properties">
   				<Call name="loadFromXML">
   					<Arg>
-  						<New class="java.io.FileInputStream"><Arg>conf/scs-store-sqlite.xml</Arg></New>
+  						<New class="java.io.FileInputStream"><Arg>conf/scs-store-mysql.xml</Arg></New>
   					</Arg>
   				</Call>
   			</New>
