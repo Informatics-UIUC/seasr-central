@@ -60,4 +60,42 @@
     </path>
 
     <typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="svnant.classpath" />
+
+    
+    <!-- CLOVER targets -->
+    <target name="check.clover">
+        <taskdef resource="cloverlib.xml"/>
+        <available property="clover.installed" classname="com.cenqua.clover.CloverInstr" />
+    </target>
+
+    <target name="guard.noclover" depends="check.clover" unless="clover.installed">
+        <fail message="The target you are attempting to run requires Clover, which doesn't appear to be installed"/>
+    </target>
+
+    <target name="with.clover" depends="guard.noclover" description="-> enables code coverage analysis for following tasks">
+        <mkdir dir="${test.dir}/clover"/>
+        <clover-setup/>
+    </target>
+
+    <target name="clover-xml" description="-> generates the code coverage report in XML format">
+        <mkdir dir="${test.dir}/clover/history"/>
+        <clover-historypoint historyDir="${test.dir}/clover/history"/>
+        <clover-report>
+            <current outfile="${test.dir}/clover/coverage.xml">
+                <format type="xml"/>
+            </current>
+        </clover-report>
+    </target>
+
+    <target name="clover-html" description="-> generates the code coverage report in HTML format">
+        <clover-historypoint historyDir="${test.dir}/clover/history"/>
+        <clover-html-report outdir="${test.dir}/clover"/>
+        <echo message="The code coverage report is available at file:///${test.dir}/clover"/>
+    </target>
+
+    <target name="clover-pdf" description="-> generates the code coverage report in PDF format">
+        <clover-historypoint historyDir="${test.dir}/clover/history"/>
+        <clover-pdf-report outfile="${test.dir}/clover/coverage.pdf"/>
+    </target>
+
 </project>

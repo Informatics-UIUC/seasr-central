@@ -104,10 +104,13 @@
         </copy>
     </target>
 
-    <target name="clean" description="-> removes auto-generated files/folders">
+    <target name="clean" description="-> removes all auto-generated files/folders">
         <delete dir="${build.dir}"/>
         <delete dir="${build.test.dir}"/>
         <delete dir="${dist.dir}"/>
+        <delete dir="${test.dir}/clover"/>
+        <delete dir="${test.dir}/xml"/>
+        <delete dir="${test.dir}/report"/>
     </target>
 
     <target name="compile" depends="prepare" description="-> compiles the project code">
@@ -122,21 +125,30 @@
         </java>
     </target>
 
-    <target name="compile-tests" depends="prepare" description="-> compiles the test code">
+    <target name="compile-tests" depends="compile" description="-> compiles the test code">
         <mkdir dir="${build.test.dir}"/>
-        <javac srcdir="${src.test.dir}" destdir="${build.test.dir}" classpathref="lib.classpath" debug="${debug}"/>
+        <javac srcdir="${src.test.dir}" destdir="${build.test.dir}" classpathref="run.classpath" debug="${debug}"/>
     </target>
 
     <target name="run-tests" depends="compile-tests" description="-> runs the test suite">
         <mkdir dir="${test.dir}/xml"/>
-        <junit printsummary="yes" haltonfailure="yes">
+        <junit printsummary="yes" showoutput="yes" haltonfailure="yes">
             <classpath refid="test.classpath"/>
             <formatter type="xml"/>
 
-            <batchtest fork="yes" todir="${test.dir}/xml">
+            <batchtest todir="${test.dir}/xml">
                 <fileset dir="${src.test.dir}" includes="**/*Test*.java"/>
             </batchtest>
         </junit>
+    </target>
+
+    <target  name="test-report" description="-> creates a test report for the test suite">
+        <mkdir dir="${test.dir}/report"/>
+        <junitreport todir="${test.dir}/xml">
+            <fileset dir="${test.dir}/xml" includes="TEST-*.xml"/>
+            <report format="noframes" todir="${test.dir}/report"/>
+        </junitreport>
+        <echo message="Report at: file://${test.dir}/report/junit-noframes.html"/>
     </target>
 
     <target name="dist" depends="compile" description="-> creates project  distribution">
