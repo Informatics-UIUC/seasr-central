@@ -42,11 +42,9 @@
 <project name="SEASR-Central-API" default="dist">
     <import file="common.xml" />
 
-    <!--
     <svn failonerror="false" javahl="false" svnkit="true">
         <wcVersion path="${basedir}" prefix="svn.root."/>
     </svn>
-    -->
 
     <condition property="svn_revision" value="${svn.root.revision.max-with-flags}" else="">
         <isset property="svn.root.revision.max-with-flags"/>
