@@ -132,7 +132,10 @@
 
     <target name="run-tests" depends="compile-tests" description="-> runs the test suite">
         <mkdir dir="${test.dir}/xml"/>
-        <junit printsummary="yes" showoutput="yes" haltonfailure="yes">
+        <junit fork="yes" printsummary="yes" showoutput="yes" haltonfailure="yes">
+            <classpath>
+                <pathelement path="${java.class.path}"/>
+            </classpath>
             <classpath refid="test.classpath"/>
             <formatter type="xml"/>
 
@@ -142,7 +145,7 @@
         </junit>
     </target>
 
-    <target  name="test-report" description="-> creates a test report for the test suite">
+    <target  name="tests-report" description="-> creates a test report for the test suite">
         <mkdir dir="${test.dir}/report"/>
         <junitreport todir="${test.dir}/xml">
             <fileset dir="${test.dir}/xml" includes="TEST-*.xml"/>
