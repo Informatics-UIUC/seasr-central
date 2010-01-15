@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ University of Illinois/NCSA
+  ~ Open Source License
+  ~
+  ~ Copyright (c) 2008, NCSA.  All rights reserved.
+  ~
+  ~ Developed by:
+  ~ The Automated Learning Group
+  ~ University of Illinois at Urbana-Champaign
+  ~ http://www.seasr.org
+  ~
+  ~ Permission is hereby granted, free of charge, to any person obtaining
+  ~ a copy of this software and associated documentation files (the
+  ~ "Software"), to deal with the Software without restriction, including
+  ~ without limitation the rights to use, copy, modify, merge, publish,
+  ~ distribute, sublicense, and/or sell copies of the Software, and to
+  ~ permit persons to whom the Software is furnished to do so, subject
+  ~ to the following conditions:
+  ~
+  ~ Redistributions of source code must retain the above copyright
+  ~ notice, this list of conditions and the following disclaimers.
+  ~
+  ~ Redistributions in binary form must reproduce the above copyright
+  ~ notice, this list of conditions and the following disclaimers in
+  ~ the documentation and/or other materials provided with the distribution.
+  ~
+  ~ Neither the names of The Automated Learning Group, University of
+  ~ Illinois at Urbana-Champaign, nor the names of its contributors may
+  ~ be used to endorse or promote products derived from this Software
+  ~ without specific prior written permission.
+  ~
+  ~ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  ~ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  ~ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  ~ IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE
+  ~ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  ~ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  ~ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
+  -->
+
+<project name="SEASR-Central-API" default="dist">
+    <import file="common.xml" />
+
+    <!--
+    <svn failonerror="false" javahl="false" svnkit="true">
+        <wcVersion path="${basedir}" prefix="svn.root."/>
+    </svn>
+    -->
+
+    <condition property="svn_revision" value="${svn.root.revision.max-with-flags}" else="">
+        <isset property="svn.root.revision.max-with-flags"/>
+    </condition>
+
+   <!--#################### Project Properties #########################-->
+    <property name="version" value="0.1.0"/>
+    <property name="revision" value="${svn_revision}"/>
+    <property name="debug" value="true"/>
+
+    <property name="src.dir" value="${basedir}/src"/>
+    <property name="src.test.dir" value="${basedir}/src-test"/>
+    <property name="lib.dir" value="${basedir}/lib"/>
+    <property name="build.dir" value="${basedir}/build/classes"/>
+    <property name="build.test.dir" value="${basedir}/build/classes-test"/>
+    <property name="dist.dir" value="${basedir}/dist"/>
+    <property name="main.class" value="org.seasr.central.main.SC"/>
+    <property name="version.template" value="${basedir}/version.tpl"/>
+    <property name="version.file" value="${src.dir}/org/seasr/central/util/Version.java"/>
+
+    <path id="run.classpath">
+        <pathelement location="${build.dir}"/>
+        <path  refid="lib.classpath"/>
+    </path>
+
+    <path id="lib.classpath">
+        <fileset dir="${lib.dir}" includes="*.jar"/>
+    </path>
+
+    <!--######################### BUILD TARGETS ###########################-->
+
+    <target name="init">
+        <tstamp>
+            <format property="TIMESTAMP" pattern="MMM d, yyyy h:mm:ssa Z"/>
+        </tstamp>
+    </target>
+
+    <target name="prepare" depends="init" description="-> performs necessary preparation tasks for the build">
+        <copy file="${version.template}" toFile="${version.file}" overwrite="true">
+            <filterset>
+                <filter token="VERSION" value="${version}"/>
+                <filter token="REVISION" value="${revision}"/>
+            </filterset>
+        </copy>
+    </target>
+
+    <target name="clean" description="-> removes auto-generated files/folders">
+        <delete dir="${build.dir}"/>
+        <delete dir="${build.test.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+    <target name="compile" depends="prepare" description="-> compiles the project code">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.classpath" debug="${debug}"/>
+    </target>
+
+    <target name="compile-test" depends="prepare" description="-> compile the test code">
+        <mkdir dir="${build.test.dir}"/>
+        <javac srcdir="${src.test.dir}" destdir="${build.test.dir}" classpathref="lib.classpath" debug="${debug}"/>
+    </target>
+
+    <target name="run" depends="compile" description="-> runs the project">
+        <java classname="${main.class}" fork="yes" maxmemory="512m">
+            <classpath refid="run.classpath"/>
+            <arg value="--help"/>
+        </java>
+    </target>
+
+    <target name="dist" depends="compile" description="-> creates project  distribution">
+        <mkdir dir="${dist.dir}"/>
+        <echo message="Not implemented"/>
+    </target>
+
+</project>
+
+<!-- DO NOT EDIT BELOW THIS LINE PLEASE -->
+<!-- vim:sw=4:softtabstop=4:expandtab
+-->
