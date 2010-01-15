@@ -51,6 +51,7 @@
     </condition>
 
    <!--#################### Project Properties #########################-->
+
     <property name="version" value="0.1.0"/>
     <property name="revision" value="${svn_revision}"/>
     <property name="debug" value="true"/>
@@ -61,18 +62,30 @@
     <property name="build.dir" value="${basedir}/build/classes"/>
     <property name="build.test.dir" value="${basedir}/build/classes-test"/>
     <property name="dist.dir" value="${basedir}/dist"/>
+    <property name="test.dir" value="${basedir}/test"/>
+
     <property name="main.class" value="org.seasr.central.main.SC"/>
+
     <property name="version.template" value="${basedir}/version.tpl"/>
     <property name="version.file" value="${src.dir}/org/seasr/central/util/Version.java"/>
 
+
+    <!--#################### CLASS PATHS ####################-->
+
     <path id="run.classpath">
         <pathelement location="${build.dir}"/>
-        <path  refid="lib.classpath"/>
+        <path refid="lib.classpath"/>
+    </path>
+
+    <path id="test.classpath">
+        <pathelement location="${build.test.dir}"/>
+        <path refid="run.classpath"/>
     </path>
 
     <path id="lib.classpath">
         <fileset dir="${lib.dir}" includes="*.jar"/>
     </path>
+
 
     <!--######################### BUILD TARGETS ###########################-->
 
@@ -102,16 +115,28 @@
         <javac srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.classpath" debug="${debug}"/>
     </target>
 
-    <target name="compile-test" depends="prepare" description="-> compile the test code">
-        <mkdir dir="${build.test.dir}"/>
-        <javac srcdir="${src.test.dir}" destdir="${build.test.dir}" classpathref="lib.classpath" debug="${debug}"/>
-    </target>
-
     <target name="run" depends="compile" description="-> runs the project">
         <java classname="${main.class}" fork="yes" maxmemory="512m">
             <classpath refid="run.classpath"/>
             <arg value="--help"/>
         </java>
+    </target>
+
+    <target name="compile-tests" depends="prepare" description="-> compiles the test code">
+        <mkdir dir="${build.test.dir}"/>
+        <javac srcdir="${src.test.dir}" destdir="${build.test.dir}" classpathref="lib.classpath" debug="${debug}"/>
+    </target>
+
+    <target name="run-tests" depends="compile-tests" description="-> runs the test suite">
+        <mkdir dir="${test.dir}/xml"/>
+        <junit printsummary="yes" haltonfailure="yes">
+            <classpath refid="test.classpath"/>
+            <formatter type="xml"/>
+
+            <batchtest fork="yes" todir="${test.dir}/xml">
+                <fileset dir="${src.test.dir}" includes="**/*Test*.java"/>
+            </batchtest>
+        </junit>
     </target>
 
     <target name="dist" depends="compile" description="-> creates project  distribution">

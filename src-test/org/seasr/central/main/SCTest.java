@@ -41,21 +41,22 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.JSAPResult;
-import org.seasr.central.util.Version;
+import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  * @author Boris Capitanu
  */
-public class SC {
+public class SCTest {
 
-    public static void main(String[] args) {
-        parseCmdLineArgs(args);
-
-        System.out.println("SC Version " + Version.getFullVersion());
-    }
-
-    public static JSAPResult parseCmdLineArgs(String[] args) {
-        //throw new RuntimeException("This is a fake error");
-        return null;
+    @Test
+    public void testCommandLineParser() {
+        try {
+            JSAPResult jsapResult = SC.parseCmdLineArgs(new String[] {});
+            assertEquals(null, jsapResult);
+        }
+        catch (Exception e) {
+            fail(e.toString());
+        }
     }
 }
