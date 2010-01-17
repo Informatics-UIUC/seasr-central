@@ -40,35 +40,74 @@
 
 package org.seasr.central.main;
 
-import com.martiansoftware.jsap.FlaggedOption;
-import com.martiansoftware.jsap.JSAP;
-import com.martiansoftware.jsap.JSAPResult;
-import org.seasr.central.util.Version;
+import com.martiansoftware.jsap.*;
 
 /**
  * @author Boris Capitanu
  */
 public class SC {
-    public static final String DEFAULT_SERVER_CONFIG_FILE = "sc-server-conf.xml";
-    public static final String DEFAULT_STORE_CONFIG_FILE = "sc-store-conf.xml";
+    public static final String DEFAULT_SERVER_CONFIG_FILE = "sc-server-config.xml";
+    public static final String DEFAULT_STORE_CONFIG_FILE = "sc-store-config.xml";
 
-    public static void main(String[] args) {
-        JSAPResult jsapResult = parseCmdLineArgs(args);
+    public SC() {
 
-        System.out.println("SC Version " + Version.getFullVersion());
     }
 
-    public static JSAPResult parseCmdLineArgs(String[] args) {
-        JSAP jsap = new JSAP();
+    public SC(JSAPResult config) {
 
-        FlaggedOption serverConfOption = new FlaggedOption("serverconf")
+    }
+
+    public void start() {
+
+    }
+
+    public void join() {
+
+    }
+
+    /**
+     * SC entry point
+     *
+     * @param args The command line arguments
+     * @throws Exception Thrown if an error occurs
+     */
+    public static void main(String[] args) throws Exception {
+        SimpleJSAP jsap = getArgumentParser();
+        JSAPResult config = jsap.parse(args);
+        if (jsap.messagePrinted())
+            System.exit(1);
+
+        SC sc = new SC(config);
+        sc.start();
+        sc.join();
+    }
+
+    /**
+     * Creates a command line argument parser
+     *
+     * @return The parser
+     * @throws JSAPException Thrown if a problem occurs
+     */
+    public static SimpleJSAP getArgumentParser() throws JSAPException {
+        String generalHelp = "Starts the SEASR Central repository manager";
+
+        Parameter serverConfOption = new FlaggedOption("server_configuration_file")
+                .setStringParser(JSAP.STRING_PARSER)
+                .setRequired(JSAP.NOT_REQUIRED)
                 .setDefault(DEFAULT_SERVER_CONFIG_FILE)
-                .setShortFlag('c');
-        serverConfOption.setHelp("Specifies the server configuration file to use");
+                .setShortFlag('c')
+                .setLongFlag("serverconfig")
+                .setHelp("Specifies the server configuration file to use");
 
-        FlaggedOption storeConfOption = new FlaggedOption("storeconf")
+        Parameter storeConfOption = new FlaggedOption("store_configuration_file")
+                .setStringParser(JSAP.STRING_PARSER)
+                .setRequired(JSAP.NOT_REQUIRED)
                 .setDefault(DEFAULT_STORE_CONFIG_FILE)
-                .setShortFlag('s');
-        storeConfOption.setHelp("Specifies the backend store configuration file to use");
+                .setShortFlag('s')
+                .setLongFlag("storeconfig")
+                .setHelp("Specifies the backend store configuration file to use");
+
+        return new SimpleJSAP(SC.class.getSimpleName(), generalHelp,
+                new Parameter[] { serverConfOption, storeConfOption });
     }
 }

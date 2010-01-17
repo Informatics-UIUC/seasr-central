@@ -41,6 +41,7 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.JSAPResult;
+import com.martiansoftware.jsap.SimpleJSAP;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -52,8 +53,19 @@ public class SCTest {
     @Test
     public void testCommandLineParser() {
         try {
-            JSAPResult jsapResult = SC.parseCmdLineArgs(new String[] {});
-            assertEquals(null, jsapResult);
+            SimpleJSAP jsap = SC.getArgumentParser();
+            JSAPResult jsapResult = jsap.parse("-c server.conf -s store.conf");
+
+            assertTrue(jsapResult.success());
+            assertEquals("server.conf", jsapResult.getString("server_configuration_file"));
+            assertEquals("store.conf", jsapResult.getString("store_configuration_file"));
+
+            jsapResult = jsap.parse("");
+
+            assertTrue(jsapResult.success());
+            assertEquals(SC.DEFAULT_SERVER_CONFIG_FILE, jsapResult.getString("server_configuration_file"));
+            assertEquals(SC.DEFAULT_STORE_CONFIG_FILE, jsapResult.getString("store_configuration_file"));
+
         }
         catch (Exception e) {
             fail(e.toString());
