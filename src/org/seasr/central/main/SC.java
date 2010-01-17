@@ -40,6 +40,8 @@
 
 package org.seasr.central.main;
 
+import com.martiansoftware.jsap.FlaggedOption;
+import com.martiansoftware.jsap.JSAP;
 import com.martiansoftware.jsap.JSAPResult;
 import org.seasr.central.util.Version;
 
@@ -47,15 +49,26 @@ import org.seasr.central.util.Version;
  * @author Boris Capitanu
  */
 public class SC {
+    public static final String DEFAULT_SERVER_CONFIG_FILE = "sc-server-conf.xml";
+    public static final String DEFAULT_STORE_CONFIG_FILE = "sc-store-conf.xml";
 
     public static void main(String[] args) {
-        parseCmdLineArgs(args);
+        JSAPResult jsapResult = parseCmdLineArgs(args);
 
         System.out.println("SC Version " + Version.getFullVersion());
     }
 
     public static JSAPResult parseCmdLineArgs(String[] args) {
-        //throw new RuntimeException("This is a fake error");
-        return null;
+        JSAP jsap = new JSAP();
+
+        FlaggedOption serverConfOption = new FlaggedOption("serverconf")
+                .setDefault(DEFAULT_SERVER_CONFIG_FILE)
+                .setShortFlag('c');
+        serverConfOption.setHelp("Specifies the server configuration file to use");
+
+        FlaggedOption storeConfOption = new FlaggedOption("storeconf")
+                .setDefault(DEFAULT_STORE_CONFIG_FILE)
+                .setShortFlag('s');
+        storeConfOption.setHelp("Specifies the backend store configuration file to use");
     }
 }
