@@ -51,8 +51,8 @@ import static org.junit.Assert.*;
 public class SCTest {
 
     @Test
-    public void testCommandLineParser() {
-        try {
+    public void testCommandLineParser() throws Exception {
+
             SimpleJSAP jsap = SC.getArgumentParser();
             JSAPResult jsapResult = jsap.parse("-c server.conf -s store.conf");
 
@@ -66,9 +66,12 @@ public class SCTest {
             assertEquals(SC.DEFAULT_SERVER_CONFIG_FILE, jsapResult.getString("server_configuration_file"));
             assertEquals(SC.DEFAULT_STORE_CONFIG_FILE, jsapResult.getString("store_configuration_file"));
 
-        }
-        catch (Exception e) {
-            fail(e.toString());
-        }
+        throw new Exception("Something's wrong");
+
+    }
+
+    @Test
+    public void testInstantiation() {
+
     }
 }
