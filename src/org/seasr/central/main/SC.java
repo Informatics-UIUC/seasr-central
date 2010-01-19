@@ -41,6 +41,15 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.*;
+import org.seasr.central.util.SCLogFormatter;
+import org.seasr.central.util.Version;
+
+import java.io.File;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.logging.*;
 
 /**
  * @author Boris Capitanu
@@ -49,20 +58,48 @@ public class SC {
     public static final String DEFAULT_SERVER_CONFIG_FILE = "sc-server-config.xml";
     public static final String DEFAULT_STORE_CONFIG_FILE = "sc-store-config.xml";
 
-    public SC() {
+    private final Logger logger;
+    private final String serverConfigFile;
+    private final String storeConfigFile;
 
+
+    public SC() {
+        this(DEFAULT_SERVER_CONFIG_FILE, DEFAULT_STORE_CONFIG_FILE);
     }
 
     public SC(JSAPResult config) {
-
+        this(config.getString("server_configuration_file"),
+             config.getString("store_configuration_file"));
     }
 
+    public SC(String serverConfigFile, String storeConfigFile) {
+        logger = Logger.getLogger(SC.class.getName());
+        logger.setUseParentHandlers(false);
+
+        this.serverConfigFile = serverConfigFile;
+        this.storeConfigFile = storeConfigFile;
+    }
+
+    /**
+     * Starts the SC server
+     */
     public void start() {
+        logger.info(String.format("Starting SEASR Central API (version %s)", Version.getFullVersion()));
+        if (Version.getBuildDate() != null)
+            logger.fine("Server built on " + Version.getBuildDate());
+        logger.fine("Using server configuration file: " + serverConfigFile);
+        logger.fine("Using store configuration file: " + storeConfigFile);
 
+        
     }
 
-    public void join() {
-
+    /**
+     * Returns the SC logger
+     *
+     * @return The SC logger
+     */
+    public Logger getLogger() {
+        return logger;
     }
 
     /**
@@ -72,14 +109,51 @@ public class SC {
      * @throws Exception Thrown if an error occurs
      */
     public static void main(String[] args) throws Exception {
+        // Parse the command line
         SimpleJSAP jsap = getArgumentParser();
         JSAPResult config = jsap.parse(args);
-        if (jsap.messagePrinted())
+        if (jsap.messagePrinted()) {
+            if (!config.success())
+                System.err.println(String.format("%nUsage: %s %s",
+                        SC.class.getSimpleName(), jsap.getUsage()));
             System.exit(1);
+        }
 
         SC sc = new SC(config);
+
+        // Set up logging
+        String[] logDestinations;
+        if ((logDestinations = config.getStringArray("log")) != null) {
+            final Logger logger = sc.getLogger();
+            final Level logLevel = Level.parse(config.getString("log_level"));
+
+            HashSet<String> hsLogDest = new HashSet<String>(Arrays.asList(logDestinations));
+            if (hsLogDest.contains("console")) {
+                ConsoleHandler consoleHandler = new ConsoleHandler();
+                consoleHandler.setFormatter(new SCLogFormatter());
+                consoleHandler.setLevel(logLevel);
+                logger.addHandler(consoleHandler);
+                hsLogDest.remove("console");
+            }
+
+            if (hsLogDest.contains("file")) {
+                FileHandler fileHandler = new FileHandler(config.getString("log_file"));
+                fileHandler.setFormatter(new SCLogFormatter());
+                fileHandler.setLevel(logLevel);
+                logger.addHandler(fileHandler);
+                hsLogDest.remove("file");
+            }
+
+            // If the user specified any more log destinations that we don't know about, warn him/her
+            if (hsLogDest.size() > 0) {
+                System.err.println("Warning: Ignoring unsupported log destinations: " + hsLogDest);
+            }
+
+            logger.setLevel(logLevel);
+        }
+
+        // Start the server
         sc.start();
-        sc.join();
     }
 
     /**
@@ -107,7 +181,33 @@ public class SC {
                 .setLongFlag("storeconfig")
                 .setHelp("Specifies the backend store configuration file to use");
 
+        Parameter logConfOption = new FlaggedOption("log")
+                .setStringParser(JSAP.STRING_PARSER)
+                .setList(true)
+                .setListSeparator(',')
+                .setDefault("console")
+                .setShortFlag(JSAP.NO_SHORTFLAG)
+                .setLongFlag("log")
+                .setHelp("Specifies the logging destination (can be: console and/or file)." +
+                        "For file logging, set the log file with the --logfile <log_file> option");
+
+        Parameter logFileConfOption = new FlaggedOption("log_file")
+                .setStringParser(JSAP.STRING_PARSER)
+                .setRequired(JSAP.NOT_REQUIRED)
+                .setDefault("scapi.log")
+                .setShortFlag(JSAP.NO_SHORTFLAG)
+                .setLongFlag("logfile")
+                .setHelp("Specifies the log file to write logging information to");
+
+        Parameter logLevelConfOption = new FlaggedOption("log_level")
+                .setStringParser(JSAP.STRING_PARSER)
+                .setRequired(JSAP.NOT_REQUIRED)
+                .setDefault("INFO")
+                .setShortFlag(JSAP.NO_SHORTFLAG)
+                .setLongFlag("loglevel")
+                .setHelp("Specifies the logging level (can be: SEVERE, WARNING, INFO, FINE, FINER, FINEST)");
+
         return new SimpleJSAP(SC.class.getSimpleName(), generalHelp,
-                new Parameter[] { serverConfOption, storeConfOption });
+                new Parameter[] { serverConfOption, storeConfOption, logConfOption, logFileConfOption, logLevelConfOption });
     }
 }

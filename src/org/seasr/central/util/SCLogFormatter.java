@@ -38,40 +38,43 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.main;
+package org.seasr.central.util;
 
-import com.martiansoftware.jsap.JSAPResult;
-import com.martiansoftware.jsap.SimpleJSAP;
-import org.junit.Test;
-import org.seasr.central.util.SCLogFormatter;
-
-import java.io.File;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static org.junit.Assert.*;
+import java.util.Date;
+import java.util.logging.Formatter;
+import java.util.logging.LogRecord;
 
 /**
+ * SEASR Central formatter for log messages
+ *
  * @author Boris Capitanu
  */
-public class SCTest {
+public class SCLogFormatter extends Formatter {
 
-    @Test
-    public void testCommandLineParser() throws Exception {
-        SimpleJSAP jsap = SC.getArgumentParser();
-        JSAPResult jsapResult = jsap.parse("-c server.conf -s store.conf");
+    @Override
+    public String format(LogRecord logRecord) {
+        String msg = logRecord.getMessage();
+        if (msg == null || msg.length() == 0)
+            msg = null;
 
-        assertTrue(jsapResult.success());
-        assertEquals("server.conf", jsapResult.getString("server_configuration_file"));
-        assertEquals("store.conf", jsapResult.getString("store_configuration_file"));
+        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
 
-        jsapResult = jsap.parse("");
+        Throwable thrown = logRecord.getThrown();
+        if (thrown != null) {
+            String exClassName = thrown.getClass().getName();
+            if (msg == null)
+                sb.append(String.format("%s: %s", exClassName, thrown.getMessage()));
+            else
+                sb.append(String.format(" (%s: %s)", exClassName, thrown.getMessage()));
+        }
 
-        assertTrue(jsapResult.success());
-        assertEquals(SC.DEFAULT_SERVER_CONFIG_FILE, jsapResult.getString("server_configuration_file"));
-        assertEquals(SC.DEFAULT_STORE_CONFIG_FILE, jsapResult.getString("store_configuration_file"));
+        String srcClassName = logRecord.getSourceClassName();
+        String srcMethodName = logRecord.getSourceMethodName();
+
+        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
+
+        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
+                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
     }
 
 }

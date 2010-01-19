@@ -38,40 +38,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.main;
-
-import com.martiansoftware.jsap.JSAPResult;
-import com.martiansoftware.jsap.SimpleJSAP;
-import org.junit.Test;
-import org.seasr.central.util.SCLogFormatter;
-
-import java.io.File;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static org.junit.Assert.*;
+package org.seasr.central.util;
 
 /**
  * @author Boris Capitanu
  */
-public class SCTest {
-
-    @Test
-    public void testCommandLineParser() throws Exception {
-        SimpleJSAP jsap = SC.getArgumentParser();
-        JSAPResult jsapResult = jsap.parse("-c server.conf -s store.conf");
-
-        assertTrue(jsapResult.success());
-        assertEquals("server.conf", jsapResult.getString("server_configuration_file"));
-        assertEquals("store.conf", jsapResult.getString("store_configuration_file"));
-
-        jsapResult = jsap.parse("");
-
-        assertTrue(jsapResult.success());
-        assertEquals(SC.DEFAULT_SERVER_CONFIG_FILE, jsapResult.getString("server_configuration_file"));
-        assertEquals(SC.DEFAULT_STORE_CONFIG_FILE, jsapResult.getString("store_configuration_file"));
-    }
-
+public class Tools {
 }
