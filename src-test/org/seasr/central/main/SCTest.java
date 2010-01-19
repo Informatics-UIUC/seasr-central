@@ -72,6 +72,10 @@ public class SCTest {
 
     @Test
     public void testInstantiation() {
+        fail("This test should fail");
+    }
 
+    @Test
+    public void testName() throws Exception {
     }
 }
