@@ -38,45 +38,24 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
-
-import java.util.Date;
-import java.util.logging.Formatter;
-import java.util.logging.LogRecord;
-
-import static org.seasr.central.util.Tools.getExceptionDetails;
+package org.seasr.central.storage.exceptions;
 
 /**
- * SEASR Central formatter for log messages
+ * Exception class used to indicate errors encountered while performing backend operations
  *
  * @author Boris Capitanu
  */
-public class SCLogFormatter extends Formatter {
+public class BackendStoreException extends Exception {
 
-    @Override
-    public String format(LogRecord logRecord) {
-        String msg = logRecord.getMessage();
-        if (msg == null || msg.length() == 0)
-            msg = null;
-
-        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
-
-        Throwable thrown = logRecord.getThrown();
-        if (thrown != null) {
-            String exClassName = thrown.getClass().getName();
-            if (msg == null)
-                sb.append(String.format("%s: %s", exClassName, getExceptionDetails(thrown)));
-            else
-                sb.append(String.format(" (%s: %s)", exClassName, getExceptionDetails(thrown)));
-        }
-
-        String srcClassName = logRecord.getSourceClassName();
-        String srcMethodName = logRecord.getSourceMethodName();
-
-        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
-
-        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
+    public BackendStoreException(String message) {
+        super(message);
     }
 
+    public BackendStoreException(Throwable cause) {
+        super(cause);
+    }
+
+    public BackendStoreException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

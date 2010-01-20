@@ -41,17 +41,27 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.*;
+import org.mortbay.jetty.Server;
+import org.mortbay.xml.XmlConfiguration;
+import org.seasr.central.exceptions.ServerConfigurationException;
+import org.seasr.central.storage.BackendStoreLink;
+import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.util.SCLogFormatter;
 import org.seasr.central.util.Version;
 
-import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
-import java.util.logging.*;
+import java.util.Properties;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
+ * SEASR Central main class
+ *
  * @author Boris Capitanu
  */
 public class SC {
@@ -62,35 +72,104 @@ public class SC {
     private final String serverConfigFile;
     private final String storeConfigFile;
 
+    private final Properties bslProps;
+    private final BackendStoreLink bsl;
+    private final Server server;
 
-    public SC() {
+
+    public SC() throws ServerConfigurationException {
         this(DEFAULT_SERVER_CONFIG_FILE, DEFAULT_STORE_CONFIG_FILE);
     }
 
-    public SC(JSAPResult config) {
+    public SC(JSAPResult config) throws ServerConfigurationException {
         this(config.getString("server_configuration_file"),
-             config.getString("store_configuration_file"));
+                config.getString("store_configuration_file"));
     }
 
-    public SC(String serverConfigFile, String storeConfigFile) {
+    public SC(String serverConfigFile, String storeConfigFile) throws ServerConfigurationException {
         logger = Logger.getLogger(SC.class.getName());
         logger.setUseParentHandlers(false);
 
         this.serverConfigFile = serverConfigFile;
         this.storeConfigFile = storeConfigFile;
+
+        try {
+            bslProps = new Properties();
+            bslProps.loadFromXML(new FileInputStream(storeConfigFile));
+        }
+        catch (Exception e) {
+            throw new ServerConfigurationException("Error loading configuration file: " + storeConfigFile, e);
+        }
+
+        String bslClass = bslProps.getProperty(DBProperties.STORAGE_LINK);
+        if (bslClass == null)
+            throw new ServerConfigurationException("Missing configuration entry for: " + DBProperties.STORAGE_LINK);
+
+        try {
+            bsl = (BackendStoreLink) Class.forName(bslClass).newInstance();
+        }
+        catch (Exception e) {
+            throw new ServerConfigurationException(
+                    String.format("Cannot instantiate backend storage link class: %s", bslClass), e);
+        }
+
+        server = new Server();
+
+        try {
+            new XmlConfiguration(new FileInputStream(serverConfigFile)).configure(server);
+        }
+        catch (IOException e) {
+            throw new ServerConfigurationException("Error loading configuration file: " + serverConfigFile, e);
+        }
+        catch (Exception e) {
+            throw new ServerConfigurationException("Error configuring Jetty server", e);
+        }
     }
 
     /**
      * Starts the SC server
+     *
+     * @throws Exception
      */
-    public void start() {
+    public void start() throws Exception {
         logger.info(String.format("Starting SEASR Central API (version %s)", Version.getFullVersion()));
         if (Version.getBuildDate() != null)
             logger.fine("Server built on " + Version.getBuildDate());
         logger.fine("Using server configuration file: " + serverConfigFile);
         logger.fine("Using store configuration file: " + storeConfigFile);
 
-        
+        // Initialize the backend storage link
+        bsl.init(bslProps);
+
+        // Start the Jetty server
+        server.start();
+    }
+
+    /**
+     * Attempts to join the server thread to the main thread
+     *
+     * @throws InterruptedException
+     */
+    public void join() throws InterruptedException {
+        server.join();
+    }
+
+    /**
+     * Stops the SC server
+     *
+     * @throws Exception
+     */
+    public void stop() throws Exception {
+        logger.info("Stopping SEASR Central API...");
+        server.stop();
+    }
+
+    public boolean isStarted() {
+        return server.isStarted();
+    }
+
+    public boolean isStopped() {
+        return server.isStopped();
     }
 
     /**
@@ -100,6 +179,15 @@ public class SC {
      */
     public Logger getLogger() {
         return logger;
+    }
+
+    /**
+     * Returns the backend store link
+     *
+     * @return The backend store link
+     */
+    public BackendStoreLink getBackendStoreLink() {
+        return bsl;
     }
 
     /**
@@ -152,8 +240,9 @@ public class SC {
             logger.setLevel(logLevel);
         }
 
-        // Start the server
+        // Start the server and join the main thread
         sc.start();
+        sc.join();
     }
 
     /**

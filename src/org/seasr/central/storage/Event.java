@@ -38,45 +38,55 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
-
-import java.util.Date;
-import java.util.logging.Formatter;
-import java.util.logging.LogRecord;
-
-import static org.seasr.central.util.Tools.getExceptionDetails;
+package org.seasr.central.storage;
 
 /**
- * SEASR Central formatter for log messages
+ * Defines the events and associated codes
  *
  * @author Boris Capitanu
  */
-public class SCLogFormatter extends Formatter {
+public enum Event {
 
-    @Override
-    public String format(LogRecord logRecord) {
-        String msg = logRecord.getMessage();
-        if (msg == null || msg.length() == 0)
-            msg = null;
+    USER_CREATED            (100),
+    USER_DELETED            (101),
+    USER_RENAMED            (102),
+    USER_PROFILE_UPDATED    (103),
+    USER_JOINED_GROUP       (104),
+    USER_PARTED_GROUP       (105),
 
-        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
+    GROUP_CREATED           (200),
+    GROUP_DELETED           (201),
+    GROUP_RENAMED           (202),
+    GROUP_JOINED            (203),
+    GROUP_PARTED            (204),
 
-        Throwable thrown = logRecord.getThrown();
-        if (thrown != null) {
-            String exClassName = thrown.getClass().getName();
-            if (msg == null)
-                sb.append(String.format("%s: %s", exClassName, getExceptionDetails(thrown)));
-            else
-                sb.append(String.format(" (%s: %s)", exClassName, getExceptionDetails(thrown)));
-        }
+    COMPONENT_UPLOADED      (300),
+    COMPONENT_DELETED       (301),
+    COMPONENT_UPDATED       (303),
+    COMPONENT_SHARED        (304),
+    COMPONENT_UNSHARED      (305),
 
-        String srcClassName = logRecord.getSourceClassName();
-        String srcMethodName = logRecord.getSourceMethodName();
+    FLOW_UPLOADED           (400),
+    FLOW_DELETED            (401),
+    FLOW_UPDATED            (403),
+    FLOW_SHARED             (404),
+    FLOW_UNSHARED           (405);
 
-        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
 
-        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
+    //--------------------------------------------------------------------------------------------
+
+    private final int _code;
+
+    Event(int code) {
+        _code = code;
     }
 
+    /**
+     * Returns the event code for this event
+     *
+     * @return The event code for this event
+     */
+    public int getEventCode() {
+        return _code;
+    }
 }

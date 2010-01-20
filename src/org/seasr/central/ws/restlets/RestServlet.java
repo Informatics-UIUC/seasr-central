@@ -38,45 +38,44 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
+package org.seasr.central.ws.restlets;
 
-import java.util.Date;
-import java.util.logging.Formatter;
-import java.util.logging.LogRecord;
+import org.seasr.central.main.SC;
+import org.seasr.central.storage.BackendStoreLink;
 
-import static org.seasr.central.util.Tools.getExceptionDetails;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
- * SEASR Central formatter for log messages
+ * This interface provides the basic functionality required to implement a REST-based service
  *
- * @author Boris Capitanu
+ * @author Xavier Llora
  */
-public class SCLogFormatter extends Formatter {
+public interface RestServlet {
 
-    @Override
-    public String format(LogRecord logRecord) {
-        String msg = logRecord.getMessage();
-        if (msg == null || msg.length() == 0)
-            msg = null;
+    /**
+     * Set the back end store link
+     *
+     * @param bsl The back end store link reference
+     */
+    public void setBackendStoreLink(BackendStoreLink bsl);
 
-        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
+    /**
+     * Return the regular expression used for the restful service
+     *
+     * @return The string containing the regular expression
+     */
+    public String getRestContextPathRegexp();
 
-        Throwable thrown = logRecord.getThrown();
-        if (thrown != null) {
-            String exClassName = thrown.getClass().getName();
-            if (msg == null)
-                sb.append(String.format("%s: %s", exClassName, getExceptionDetails(thrown)));
-            else
-                sb.append(String.format(" (%s: %s)", exClassName, getExceptionDetails(thrown)));
-        }
-
-        String srcClassName = logRecord.getSourceClassName();
-        String srcMethodName = logRecord.getSourceMethodName();
-
-        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
-
-        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
-    }
+    /**
+     * Process a matching restful request
+     *
+     * @param request  The request object
+     * @param response The response object
+     * @param method   The HTTP method used
+     * @param values   The extracted values from the rest request
+     * @return True is the request is processed and no further attempts should be ma
+     */
+    public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String...values);
 
 }

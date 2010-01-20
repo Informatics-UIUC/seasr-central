@@ -38,45 +38,26 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
+package org.seasr.central.ws.restlets;
 
-import java.util.Date;
-import java.util.logging.Formatter;
-import java.util.logging.LogRecord;
-
-import static org.seasr.central.util.Tools.getExceptionDetails;
+import com.google.gdata.util.ContentType;
 
 /**
- * SEASR Central formatter for log messages
+ * Defines extra content types not included in the Google API
  *
  * @author Boris Capitanu
  */
-public class SCLogFormatter extends Formatter {
+public abstract class ContentTypes {
 
-    @Override
-    public String format(LogRecord logRecord) {
-        String msg = logRecord.getMessage();
-        if (msg == null || msg.length() == 0)
-            msg = null;
+    public static final ContentType RDFXML;
+    public static final ContentType RDFTTL;
+    public static final ContentType RDFNT;
+    public static final ContentType SmartGWT;
 
-        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
-
-        Throwable thrown = logRecord.getThrown();
-        if (thrown != null) {
-            String exClassName = thrown.getClass().getName();
-            if (msg == null)
-                sb.append(String.format("%s: %s", exClassName, getExceptionDetails(thrown)));
-            else
-                sb.append(String.format(" (%s: %s)", exClassName, getExceptionDetails(thrown)));
-        }
-
-        String srcClassName = logRecord.getSourceClassName();
-        String srcMethodName = logRecord.getSourceMethodName();
-
-        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
-
-        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
+    static {
+        RDFXML = new ContentType("application/rdf+xml;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
+        RDFTTL = new ContentType("text/turtle;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
+        RDFNT = new ContentType("text/n3;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
+        SmartGWT = new ContentType("application/json+smartgwt;" + ContentType.ATTR_CHARSET + "=UTF-8").lock();
     }
-
 }

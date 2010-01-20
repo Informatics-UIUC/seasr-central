@@ -38,45 +38,33 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
-
-import java.util.Date;
-import java.util.logging.Formatter;
-import java.util.logging.LogRecord;
-
-import static org.seasr.central.util.Tools.getExceptionDetails;
+package org.seasr.central.storage;
 
 /**
- * SEASR Central formatter for log messages
+ * Defines the source event types
  *
  * @author Boris Capitanu
  */
-public class SCLogFormatter extends Formatter {
+public enum SourceType {
 
-    @Override
-    public String format(LogRecord logRecord) {
-        String msg = logRecord.getMessage();
-        if (msg == null || msg.length() == 0)
-            msg = null;
+    USER    ('U'),
+    GROUP   ('G');
 
-        StringBuffer sb = (msg != null) ? new StringBuffer(msg) : new StringBuffer();
 
-        Throwable thrown = logRecord.getThrown();
-        if (thrown != null) {
-            String exClassName = thrown.getClass().getName();
-            if (msg == null)
-                sb.append(String.format("%s: %s", exClassName, getExceptionDetails(thrown)));
-            else
-                sb.append(String.format(" (%s: %s)", exClassName, getExceptionDetails(thrown)));
-        }
+    //--------------------------------------------------------------------------------------------
 
-        String srcClassName = logRecord.getSourceClassName();
-        String srcMethodName = logRecord.getSourceMethodName();
+    private final char _code;
 
-        srcClassName = srcClassName.substring(srcClassName.lastIndexOf(".") + 1);
-
-        return String.format("%5$tY-%5$tm-%5$td %5$tH:%5$tM:%5$tS.%5$tL [%s]: %s\t[%s.%s]%n",
-                logRecord.getLevel(), sb, srcClassName, srcMethodName, new Date(logRecord.getMillis()));
+    SourceType(char code) {
+        _code = code;
     }
 
+    /**
+     * Returns the code for this source type
+     *
+     * @return The code for this source type
+     */
+    public char getSourceTypeCode() {
+        return _code;
+    }
 }
