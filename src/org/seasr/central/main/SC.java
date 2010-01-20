@@ -129,7 +129,7 @@ public class SC {
     /**
      * Starts the SC server
      *
-     * @throws Exception
+     * @throws Exception Thrown if a problem occurs
      */
     public void start() throws Exception {
         logger.info(String.format("Starting SEASR Central API (version %s)", Version.getFullVersion()));
@@ -148,7 +148,7 @@ public class SC {
     /**
      * Attempts to join the server thread to the main thread
      *
-     * @throws InterruptedException
+     * @throws InterruptedException Thrown if a problem occurs
      */
     public void join() throws InterruptedException {
         server.join();
@@ -157,7 +157,7 @@ public class SC {
     /**
      * Stops the SC server
      *
-     * @throws Exception
+     * @throws Exception Thrown if a problem occurs
      */
     public void stop() throws Exception {
         logger.info("Stopping SEASR Central API...");
@@ -225,7 +225,7 @@ public class SC {
             }
 
             if (hsLogDest.contains("file")) {
-                FileHandler fileHandler = new FileHandler(config.getString("log_file"));
+                FileHandler fileHandler = new FileHandler(config.getString("log_file"), true);
                 fileHandler.setFormatter(new SCLogFormatter());
                 fileHandler.setLevel(logLevel);
                 logger.addHandler(fileHandler);
@@ -234,7 +234,7 @@ public class SC {
 
             // If the user specified any more log destinations that we don't know about, warn him/her
             if (hsLogDest.size() > 0) {
-                System.err.println("Warning: Ignoring unsupported log destinations: " + hsLogDest);
+                System.err.println("Warning: Ignoring unsupported log destination(s): " + hsLogDest);
             }
 
             logger.setLevel(logLevel);

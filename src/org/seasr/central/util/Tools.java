@@ -55,6 +55,7 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Enumeration;
@@ -384,5 +385,27 @@ public class Tools {
      */
     public static JSONObject createJSONErrorObj(String message, Throwable e) throws JSONException {
         return (e != null) ? createJSONErrorObj(message, getExceptionDetails(e)) : createJSONErrorObj(message, (String) null);
+    }
+
+    /**
+     * Creates a temporary folder with a specified name prefix
+     *
+     * @param prefix The name prefix
+     * @return The File
+     */
+    public static File createTempFolder(String prefix) {
+        File tempFolder;
+
+        try {
+            tempFolder = File.createTempFile(prefix, "");
+        }
+        catch (IOException e) {
+           return null;
+        }
+
+        // Delete the temp file so we can make a folder with the same name
+        tempFolder.delete();
+
+        return (tempFolder.mkdirs() ? tempFolder : null);
     }
 }

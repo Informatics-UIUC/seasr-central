@@ -51,5 +51,10 @@ public abstract class DBProperties {
     public static final String USER = "org.seasr.central.storage.db.user";
     public static final String PASSWORD = "org.seasr.central.storage.db.password";
     public static final String STORAGE_LINK = "org.seasr.central.storage.link";
-    public static final String LOGLEVEL = "org.seasr.central.storage.db.loglevel";
+    public static final String LOG_FILE = "org.seasr.central.storage.db.logfile";
+    public static final String LOG_LEVEL = "org.seasr.central.storage.db.loglevel";
+
+    public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
+    public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
+    
 }
