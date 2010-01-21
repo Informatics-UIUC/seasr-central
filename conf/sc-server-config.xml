@@ -13,13 +13,13 @@
 
   <!-- The back end storage link -->
 
-  <New id="bsl" class="org.seasr.central.storage.db.SQLiteLink">
+  <New id="bsl" class="org.seasr.central.storage.db.SQLLink">
   	<Call name="init">
   		<Arg>
   			<New class="java.util.Properties">
   				<Call name="loadFromXML">
   					<Arg>
-  						<New class="java.io.FileInputStream"><Arg>conf/scs-store-mysql.xml</Arg></New>
+  						<New class="java.io.FileInputStream"><Arg>../conf/sc-mysql-store-config.xml</Arg></New>
   					</Arg>
   				</Call>
   			</New>

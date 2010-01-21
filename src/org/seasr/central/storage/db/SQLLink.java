@@ -41,6 +41,7 @@
 package org.seasr.central.storage.db;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
@@ -52,13 +53,17 @@ import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.util.SCLogFormatter;
 
+import java.beans.PropertyVetoException;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.URL;
-import java.util.Date;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.*;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -72,7 +77,14 @@ import java.util.logging.Logger;
  */
 public class SQLLink implements BackendStoreLink {
 
-    private static final Logger logger;
+    protected static final Logger logger;
+
+    /** The DB configuration properties */
+    private Properties properties = null;
+
+    /** The DB connection pool manager */
+    private final ComboPooledDataSource dataSource = new ComboPooledDataSource();
+
 
     static {
         logger = Logger.getLogger(SQLLink.class.getName());
@@ -87,7 +99,7 @@ public class SQLLink implements BackendStoreLink {
         for (Handler handler : logger.getHandlers())
             logger.removeHandler(handler);
 
-        Level logLevel = Level.parse(properties.getProperty(DBProperties.LOG_LEVEL, "OFF"));
+        Level logLevel = Level.parse(properties.getProperty(DBProperties.LOG_LEVEL, Level.OFF.getName()));
         if (logLevel != Level.OFF) {
             String logFile = properties.getProperty(DBProperties.LOG_FILE);
             if (logFile != null) {
@@ -104,7 +116,53 @@ public class SQLLink implements BackendStoreLink {
         }
         logger.setLevel(logLevel);
 
-        //Connection conn
+        this.properties = properties;
+
+        // Prepare the SQL driver
+        String dbDriverClass = properties.getProperty(DBProperties.DRIVER);
+        String dbJDBCUrl = properties.getProperty(DBProperties.JDBC_URL);
+        String dbUser = properties.getProperty(DBProperties.USER);
+        String dbPassword = properties.getProperty(DBProperties.PASSWORD);
+
+        if (dbDriverClass == null || dbJDBCUrl == null)
+            throw new BackendStoreException("Incomplete DB configuration! Need to supply both a driver and JDBC url.");
+
+        try {
+            // Make sure we can instantiate the DB driver
+            Class.forName(dbDriverClass).newInstance();
+
+            // Set up the DB connection pool manager (c3p0)
+            dataSource.setDriverClass(dbDriverClass);
+            dataSource.setJdbcUrl(dbJDBCUrl);
+            dataSource.setUser(dbUser);
+            dataSource.setPassword(dbPassword);
+        }
+        catch (PropertyVetoException e) {
+            throw new BackendStoreException(e);
+        }
+        catch (Exception e) {
+            throw new BackendStoreException("Cannot load the database driver: " + dbDriverClass, e);
+        }
+
+        Connection conn = null;
+        try {
+            // Initialize the database (create tables, etc.)
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
+            createBatchStatementFromString(conn, properties.getProperty(DBProperties.AUTH_SCHEMA)).executeBatch();
+            createBatchStatementFromString(conn, properties.getProperty(DBProperties.SC_SCHEMA)).executeBatch();
+
+            conn.commit();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
@@ -190,5 +248,116 @@ public class SQLLink implements BackendStoreLink {
     @Override
     public Model getFlow(UUID flowId, int version) throws BackendStoreException {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    /**
+     * Creates a batch SQL statement from a multiline string with comments
+     *
+     * @param connection The SQL connection object
+     * @param s The string
+     * @return The batch statement
+     * @throws SQLException Thrown if an error occurs
+     */
+    protected Statement createBatchStatementFromString(Connection connection, String s) throws SQLException {
+        Statement stmt = connection.createStatement();
+
+        for (String sql : parseSQLString(s))
+            stmt.addBatch(sql);
+
+        return stmt;
+    }
+
+    /**
+     * Parses a multiline SQL string with comments into individual SQL statement strings
+     *
+     * @param sqlString The SQL string
+     * @return The individual SQL statement strings
+     */
+    protected Iterable<? extends String> parseSQLString(String sqlString) {
+        List<String> lines = new ArrayList<String>();
+        BufferedReader reader = new BufferedReader(new StringReader(sqlString));
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+
+                // Skip empty lines or comments
+                if (line.length() == 0 || line.startsWith("//"))
+                    continue;
+
+                sb.append(" ").append(line);
+
+                // Assume that a ";" at the end of a line indicates
+                // the end of that SQL statement
+                if (line.endsWith(";")) {
+                    lines.add(sb.substring(1));
+                    sb = new StringBuilder();
+                }
+            }
+        }
+        catch (IOException e) {
+            // Should not happen
+            throw new RuntimeException(e);
+        }
+
+        return lines;
+    }
+
+    /**
+     * Rolls back the last DB transaction for a connection
+     *
+     * @param connection The connection
+     * @return True if success / False otherwise
+     */
+    protected boolean rollbackTransaction(Connection connection) {
+        if (connection == null) return false;
+
+        try {
+            connection.rollback();
+            return true;
+        }
+        catch (SQLException e) {
+            logger.log(Level.WARNING, null, e);
+            return false;
+        }
+    }
+
+    /**
+     * Returns a connection back to the connection pool
+     *
+     * @param connection The connection
+     * @param resultSet  (Optional) Any ResultSet(s) that need to be closed before the connection is released
+     */
+    protected void releaseConnection(Connection connection, ResultSet... resultSet) {
+        if (resultSet != null)
+            for (ResultSet rs : resultSet)
+                closeResultSet(rs);
+
+        if (connection != null) {
+            try {
+                connection.close();
+            }
+            catch (Exception e) {
+                logger.log(Level.WARNING, null, e);
+            }
+        }
+    }
+
+    /**
+     * Closes a ResultSet
+     *
+     * @param rs The ResultSet
+     */
+    protected void closeResultSet(ResultSet rs) {
+        if (rs != null) {
+            try {
+                rs.close();
+            }
+            catch (SQLException e) {
+                logger.log(Level.WARNING, null, e);
+            }
+        }
     }
 }

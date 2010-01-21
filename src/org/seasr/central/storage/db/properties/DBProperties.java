@@ -47,7 +47,7 @@ package org.seasr.central.storage.db.properties;
  */
 public abstract class DBProperties {
     public static final String DRIVER = "org.seasr.central.storage.db.driver";
-    public static final String URL = "org.seasr.central.storage.db.url";
+    public static final String JDBC_URL = "org.seasr.central.storage.db.url";
     public static final String USER = "org.seasr.central.storage.db.user";
     public static final String PASSWORD = "org.seasr.central.storage.db.password";
     public static final String STORAGE_LINK = "org.seasr.central.storage.link";
@@ -56,5 +56,5 @@ public abstract class DBProperties {
 
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
-    
+
 }
