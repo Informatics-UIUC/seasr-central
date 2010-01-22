@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,15 +61,22 @@ import java.util.regex.Pattern;
  */
 public abstract class AbstractBaseRestlet implements RestServlet {
 
-    /**
-     * The back end storage link
-     */
+    /** The restlet logger */
+    protected Logger logger;
+
+    /** The back end storage link */
     protected BackendStoreLink bsl;
 
     private static final Pattern patternExtension;
 
+
     static {
         patternExtension = Pattern.compile("\\.([a-z]+)$");
+    }
+
+    @Override
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
 
     @Override

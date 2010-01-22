@@ -113,7 +113,7 @@
             deleted     BOOLEAN NOT NULL DEFAULT FALSE,
 
             PRIMARY KEY (group_uuid),
-            UNIQUE INDEX (group_name ASC),
+            UNIQUE INDEX (group_name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -468,8 +468,8 @@
             metadata    VARCHAR(255) NULL,
 
             PRIMARY KEY (id),
-            INDEX (source, evt_code) USING HASH,
-            FOREIGN KEY (source, evt_code) REFERENCES sc_event_code_source (source, evt_code),
+            INDEX (evt_code, source) USING HASH,
+            FOREIGN KEY (evt_code, source) REFERENCES sc_event_code_source (evt_code, source),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
             INDEX (group_uuid) USING HASH,

@@ -41,22 +41,15 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.*;
-import org.mortbay.jetty.Server;
 import org.mortbay.xml.XmlConfiguration;
 import org.seasr.central.exceptions.ServerConfigurationException;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.db.properties.DBProperties;
-import org.seasr.central.util.SCLogFormatter;
 import org.seasr.central.util.Version;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -74,7 +67,7 @@ public class SC {
 
     private final Properties bslProps;
     private final BackendStoreLink bsl;
-    private final Server server;
+    private final SCServer server;
 
 
     public SC() throws ServerConfigurationException {
@@ -87,25 +80,24 @@ public class SC {
     }
 
     public SC(String serverConfigFile, String storeConfigFile) throws ServerConfigurationException {
-        logger = Logger.getLogger(SC.class.getName());
-        logger.setUseParentHandlers(false);
-
         this.serverConfigFile = serverConfigFile;
         this.storeConfigFile = storeConfigFile;
 
+        bslProps = new Properties();
         try {
-            bslProps = new Properties();
             bslProps.loadFromXML(new FileInputStream(storeConfigFile));
         }
         catch (Exception e) {
             throw new ServerConfigurationException("Error loading configuration file: " + storeConfigFile, e);
         }
 
-        String bslClass = bslProps.getProperty(DBProperties.STORAGE_LINK);
-        if (bslClass == null)
+        // Retrieve the backend store link driver
+        String bslClass = bslProps.getProperty(DBProperties.STORAGE_LINK, "").trim();
+        if (bslClass.length() == 0)
             throw new ServerConfigurationException("Missing configuration entry for: " + DBProperties.STORAGE_LINK);
 
         try {
+            // Attempt to instantiate the backend store link driver
             bsl = (BackendStoreLink) Class.forName(bslClass).newInstance();
         }
         catch (Exception e) {
@@ -113,9 +105,11 @@ public class SC {
                     String.format("Cannot instantiate backend storage link class: %s", bslClass), e);
         }
 
-        server = new Server();
+        // Instantiate the main SC Jetty server...
+        server = new SCServer(bsl);
 
         try {
+            // ... and configure it using the specified configuration file
             new XmlConfiguration(new FileInputStream(serverConfigFile)).configure(server);
         }
         catch (IOException e) {
@@ -124,6 +118,8 @@ public class SC {
         catch (Exception e) {
             throw new ServerConfigurationException("Error configuring Jetty server", e);
         }
+
+        logger = server.getLogger();
     }
 
     /**
@@ -138,10 +134,10 @@ public class SC {
         logger.fine("Using server configuration file: " + serverConfigFile);
         logger.fine("Using store configuration file: " + storeConfigFile);
 
-        // Initialize the backend storage link
+        // Initialize the backend store link
         bsl.init(bslProps);
 
-        // Start the Jetty server
+        // Start the SC Jetty server
         server.start();
     }
 
@@ -173,15 +169,6 @@ public class SC {
     }
 
     /**
-     * Returns the SC logger
-     *
-     * @return The SC logger
-     */
-    public Logger getLogger() {
-        return logger;
-    }
-
-    /**
      * Returns the backend store link
      *
      * @return The backend store link
@@ -207,40 +194,8 @@ public class SC {
             System.exit(1);
         }
 
-        SC sc = new SC(config);
-
-        // Set up logging
-        String[] logDestinations;
-        if ((logDestinations = config.getStringArray("log")) != null) {
-            final Logger logger = sc.getLogger();
-            final Level logLevel = Level.parse(config.getString("log_level"));
-
-            HashSet<String> hsLogDest = new HashSet<String>(Arrays.asList(logDestinations));
-            if (hsLogDest.contains("console")) {
-                ConsoleHandler consoleHandler = new ConsoleHandler();
-                consoleHandler.setFormatter(new SCLogFormatter());
-                consoleHandler.setLevel(logLevel);
-                logger.addHandler(consoleHandler);
-                hsLogDest.remove("console");
-            }
-
-            if (hsLogDest.contains("file")) {
-                FileHandler fileHandler = new FileHandler(config.getString("log_file"), true);
-                fileHandler.setFormatter(new SCLogFormatter());
-                fileHandler.setLevel(logLevel);
-                logger.addHandler(fileHandler);
-                hsLogDest.remove("file");
-            }
-
-            // If the user specified any more log destinations that we don't know about, warn him/her
-            if (hsLogDest.size() > 0) {
-                System.err.println("Warning: Ignoring unsupported log destination(s): " + hsLogDest);
-            }
-
-            logger.setLevel(logLevel);
-        }
-
         // Start the server and join the main thread
+        SC sc = new SC(config);
         sc.start();
         sc.join();
     }
@@ -270,33 +225,7 @@ public class SC {
                 .setLongFlag("storeconfig")
                 .setHelp("Specifies the backend store configuration file to use");
 
-        Parameter logConfOption = new FlaggedOption("log")
-                .setStringParser(JSAP.STRING_PARSER)
-                .setList(true)
-                .setListSeparator(',')
-                .setDefault("console")
-                .setShortFlag(JSAP.NO_SHORTFLAG)
-                .setLongFlag("log")
-                .setHelp("Specifies the logging destination (can be: console and/or file)." +
-                        "For file logging, set the log file with the --logfile <log_file> option");
-
-        Parameter logFileConfOption = new FlaggedOption("log_file")
-                .setStringParser(JSAP.STRING_PARSER)
-                .setRequired(JSAP.NOT_REQUIRED)
-                .setDefault("scapi.log")
-                .setShortFlag(JSAP.NO_SHORTFLAG)
-                .setLongFlag("logfile")
-                .setHelp("Specifies the log file to write logging information to");
-
-        Parameter logLevelConfOption = new FlaggedOption("log_level")
-                .setStringParser(JSAP.STRING_PARSER)
-                .setRequired(JSAP.NOT_REQUIRED)
-                .setDefault("INFO")
-                .setShortFlag(JSAP.NO_SHORTFLAG)
-                .setLongFlag("loglevel")
-                .setHelp("Specifies the logging level (can be: SEVERE, WARNING, INFO, FINE, FINER, FINEST)");
-
         return new SimpleJSAP(SC.class.getSimpleName(), generalHelp,
-                new Parameter[] { serverConfOption, storeConfOption, logConfOption, logFileConfOption, logLevelConfOption });
+                new Parameter[] { serverConfOption, storeConfOption });
     }
 }

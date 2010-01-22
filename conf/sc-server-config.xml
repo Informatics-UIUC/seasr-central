@@ -1,138 +1,306 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<Configure id="Server" class="org.mortbay.jetty.Server">
+<Configure id="Server" class="org.seasr.central.main.SCServer">
+    <!-- Set the default logging folder -->
+    <New id="logFolder" class="java.lang.String">
+        <Arg>
+            <SystemProperty name="sc.logfolder" default="logs"/>
+        </Arg>
+    </New>
 
-  <!-- The main connector definition -->
+    <!-- Ensure the log folder exists, if not create it -->
+    <New class="java.io.File">
+        <Arg>
+            <Ref id="logFolder"/>
+        </Arg>
+        <Call name="mkdirs"/>
+    </New>
 
-  <Call name="addConnector">
-    <Arg>
-      <New class="org.mortbay.jetty.nio.SelectChannelConnector">
-        <Set name="port"><SystemProperty name="jetty.port" default="8888"/></Set>
-      </New>
-    </Arg>
-  </Call>
+    <!-- Set the log file for the SC API layer -->
+    <New id="logFileName" class="java.lang.String">
+        <Arg>
+            <Ref id="logFolder"/>/scapi.log
+        </Arg>
+    </New>
 
-  <!-- The back end storage link -->
+    <!-- ... and the log level -->
+    <Call id="logLevel" class="java.util.logging.Level" name="parse">
+        <Arg>
+            <SystemProperty name="sc.loglevel" default="INFO"/>
+        </Arg>
+    </Call>
 
-  <New id="bsl" class="org.seasr.central.storage.db.SQLLink">
-  	<Call name="init">
-  		<Arg>
-  			<New class="java.util.Properties">
-  				<Call name="loadFromXML">
-  					<Arg>
-  						<New class="java.io.FileInputStream"><Arg>../conf/sc-mysql-store-config.xml</Arg></New>
-  					</Arg>
-  				</Call>
-  			</New>
-  		</Arg>
-  	</Call>
-  </New>
+    <!-- ... and the log formatter -->
+    <New id="logFormatter" class="org.seasr.central.util.SCLogFormatter"/>
 
-  <!-- The REST servlet definitions -->
+    <!-- Now configure the logger -->
+    <Call id="logger" class="java.util.logging.Logger" name="getLogger">
+        <Arg>org.seasr.central.main.SCServer</Arg>
+        <Set name="useParentHandlers">false</Set>
+        <Set name="level">
+            <Ref id="logLevel"/>
+        </Set>
 
-  <!-- User -->
-  <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="userDelete" class="org.seasr.central.ws.restlets.user.DeleteUserRestlet">
-  	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="userList" class="org.seasr.central.ws.restlets.user.ListUsersRestlet">
-  	<Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="userInfo" class="org.seasr.central.ws.restlets.user.UserInfoRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="userFlowUpload" class="org.seasr.central.ws.restlets.user.UploadFlowRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
+        <Call name="addHandler">
+            <Arg>
+                <New class="java.util.logging.FileHandler">
+                    <Arg>
+                        <Ref id="logFileName"/>
+                    </Arg>
+                    <Arg type="boolean">True</Arg>
 
-  <!-- Repository -->
-  <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="repositoryRetrieveComponentContext" class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
-  <New id="repositoryRetrieveFlow" class="org.seasr.central.ws.restlets.repository.RetrieveFlowRestlet">
-    <Set name="backendStoreLink"><Ref id="bsl"/></Set>
-  </New>
+                    <Set name="formatter">
+                        <Ref id="logFormatter"/>
+                    </Set>
+                    <Set name="level">
+                        <Ref id="logLevel"/>
+                    </Set>
+                </New>
+            </Arg>
+        </Call>
 
-  <!-- User REST servlet dispatcher -->
-  <New id="userRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
-  		<Call name="add"><Arg><Ref id="userAdd"/></Arg></Call>
-  		<Call name="add"><Arg><Ref id="userDelete"/></Arg></Call>
-  		<Call name="add"><Arg><Ref id="userList"/></Arg></Call>
-  		<Call name="add"><Arg><Ref id="userInfo"/></Arg></Call>
-  		<Call name="add"><Arg><Ref id="userComponentUpload"/></Arg></Call>
-  		<Call name="add"><Arg><Ref id="userFlowUpload"/></Arg></Call>
-  </New>
+        <Call name="addHandler">
+            <Arg>
+                <New class="java.util.logging.ConsoleHandler">
+                    <Set name="formatter">
+                        <Ref id="logFormatter"/>
+                    </Set>
+                    <Set name="level">
+                        <Ref id="logLevel"/>
+                    </Set>
+                </New>
+            </Arg>
+        </Call>
+    </Call>
 
-  <!-- Repository REST servlet dispatcher -->
-  <New id="repositoryRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
-        <Call name="add"><Arg><Ref id="repositoryRetrieveComponent"/></Arg></Call>
-        <Call name="add"><Arg><Ref id="repositoryRetrieveComponentContext"/></Arg></Call>
-        <Call name="add"><Arg><Ref id="repositoryRetrieveFlow"/></Arg></Call>
-  </New>
+    <!-- Set the SC Server logger -->
+    <Set name="logger">
+        <Ref id="logger"/>
+    </Set>
 
-  <!-- The basic contexts available -->
+    <!-- The main connector definition -->
+    <Call name="addConnector">
+        <Arg>
+            <New class="org.mortbay.jetty.nio.SelectChannelConnector">
+                <Set name="port">
+                    <SystemProperty name="jetty.port" default="8888"/>
+                </Set>
+            </New>
+        </Arg>
+    </Call>
 
-  <Set name="handlers">
-  	<Array type="org.mortbay.jetty.Handler">
-  	  <Item>
-  	  	<New id="RequestLogHandler" class="org.mortbay.jetty.handler.RequestLogHandler"/>
-  	  </Item>
-  	  <Item>
-  	  	<New id="userContext" class="org.mortbay.jetty.servlet.Context">
-  			<Set name="contextPath">/services/users</Set>
-  			<Call name="addServlet">
-  				<Arg>
-  					<New class="org.mortbay.jetty.servlet.ServletHolder"><Arg><Ref id="userRED"/></Arg></New>
-  				</Arg>
-  				<Arg>/</Arg>
-  			</Call>
-  		</New>
-  	  </Item>
-      <Item>
-        <New id="repositoryContext" class="org.mortbay.jetty.servlet.Context">
-            <Set name="contextPath">/repository</Set>
-            <Call name="addServlet">
-                <Arg>
-                    <New class="org.mortbay.jetty.servlet.ServletHolder"><Arg><Ref id="repositoryRED"/></Arg></New>
-                </Arg>
-                <Arg>/</Arg>
-            </Call>
-        </New>
-      </Item>
-  	  <Item>
-  		<New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
-  			<Set name="contextPath">/logs</Set>
-  			<Set name="resourceBase"><SystemProperty name="jetty.docroot" default="logs"/></Set>
-  			<Call name="addServlet"><Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg><Arg>/</Arg></Call>
-  		</New>
-  	  </Item>
-  	  <Item>
-  		<New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
-  			<Set name="contextPath">/</Set>
-  			<Set name="resourceBase"><SystemProperty name="jetty.docroot" default="static"/></Set>
-  			<Call name="addServlet"><Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg><Arg>/</Arg></Call>
-  		</New>
-  	  </Item>
-  	 </Array>
-  </Set>
+    <!-- The back end store link -->
+    <Get id="bsl" name="backendStoreLink"/>
 
-  <!-- Set up the logging facility for the server -->
-  <Ref id="RequestLogHandler">
-  	<Set name="server"><Ref id="Server" /></Set>
-  	<Set name="requestLog">
-  		<New class="org.mortbay.jetty.NCSARequestLog">
-  			<Set name="filename">logs/access.log</Set>
-  			<Set name="append">true</Set>
-  			<Set name="extended">false</Set>
-  		</New>
-  	</Set>
-  </Ref>
+    <!-- The REST servlet definitions -->
+
+    <!-- User -->
+    <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userDelete" class="org.seasr.central.ws.restlets.user.DeleteUserRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userList" class="org.seasr.central.ws.restlets.user.ListUsersRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userInfo" class="org.seasr.central.ws.restlets.user.UserInfoRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userFlowUpload" class="org.seasr.central.ws.restlets.user.UploadFlowRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+
+    <!-- Repository -->
+    <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="repositoryRetrieveComponentContext"
+         class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="repositoryRetrieveFlow" class="org.seasr.central.ws.restlets.repository.RetrieveFlowRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+
+    <!-- User REST servlet dispatcher -->
+    <New id="userRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+        <Call name="add">
+            <Arg>
+                <Ref id="userAdd"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userDelete"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userList"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userInfo"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userComponentUpload"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userFlowUpload"/>
+            </Arg>
+        </Call>
+    </New>
+
+    <!-- Repository REST servlet dispatcher -->
+    <New id="repositoryRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+        <Call name="add">
+            <Arg>
+                <Ref id="repositoryRetrieveComponent"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="repositoryRetrieveComponentContext"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="repositoryRetrieveFlow"/>
+            </Arg>
+        </Call>
+    </New>
+
+    <!-- The basic contexts available -->
+
+    <Set name="handlers">
+        <Array type="org.mortbay.jetty.Handler">
+            <Item>
+                <New id="RequestLogHandler" class="org.mortbay.jetty.handler.RequestLogHandler"/>
+            </Item>
+            <Item>
+                <New id="userContext" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/services/users</Set>
+                    <Call name="addServlet">
+                        <Arg>
+                            <New class="org.mortbay.jetty.servlet.ServletHolder">
+                                <Arg>
+                                    <Ref id="userRED"/>
+                                </Arg>
+                            </New>
+                        </Arg>
+                        <Arg>/</Arg>
+                    </Call>
+                </New>
+            </Item>
+            <Item>
+                <New id="repositoryContext" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/repository</Set>
+                    <Call name="addServlet">
+                        <Arg>
+                            <New class="org.mortbay.jetty.servlet.ServletHolder">
+                                <Arg>
+                                    <Ref id="repositoryRED"/>
+                                </Arg>
+                            </New>
+                        </Arg>
+                        <Arg>/</Arg>
+                    </Call>
+                </New>
+            </Item>
+            <Item>
+                <New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/logs</Set>
+                    <Set name="resourceBase">
+                        <Ref id="logFolder"/>
+                    </Set>
+                    <Call name="addServlet">
+                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
+                        <Arg>/</Arg>
+                    </Call>
+                </New>
+            </Item>
+            <Item>
+                <New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/</Set>
+                    <Set name="resourceBase">
+                        <SystemProperty name="sc.docroot" default="static"/>
+                    </Set>
+                    <Call name="addServlet">
+                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
+                        <Arg>/</Arg>
+                    </Call>
+                </New>
+            </Item>
+        </Array>
+    </Set>
+
+    <!-- Set up the logging facility for the server -->
+    <Ref id="RequestLogHandler">
+        <Set name="server">
+            <Ref id="Server"/>
+        </Set>
+        <Set name="requestLog">
+            <New class="org.mortbay.jetty.NCSARequestLog">
+                <Set name="filename">
+                    <Ref id="logFolder"/>/access.log
+                </Set>
+                <Set name="append">true</Set>
+                <Set name="extended">false</Set>
+            </New>
+        </Set>
+    </Ref>
 
 </Configure>

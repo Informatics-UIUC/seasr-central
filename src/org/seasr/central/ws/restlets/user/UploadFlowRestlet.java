@@ -81,7 +81,6 @@ import static org.seasr.central.util.Tools.*;
  */
 public class UploadFlowRestlet extends AbstractBaseRestlet {
 
-    private static Logger logger = Logger.getLogger(SC.class.getName());
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
     static {

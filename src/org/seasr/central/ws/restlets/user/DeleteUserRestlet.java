@@ -71,7 +71,6 @@ import static org.seasr.central.util.Tools.*;
  */
 public class DeleteUserRestlet extends AbstractBaseRestlet {
 
-    private static final Logger logger = Logger.getLogger(SC.class.getName());
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
     static {

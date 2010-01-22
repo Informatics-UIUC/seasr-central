@@ -38,52 +38,37 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets;
+package org.seasr.central.main;
 
-import org.seasr.central.main.SC;
+import org.mortbay.jetty.Server;
 import org.seasr.central.storage.BackendStoreLink;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.logging.Logger;
 
 /**
- * This interface provides the basic functionality required to implement a REST-based service
+ * Main SEASR Central Jetty server
  *
- * @author Xavier Llora
+ * @author Boris Capitanu
  */
-public interface RestServlet {
+public class SCServer extends Server {
 
-    /**
-     * Sets the logger for the restlet
-     *
-     * @param logger The logger
-     */
-    public void setLogger(Logger logger);
+    private final BackendStoreLink bsl;
+    private Logger logger;
 
-    /**
-     * Set the back end store link
-     *
-     * @param bsl The back end store link reference
-     */
-    public void setBackendStoreLink(BackendStoreLink bsl);
 
-    /**
-     * Return the regular expression used for the restful service
-     *
-     * @return The string containing the regular expression
-     */
-    public String getRestContextPathRegexp();
+    public SCServer(BackendStoreLink bsl) {
+        this.bsl = bsl;
+    }
 
-    /**
-     * Process a matching restful request
-     *
-     * @param request  The request object
-     * @param response The response object
-     * @param method   The HTTP method used
-     * @param values   The extracted values from the rest request
-     * @return True is the request is processed and no further attempts should be ma
-     */
-    public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String...values);
+    public BackendStoreLink getBackendStoreLink() {
+        return bsl;
+    }
 
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
 }

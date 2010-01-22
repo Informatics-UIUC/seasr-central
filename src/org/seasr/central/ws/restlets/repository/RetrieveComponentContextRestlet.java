@@ -63,8 +63,6 @@ import static org.seasr.central.util.Tools.sendErrorInternalServerError;
  */
 public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
-    private static final Logger logger = Logger.getLogger(SC.class.getName());
-
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
         return null;
