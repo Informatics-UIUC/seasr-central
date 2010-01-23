@@ -62,6 +62,7 @@
     <property name="build.dir" value="${basedir}/build/classes"/>
     <property name="build.test.dir" value="${basedir}/build/classes-test"/>
     <property name="dist.dir" value="${basedir}/dist"/>
+    <property name="run.dir" value="${basedir}/run"/>
     <property name="test.dir" value="${basedir}/test"/>
 
     <property name="main.class" value="org.seasr.central.main.SC"/>
@@ -107,6 +108,7 @@
     <target name="clean" description="-> removes all auto-generated files/folders">
         <delete dir="${build.dir}"/>
         <delete dir="${build.test.dir}"/>
+        <delete dir="${run.dir}"/>
         <delete dir="${dist.dir}"/>
         <delete dir="${test.dir}/clover"/>
         <delete dir="${test.dir}/xml"/>
@@ -119,9 +121,11 @@
     </target>
 
     <target name="run" depends="compile" description="-> runs the project">
-        <java classname="${main.class}" fork="yes" maxmemory="512m">
+        <mkdir dir="${run.dir}"/>
+        <java classname="${main.class}" fork="yes" dir="${run.dir}" maxmemory="512m">
             <classpath refid="run.classpath"/>
-            <arg value="--help"/>
+            <arg value="--serverconfig=../conf/sc-server-config.xml"/>
+            <arg value="--storeconfig=../conf/sc-mysql-store-config.xml"/>
         </java>
     </target>
 
