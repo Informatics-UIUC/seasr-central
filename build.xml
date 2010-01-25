@@ -56,6 +56,9 @@
     <property name="revision" value="${svn_revision}"/>
     <property name="debug" value="true"/>
 
+    <property name="sc.loglevel" value="INFO"/>
+    <property name="sc.port" value="8888"/>
+
     <property name="src.dir" value="${basedir}/src"/>
     <property name="src.test.dir" value="${basedir}/src-test"/>
     <property name="lib.dir" value="${basedir}/lib"/>
@@ -124,6 +127,8 @@
         <mkdir dir="${run.dir}"/>
         <java classname="${main.class}" fork="yes" dir="${run.dir}" maxmemory="512m">
             <classpath refid="run.classpath"/>
+            <jvmarg value="-Dsc.loglevel=${sc.loglevel}"/>
+            <jvmarg value="-Dsc.port=${sc.port}"/>
             <arg value="--serverconfig=../conf/sc-server-config.xml"/>
             <arg value="--storeconfig=../conf/sc-mysql-store-config.xml"/>
         </java>

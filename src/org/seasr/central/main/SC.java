@@ -41,6 +41,7 @@
 package org.seasr.central.main;
 
 import com.martiansoftware.jsap.*;
+import org.mortbay.jetty.Connector;
 import org.mortbay.xml.XmlConfiguration;
 import org.seasr.central.exceptions.ServerConfigurationException;
 import org.seasr.central.storage.BackendStoreLink;
@@ -128,7 +129,7 @@ public class SC {
      * @throws Exception Thrown if a problem occurs
      */
     public void start() throws Exception {
-        logger.info(String.format("Starting SEASR Central API (version %s)", Version.getFullVersion()));
+        logger.info(String.format("Starting SEASR Central API Server (version %s)", Version.getFullVersion()));
         if (Version.getBuildDate() != null)
             logger.fine("Server built on " + Version.getBuildDate());
         logger.fine("Using server configuration file: " + serverConfigFile);
@@ -139,6 +140,9 @@ public class SC {
 
         // Start the SC Jetty server
         server.start();
+
+        for (Connector connector : server.getConnectors())
+            logger.info(String.format("Listening on %s", connector.getName()));
     }
 
     /**
@@ -194,6 +198,15 @@ public class SC {
             System.exit(1);
         }
 
+        if (!config.getBoolean("debug")) {
+            // Turn off Jetty logging
+            System.setProperty("org.mortbay.log.class", "org.seasr.central.util.EmptyLogger");
+
+            // Turn off c3p0 logging
+            System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.FallbackMLog");
+            System.setProperty("com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL", "OFF");
+        }
+
         // Start the server and join the main thread
         SC sc = new SC(config);
         sc.start();
@@ -225,7 +238,11 @@ public class SC {
                 .setLongFlag("storeconfig")
                 .setHelp("Specifies the backend store configuration file to use");
 
+        Parameter debugOption = new Switch("debug")
+                .setShortFlag(JSAP.NO_SHORTFLAG)
+                .setLongFlag("debug");
+
         return new SimpleJSAP(SC.class.getSimpleName(), generalHelp,
-                new Parameter[] { serverConfOption, storeConfOption });
+                new Parameter[] { serverConfOption, storeConfOption, debugOption });
     }
 }
