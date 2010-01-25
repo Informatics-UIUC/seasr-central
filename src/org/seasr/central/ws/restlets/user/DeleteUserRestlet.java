@@ -44,9 +44,7 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.seasr.central.main.SC;
 import org.seasr.central.storage.Event;
-import org.seasr.central.storage.SourceType;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -59,7 +57,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.seasr.central.util.Tools.*;
 
@@ -102,8 +99,8 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID userId = null;
-        String screenName = null;
+        UUID userId;
+        String screenName;
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
@@ -138,7 +135,7 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
                 jaSuccess.put(joUser);
 
                 // Record the event
-                bsl.addEvent(SourceType.USER, userId, Event.USER_DELETED, joUser);
+                bsl.addEvent(Event.USER_DELETED, userId, null, null, null, joUser);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);

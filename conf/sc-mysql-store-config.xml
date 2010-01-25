@@ -91,8 +91,8 @@
         //
         // Create the 'admin' user
         //
-        INSERT IGNORE INTO sc_user (user_uuid, screen_name, password, created_at) VALUES
-            ("00000000-0000-0000-0000-000000000001", "admin", "d033e22ae348aeb5660fc2140aec35850c4da997", NOW());
+        INSERT IGNORE INTO sc_user (user_uuid, screen_name, password, created_at, profile) VALUES
+            ("00000000-0000-0000-0000-000000000001", "admin", "d033e22ae348aeb5660fc2140aec35850c4da997", NOW(), "{}");
 
         //
         // Assign the 'admin' user to the 'admin' role
@@ -430,36 +430,11 @@
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_event_sources
-        //
-        CREATE TABLE IF NOT EXISTS sc_event_sources (
-            source       TINYINT UNSIGNED NOT NULL,
-            description  VARCHAR(45) NOT NULL,
-
-            PRIMARY KEY (source)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // sc_event_code_source
-        //
-        CREATE TABLE IF NOT EXISTS sc_event_code_source (
-            evt_code  SMALLINT UNSIGNED NOT NULL,
-            source    TINYINT UNSIGNED NOT NULL,
-
-            PRIMARY KEY (evt_code, source),
-            INDEX (evt_code) USING HASH,
-            FOREIGN KEY (evt_code) REFERENCES sc_event_codes (evt_code),
-            INDEX (source) USING HASH,
-            FOREIGN KEY (source) REFERENCES sc_event_sources (source)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
         // sc_event
         //
         CREATE TABLE IF NOT EXISTS sc_event (
             id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
             evt_code    SMALLINT UNSIGNED NOT NULL,
-            source      TINYINT UNSIGNED NOT NULL,
             timestamp   DATETIME NOT NULL,
             user_uuid   CHAR(36) NULL,
             group_uuid  CHAR(36) NULL,
@@ -468,8 +443,8 @@
             metadata    VARCHAR(255) NULL,
 
             PRIMARY KEY (id),
-            INDEX (evt_code, source) USING HASH,
-            FOREIGN KEY (evt_code, source) REFERENCES sc_event_code_source (evt_code, source),
+            INDEX (evt_code) USING HASH,
+            FOREIGN KEY (evt_code) REFERENCES sc_event_codes (evt_code),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
             INDEX (group_uuid) USING HASH,
@@ -510,65 +485,46 @@
     </entry>
 
     <!-- USER -->
+    <entry key="org.seasr.central.storage.db.query.user.add">
+        INSERT INTO sc_user (user_uuid, screen_name, password, created_at, profile) VALUES (?, ?, ?, NOW(), ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.remove">
+        UPDATE sc_user SET deleted = 1 WHERE user_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.update.password">
+        UPDATE sc_user SET password = ? WHERE user_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.update.profile">
+        UPDATE sc_user SET profile = ? WHERE user_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.get.uuid">
+        SELECT user_uuid FROM sc_user WHERE screen_name = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.get.screen_name">
+        SELECT screen_name FROM sc_user WHERE user_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.get.profile">
+        SELECT profile FROM sc_user WHERE user_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.get.createdat">
+        SELECT created_at FROM sc_user WHERE user_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.password.valid">
+        SELECT 1 FROM sc_user WHERE user_uuid = ? AND password = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.get.deleted">
+        SELECT deleted FROM sc_user WHERE user_uuid = ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.count">
         SELECT COUNT(1) FROM sc_user WHERE deleted = 0;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.user.add">
-        INSERT INTO sc_user (uuid, screen_name, password, created_at, profile) VALUES (?, ?, ?, NOW(), ?);
+    <entry key="org.seasr.central.storage.db.query.user.list">
+        SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.user.remove.uuid">
-        UPDATE sc_user SET deleted = 1 WHERE uuid = ?;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.remove.screen_name">
-        UPDATE sc_user SET deleted = 1 WHERE screen_name = ?;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.uuid">
-        SELECT uuid FROM sc_user WHERE screen_name = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.screen_name">
-        SELECT screen_name FROM sc_user WHERE uuid = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.profile.uuid">
-        SELECT profile FROM sc_user WHERE uuid = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.profile.screen_name">
-        SELECT profile FROM sc_user WHERE screen_name = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.createdat.uuid">
-        SELECT DATETIME(created_at, 'localtime') FROM sc_user WHERE uuid = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.get.createdat.screen_name">
-        SELECT DATETIME(created_at, 'localtime') FROM sc_user WHERE screen_name = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.valid.password.uuid">
-        SELECT 1 FROM sc_user WHERE uuid = ? AND password = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.valid.password.screen_name">
-        SELECT 1 FROM sc_user WHERE screen_name = ? AND password = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.update.profile.uuid">
-        UPDATE sc_user SET profile = ? WHERE uuid = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.update.profile.screen_name">
-        UPDATE sc_user SET profile = ? WHERE screen_name = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.update.password.uuid">
-        UPDATE sc_user SET password = ? WHERE uuid = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.update.password.screen_name">
-        UPDATE sc_user SET password = ? WHERE screen_name = ? AND deleted = 0;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.db.list">
-        SELECT uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.user.deleted">
-        SELECT deleted FROM sc_user WHERE uuid = ?;
-    </entry>
-
 
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
-        INSERT INTO sc_events (source, uuid, evt_code, description, timestamp) VALUES (?, ?, ? ,?, NOW());
+        INSERT INTO sc_event (evt_code, user_uuid, group_uuid, comp_hash, flow_hash, metadata, timestamp) VALUES (?, ?, ? ,?, ?, ?, NOW());
     </entry>
 
     <!-- COMPONENTS -->

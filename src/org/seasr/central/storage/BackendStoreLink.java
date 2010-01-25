@@ -150,10 +150,10 @@ public interface BackendStoreLink {
      *
      * @param userId   The user id
      * @param password The password
-     * @return True if the password matches, False if not, or null if the user does not exist
+     * @return True if the password matches, False otherwise (also returned for nonexistent or deleted user)
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException;
+    public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException;
 
     /**
      * Returns the number of users
@@ -176,13 +176,16 @@ public interface BackendStoreLink {
     /**
      * Adds a new event
      *
-     * @param sourceType  The source of the event
-     * @param sourceId    The id of the source
-     * @param event       The event
-     * @param description The event description
+     * @param eventCode The event code
+     * @param userId The user id (or null if not applicable)
+     * @param groupId The group id (or null if not applicable)
+     * @param compHash The component hash (or null if not applicable)
+     * @param flowHash The flow hash (or null if not applicable)
+     * @param metadata The event metadata (or null)
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public void addEvent(SourceType sourceType, UUID sourceId, Event event, JSONObject description) throws BackendStoreException;
+    public void addEvent(Event eventCode, UUID userId, UUID groupId,
+                         String compHash, String flowHash, JSONObject metadata) throws BackendStoreException;
 
     /**
      * Adds (or updates) a component

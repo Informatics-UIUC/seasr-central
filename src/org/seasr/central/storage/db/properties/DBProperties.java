@@ -57,4 +57,18 @@ public abstract class DBProperties {
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
 
+    public static final String Q_USER_ADD = "org.seasr.central.storage.db.query.user.add";
+    public static final String Q_USER_REMOVE = "org.seasr.central.storage.db.query.user.remove";
+    public static final String Q_USER_UPDATE_PASSWORD = "org.seasr.central.storage.db.query.user.update.password";
+    public static final String Q_USER_UPDATE_PROFILE = "org.seasr.central.storage.db.query.user.update.profile";
+    public static final String Q_USER_GET_UUID = "org.seasr.central.storage.db.query.user.get.uuid";
+    public static final String Q_USER_GET_SCREENNAME = "org.seasr.central.storage.db.query.user.get.screen_name";
+    public static final String Q_USER_GET_PROFILE = "org.seasr.central.storage.db.query.user.get.profile";
+    public static final String Q_USER_GET_CREATEDAT = "org.seasr.central.storage.db.query.user.get.createdat";
+    public static final String Q_USER_GET_DELETED = "org.seasr.central.storage.db.query.user.get.deleted";
+    public static final String Q_USER_PASSWORDVALID = "org.seasr.central.storage.db.query.user.password.valid";
+    public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
+    public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
+
+    public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 }

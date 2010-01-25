@@ -46,7 +46,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
 import org.seasr.central.main.SC;
+import org.seasr.central.main.SCServer;
 import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.meandre.support.generic.crypto.Crypto;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -58,6 +60,8 @@ import javax.xml.transform.stream.StreamSource;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,7 +72,7 @@ import java.util.logging.Logger;
  * @author Boris Capitanu
  */
 public class Tools {
-    private static final Logger logger = Logger.getLogger(SC.class.getName());
+    private static final Logger logger = Logger.getLogger(SCServer.class.getName());
 
     /** The XSL transformation used to convert XML to HTML */
     private static final Transformer xslTrans;
@@ -407,5 +411,25 @@ public class Tools {
         tempFolder.delete();
 
         return (tempFolder.mkdirs() ? tempFolder : null);
+    }
+
+    /**
+     * Computes a SHA1 digest for a given string
+     *
+     * @param string The string
+     * @return The SHA1 digest
+     */
+    public static String computeDigest(String string) {
+        try {
+            return Crypto.getSHA1Hash(string);
+        }
+        catch (NoSuchAlgorithmException e) {
+            logger.log(Level.WARNING, null, e);
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.WARNING, null, e);
+        }
+
+        return null;
     }
 }

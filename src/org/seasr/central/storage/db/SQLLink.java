@@ -48,7 +48,6 @@ import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.Event;
-import org.seasr.central.storage.SourceType;
 import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.util.SCLogFormatter;
@@ -59,14 +58,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URL;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static org.seasr.central.util.Tools.computeDigest;
 
 /**
  * Generic SQL backend store link driver
@@ -75,6 +76,12 @@ import java.util.logging.Logger;
  * @author Boris Capitanu
  */
 public class SQLLink implements BackendStoreLink {
+
+    /**
+     * Date parser for the DATETIME SQL datatype
+     * (Note: use together with 'localtime' in SQL query to retrieve correct timestamp)
+     */
+    private static final SimpleDateFormat SQL_DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     protected static final Logger logger;
 
@@ -170,62 +177,308 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public UUID addUser(String userName, String password, JSONObject profile) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_ADD).trim();
+        Connection conn = null;
+        UUID uuid = UUID.randomUUID();
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, uuid.toString());
+            ps.setString(2, userName);
+            ps.setString(3, computeDigest(password));
+            ps.setString(4, profile.toString());
+            ps.executeUpdate();
+
+            return uuid;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
     public void removeUser(UUID userId) throws BackendStoreException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_REMOVE).trim();
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userId.toString());
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
     public void updateUserPassword(UUID userId, String password) throws BackendStoreException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PASSWORD).trim();
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, computeDigest(password));
+            ps.setString(2, userId.toString());
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
     public void updateProfile(UUID userId, JSONObject profile) throws BackendStoreException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PROFILE).trim();
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, profile.toString());
+            ps.setString(2, userId.toString());
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
     public UUID getUserId(String userName) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_UUID).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userName);
+            rs = ps.executeQuery();
+
+            return rs.next() ? UUID.fromString(rs.getString(1)) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
     public String getUserScreenName(UUID userId) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_SCREENNAME).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userId.toString());
+            rs = ps.executeQuery();
+
+            return rs.next() ? rs.getString(1) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
     public JSONObject getUserProfile(UUID userId) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_PROFILE).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userId.toString());
+            rs = ps.executeQuery();
+
+            return rs.next() ? new JSONObject(rs.getString(1)) : null;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
     public Date getUserCreationTime(UUID userId) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_CREATEDAT).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userId.toString());
+            rs = ps.executeQuery();
+
+            return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
-    public Boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_PASSWORDVALID).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, userId.toString());
+            ps.setString(2, computeDigest(password));
+            rs = ps.executeQuery();
+
+            return rs.next();
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
     public long userCount() throws BackendStoreException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COUNT).trim();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            rs = conn.createStatement().executeQuery(sqlQuery);
+            rs.next();
+
+            return rs.getLong(1);
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
     public JSONArray listUsers(long offset, long count) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_LIST).trim();
+        JSONArray jaUsers = new JSONArray();
+        Connection conn = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, offset);
+            ps.setLong(2, count);
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joUser = new JSONObject();
+                joUser.put("uuid", rs.getString("user_uuid"));
+                joUser.put("screen_name", rs.getString("screen_name"));
+                joUser.put("profile", new JSONObject(rs.getString("profile")));
+                jaUsers.put(joUser);
+            }
+
+            return jaUsers;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, rs);
+        }
     }
 
     @Override
-    public void addEvent(SourceType sourceType, UUID sourceId, Event event, JSONObject description) throws BackendStoreException {
-        //To change body of implemented methods use File | Settings | File Templates.
+    public void addEvent(Event eventCode, UUID userId, UUID groupId,
+                         String compHash, String flowHash, JSONObject metadata) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setInt(1, eventCode.getEventCode());
+
+            if (userId != null)
+                ps.setString(2, userId.toString());
+            else
+                ps.setNull(2, Types.CHAR);
+
+            if (groupId != null)
+                ps.setString(3, groupId.toString());
+            else
+                ps.setNull(3, Types.CHAR);
+
+            if (compHash != null)
+                ps.setString(4, compHash);
+            else
+                ps.setNull(4, Types.CHAR);
+
+            if (flowHash != null)
+                ps.setString(5, flowHash);
+            else
+                ps.setNull(5, Types.CHAR);
+
+            if (metadata != null)
+                ps.setString(6, metadata.toString());
+            else
+                ps.setNull(6, Types.VARCHAR);
+
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override

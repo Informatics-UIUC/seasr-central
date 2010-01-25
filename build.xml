@@ -129,6 +129,7 @@
             <classpath refid="run.classpath"/>
             <jvmarg value="-Dsc.loglevel=${sc.loglevel}"/>
             <jvmarg value="-Dsc.port=${sc.port}"/>
+            <jvmarg value="-Dsc.docroot=../static"/>
             <arg value="--serverconfig=../conf/sc-server-config.xml"/>
             <arg value="--storeconfig=../conf/sc-mysql-store-config.xml"/>
         </java>

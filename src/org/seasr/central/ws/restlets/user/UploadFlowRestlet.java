@@ -56,9 +56,7 @@ import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.main.SC;
 import org.seasr.central.storage.Event;
-import org.seasr.central.storage.SourceType;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -70,7 +68,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.seasr.central.util.Tools.*;
 
@@ -118,14 +115,14 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID uuid;
+        UUID userId;
         @SuppressWarnings("unused")
         String screenName = null;
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
             if (userProps != null) {
-                uuid = UUID.fromString(userProps.getProperty("uuid"));
+                userId = UUID.fromString(userProps.getProperty("uuid"));
                 screenName = userProps.getProperty("screen_name");
             } else {
                 sendErrorNotFound(response);
@@ -208,7 +205,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
                 try {
                     // Attempt to add the flow to the backend storage
-                    JSONObject joResult = bsl.addFlow(uuid, fd);
+                    JSONObject joResult = bsl.addFlow(userId, fd);
 
                     String flowId = joResult.getString("uuid");
                     int flowVersion = joResult.getInt("version");
@@ -226,7 +223,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
                     // Record the event
                     Event event = (flowVersion == 1) ? Event.FLOW_UPLOADED : Event.FLOW_UPDATED;
-                    bsl.addEvent(SourceType.USER, uuid, event, joFlow);
+                    bsl.addEvent(event, userId, null, null, null, joFlow);
                 }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);
