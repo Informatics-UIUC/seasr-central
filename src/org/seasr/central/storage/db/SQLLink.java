@@ -77,10 +77,7 @@ import static org.seasr.central.util.Tools.computeDigest;
  */
 public class SQLLink implements BackendStoreLink {
 
-    /**
-     * Date parser for the DATETIME SQL datatype
-     * (Note: use together with 'localtime' in SQL query to retrieve correct timestamp)
-     */
+    /** Date parser for the DATETIME SQL datatype */
     private static final SimpleDateFormat SQL_DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     protected static final Logger logger;
@@ -482,8 +479,9 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts, boolean copyContextFiles) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts)
+            throws BackendStoreException {
+        return null;
     }
 
     @Override

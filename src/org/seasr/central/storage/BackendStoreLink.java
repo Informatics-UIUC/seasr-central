@@ -193,11 +193,11 @@ public interface BackendStoreLink {
      * @param userId           The user to be credited with the upload
      * @param component        The component
      * @param contexts         The component context files
-     * @param copyContextFiles Flag to indicate whether any file:/// context references should be copied (true) or moved (false) into the repository
      * @return A JSON object keyed on uuid and version containing information about the component
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts, boolean copyContextFiles) throws BackendStoreException;
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts)
+            throws BackendStoreException;
 
     /**
      * Retrieves a component given the component id and version

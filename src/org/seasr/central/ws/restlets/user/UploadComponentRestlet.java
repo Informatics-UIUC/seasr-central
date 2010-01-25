@@ -222,7 +222,11 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
                         jaErrors.put(joError);
                     }
-                } else if (file.getFieldName().equalsIgnoreCase("context")) {
+                }
+
+                else
+
+                if (file.getFieldName().equalsIgnoreCase("context")) {
                     if (skipProcessingContexts) continue;
 
                     // Sanity check
@@ -273,7 +277,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 try {
                     // Attempt to add the component to the backend storage
                     Set<URL> contexts = componentsMap.get(origUri);
-                    JSONObject joResult = bsl.addComponent(userId, ecd, contexts, false);
+                    JSONObject joResult = bsl.addComponent(userId, ecd, contexts);
 
                     String compId = joResult.getString("uuid");
                     int compVersion = joResult.getInt("version");
