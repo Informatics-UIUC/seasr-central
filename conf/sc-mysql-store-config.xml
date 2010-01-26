@@ -148,16 +148,15 @@
         CREATE TABLE IF NOT EXISTS sc_component (
             comp_hash    CHAR(32) NOT NULL,
             upload_date  DATETIME NOT NULL,
-            deleted      BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (comp_hash),
-            INDEX (deleted) USING HASH
+            PRIMARY KEY (comp_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component_version
         //
         CREATE TABLE IF NOT EXISTS sc_component_version (
+            ver_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
             comp_uuid      CHAR(36) NOT NULL,
             comp_hash      CHAR(32) NOT NULL,
             name           VARCHAR(45) NULL,
@@ -170,24 +169,26 @@
             exec_format    VARCHAR(45) NULL,
             location       VARCHAR(45) NULL,
             uri            VARCHAR(255) NULL,
+            deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (comp_uuid, comp_hash),
+            PRIMARY KEY (ver_id),
             INDEX (comp_hash) USING HASH,
             FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash),
             INDEX (rights_id) USING HASH,
-            FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id)
+            FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
+            INDEX (comp_uuid) USING HASH,
+            INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component_description
         //
         CREATE TABLE IF NOT EXISTS sc_component_description (
-            comp_uuid    CHAR(36) NOT NULL,
-            comp_hash    CHAR(32) NOT NULL,
+            ver_id       INT UNSIGNED NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (comp_uuid, comp_hash),
-            FOREIGN KEY (comp_uuid, comp_hash) REFERENCES sc_component_version (comp_uuid, comp_hash)
+            PRIMARY KEY (ver_id),
+            FOREIGN KEY (ver_id) REFERENCES sc_component_version (ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -254,13 +255,12 @@
         // sc_comp_cat_map
         //
         CREATE TABLE IF NOT EXISTS sc_comp_cat_map (
-            comp_uuid  CHAR(36) NOT NULL,
-            comp_hash  CHAR(32) NOT NULL,
-            cat_id     INT UNSIGNED NOT NULL,
+            ver_id  INT UNSIGNED NOT NULL,
+            cat_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (comp_uuid, comp_hash, cat_id),
-            INDEX (comp_uuid, comp_hash) USING HASH,
-            FOREIGN KEY (comp_uuid, comp_hash) REFERENCES sc_component_version (comp_uuid, comp_hash),
+            PRIMARY KEY (ver_id, cat_id),
+            INDEX (ver_id) USING HASH,
+            FOREIGN KEY (ver_id) REFERENCES sc_component_version (ver_id),
             INDEX (cat_id) USING HASH,
             FOREIGN KEY (cat_id) REFERENCES sc_component_category (cat_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -299,16 +299,15 @@
         CREATE TABLE IF NOT EXISTS sc_flow (
             flow_hash    CHAR(32) NOT NULL,
             upload_date  DATETIME NOT NULL,
-            deleted      BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (flow_hash),
-            INDEX (deleted) USING HASH
+            PRIMARY KEY (flow_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_version
         //
         CREATE TABLE IF NOT EXISTS sc_flow_version (
+            ver_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
             flow_uuid      CHAR(36) NOT NULL,
             flow_hash      CHAR(32) NOT NULL,
             name           VARCHAR(45) NULL,
@@ -317,25 +316,26 @@
             rights_id      INT UNSIGNED NULL,
             tags           VARCHAR(255) NULL,
             uri            VARCHAR(255) NULL,
+            deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (flow_uuid, flow_hash),
+            PRIMARY KEY (ver_id),
             INDEX (flow_hash) USING HASH,
             FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash),
             INDEX (rights_id) USING HASH,
-            FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id)
+            FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
+            INDEX (flow_uuid) USING HASH,
+            INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_description
         //
         CREATE TABLE IF NOT EXISTS sc_flow_description (
-            flow_uuid    CHAR(36) NOT NULL,
-            flow_hash    CHAR(32) NOT NULL,
+            ver_id       INT UNSIGNED NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (flow_uuid, flow_hash),
-            INDEX (flow_uuid, flow_hash) USING HASH,
-            FOREIGN KEY (flow_uuid, flow_hash) REFERENCES sc_flow_version (flow_uuid, flow_hash)
+            PRIMARY KEY (ver_id),
+            FOREIGN KEY (ver_id) REFERENCES sc_flow_version (ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -366,13 +366,12 @@
         // sc_flow_cat_map
         //
         CREATE TABLE IF NOT EXISTS sc_flow_cat_map (
-            flow_uuid  CHAR(36) NOT NULL,
-            flow_hash  CHAR(32) NOT NULL,
-            cat_id     INT UNSIGNED NOT NULL,
+            ver_id  INT UNSIGNED NOT NULL,
+            cat_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (flow_uuid, flow_hash, cat_id),
-            INDEX (flow_uuid, flow_hash) USING HASH,
-            FOREIGN KEY (flow_uuid, flow_hash) REFERENCES sc_flow_version (flow_uuid, flow_hash),
+            PRIMARY KEY (ver_id, cat_id),
+            INDEX (ver_id) USING HASH,
+            FOREIGN KEY (ver_id) REFERENCES sc_flow_version (ver_id),
             INDEX (cat_id) USING HASH,
             FOREIGN KEY (cat_id) REFERENCES sc_flow_category (cat_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
