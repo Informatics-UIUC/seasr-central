@@ -146,17 +146,7 @@
         // sc_component
         //
         CREATE TABLE IF NOT EXISTS sc_component (
-            comp_hash    CHAR(32) NOT NULL,
-            upload_date  DATETIME NOT NULL,
-
-            PRIMARY KEY (comp_hash)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // sc_component_version
-        //
-        CREATE TABLE IF NOT EXISTS sc_component_version (
-            ver_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            comp_ver_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             comp_uuid      CHAR(36) NOT NULL,
             comp_hash      CHAR(32) NOT NULL,
             name           VARCHAR(45) NULL,
@@ -171,12 +161,11 @@
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (ver_id),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash),
+            PRIMARY KEY (comp_ver_id),
             INDEX (rights_id) USING HASH,
             FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
             INDEX (comp_uuid) USING HASH,
+            INDEX (comp_hash) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
