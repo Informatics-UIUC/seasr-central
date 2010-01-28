@@ -173,23 +173,23 @@
         // sc_component_description
         //
         CREATE TABLE IF NOT EXISTS sc_component_description (
-            ver_id       INT UNSIGNED NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (ver_id),
-            FOREIGN KEY (ver_id) REFERENCES sc_component_version (ver_id)
+            PRIMARY KEY (comp_ver_id),
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component_descriptor
         //
         CREATE TABLE IF NOT EXISTS sc_component_descriptor (
-            comp_hash   CHAR(32) NOT NULL,
-            descriptor  BLOB NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
+            descriptor   BLOB NOT NULL,
 
-            PRIMARY KEY (comp_hash),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash)
+            PRIMARY KEY (comp_ver_id),
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
