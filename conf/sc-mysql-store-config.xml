@@ -177,6 +177,7 @@
             description  TEXT NOT NULL,
 
             PRIMARY KEY (comp_ver_id),
+            INDEX (comp_ver_id) USING HASH,
             FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -218,12 +219,12 @@
         // sc_component_context
         //
         CREATE TABLE IF NOT EXISTS sc_component_context (
-            comp_hash     CHAR(32) NOT NULL,
+            comp_ver_id   INT UNSIGNED NOT NULL,
             context_hash  CHAR(32) NOT NULL,
 
-            PRIMARY KEY (comp_hash, context_hash),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash),
+            PRIMARY KEY (comp_ver_id, context_hash),
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
             INDEX (context_hash) USING HASH,
             FOREIGN KEY (context_hash) REFERENCES sc_context_meta (context_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -232,11 +233,11 @@
         // sc_component_category
         //
         CREATE TABLE IF NOT EXISTS sc_component_category (
-            cat_id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            comp_cat_id  INT UNSIGNED NOT NULL AUTO_INCREMENT,
             name         VARCHAR(45) NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (cat_id),
+            PRIMARY KEY (comp_cat_id),
             UNIQUE INDEX (name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -244,40 +245,40 @@
         // sc_comp_cat_map
         //
         CREATE TABLE IF NOT EXISTS sc_comp_cat_map (
-            ver_id  INT UNSIGNED NOT NULL,
-            cat_id  INT UNSIGNED NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
+            comp_cat_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (ver_id, cat_id),
-            INDEX (ver_id) USING HASH,
-            FOREIGN KEY (ver_id) REFERENCES sc_component_version (ver_id),
-            INDEX (cat_id) USING HASH,
-            FOREIGN KEY (cat_id) REFERENCES sc_component_category (cat_id)
+            PRIMARY KEY (comp_ver_id, comp_cat_id),
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
+            INDEX (comp_cat_id) USING HASH,
+            FOREIGN KEY (comp_cat_id) REFERENCES sc_component_category (comp_cat_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_user_component
         //
         CREATE TABLE IF NOT EXISTS sc_user_component (
-            user_uuid  CHAR(36) NOT NULL,
-            comp_hash  CHAR(32) NOT NULL,
+            user_uuid    CHAR(36) NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (comp_hash, user_uuid),
+            PRIMARY KEY (user_uuid, comp_ver_id),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash)
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component_group
         //
         CREATE TABLE IF NOT EXISTS sc_component_group (
-            comp_hash   CHAR(32) NOT NULL,
-            group_uuid  CHAR(36) NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
+            group_uuid   CHAR(36) NOT NULL,
 
-            PRIMARY KEY (comp_hash, group_uuid),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash),
+            PRIMARY KEY (comp_ver_id, group_uuid),
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -286,17 +287,7 @@
         // sc_flow
         //
         CREATE TABLE IF NOT EXISTS sc_flow (
-            flow_hash    CHAR(32) NOT NULL,
-            upload_date  DATETIME NOT NULL,
-
-            PRIMARY KEY (flow_hash)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // sc_flow_version
-        //
-        CREATE TABLE IF NOT EXISTS sc_flow_version (
-            ver_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            flow_ver_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             flow_uuid      CHAR(36) NOT NULL,
             flow_hash      CHAR(32) NOT NULL,
             name           VARCHAR(45) NULL,
@@ -307,12 +298,11 @@
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (ver_id),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash),
+            PRIMARY KEY (flow_ver_id),
             INDEX (rights_id) USING HASH,
             FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
             INDEX (flow_uuid) USING HASH,
+            INDEX (flow_hash) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -320,34 +310,34 @@
         // sc_flow_description
         //
         CREATE TABLE IF NOT EXISTS sc_flow_description (
-            ver_id       INT UNSIGNED NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (ver_id),
-            FOREIGN KEY (ver_id) REFERENCES sc_flow_version (ver_id)
+            PRIMARY KEY (flow_ver_id),
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_descriptor
         //
         CREATE TABLE IF NOT EXISTS sc_flow_descriptor (
-            flow_hash   CHAR(32) NOT NULL,
-            descriptor  BLOB NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
+            descriptor   BLOB NOT NULL,
 
-            PRIMARY KEY (flow_hash),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash)
+            PRIMARY KEY (flow_ver_id),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_category
         //
         CREATE TABLE IF NOT EXISTS sc_flow_category (
-            cat_id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            flow_cat_id  INT UNSIGNED NOT NULL AUTO_INCREMENT,
             name         VARCHAR(45) NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (cat_id),
+            PRIMARY KEY (flow_cat_id),
             UNIQUE INDEX (name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -355,54 +345,54 @@
         // sc_flow_cat_map
         //
         CREATE TABLE IF NOT EXISTS sc_flow_cat_map (
-            ver_id  INT UNSIGNED NOT NULL,
-            cat_id  INT UNSIGNED NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
+            flow_cat_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (ver_id, cat_id),
-            INDEX (ver_id) USING HASH,
-            FOREIGN KEY (ver_id) REFERENCES sc_flow_version (ver_id),
-            INDEX (cat_id) USING HASH,
-            FOREIGN KEY (cat_id) REFERENCES sc_flow_category (cat_id)
+            PRIMARY KEY (flow_ver_id, flow_cat_id),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
+            INDEX (flow_cat_id) USING HASH,
+            FOREIGN KEY (flow_cat_id) REFERENCES sc_flow_category (flow_cat_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_component
         //
         CREATE TABLE IF NOT EXISTS sc_flow_component (
-            flow_hash  CHAR(32) NOT NULL,
-            comp_hash  CHAR(32) NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
+            comp_ver_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (flow_hash, comp_hash),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash)
+            PRIMARY KEY (flow_ver_id, comp_ver_id),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_user_flow
         //
         CREATE TABLE IF NOT EXISTS sc_user_flow (
-            user_uuid  CHAR(36) NOT NULL,
-            flow_hash  CHAR(32) NOT NULL,
+            user_uuid    CHAR(36) NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (flow_hash, user_uuid),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash),
+            PRIMARY KEY (user_uuid, flow_ver_id),
             INDEX (user_uuid) USING HASH,
-            FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid)
+            FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_group
         //
         CREATE TABLE IF NOT EXISTS sc_flow_group (
-            flow_hash   CHAR(32) NOT NULL,
-            group_uuid  CHAR(36) NOT NULL,
+            flow_ver_id  INT UNSIGNED NOT NULL,
+            group_uuid   CHAR(36) NOT NULL,
 
-            PRIMARY KEY (flow_hash, group_uuid),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash),
+            PRIMARY KEY (flow_ver_id, group_uuid),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -421,26 +411,26 @@
         // sc_event
         //
         CREATE TABLE IF NOT EXISTS sc_event (
-            id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            evt_code    SMALLINT UNSIGNED NOT NULL,
-            timestamp   DATETIME NOT NULL,
-            user_uuid   CHAR(36) NULL,
-            group_uuid  CHAR(36) NULL,
-            comp_hash   CHAR(32) NULL,
-            flow_hash   CHAR(32) NULL,
-            metadata    VARCHAR(255) NULL,
+            evt_id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            evt_code     SMALLINT UNSIGNED NOT NULL,
+            timestamp    DATETIME NOT NULL,
+            user_uuid    CHAR(36) NULL,
+            group_uuid   CHAR(36) NULL,
+            comp_ver_id  INT UNSIGNED NULL,
+            flow_ver_id  INT UNSIGNED NULL,
+            metadata     VARCHAR(255) NULL,
 
-            PRIMARY KEY (id),
+            PRIMARY KEY (evt_id),
             INDEX (evt_code) USING HASH,
             FOREIGN KEY (evt_code) REFERENCES sc_event_codes (evt_code),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid),
-            INDEX (comp_hash) USING HASH,
-            FOREIGN KEY (comp_hash) REFERENCES sc_component (comp_hash),
-            INDEX (flow_hash) USING HASH,
-            FOREIGN KEY (flow_hash) REFERENCES sc_flow (flow_hash)
+            INDEX (comp_ver_id) USING HASH,
+            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
+            INDEX (flow_ver_id) USING HASH,
+            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
