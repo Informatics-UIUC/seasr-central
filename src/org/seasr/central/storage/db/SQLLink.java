@@ -433,7 +433,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public void addEvent(Event eventCode, UUID userId, UUID groupId,
-                         String compHash, String flowHash, JSONObject metadata) throws BackendStoreException {
+                         UUID compId, UUID flowId, JSONObject metadata) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
         Connection conn = null;
 
@@ -452,13 +452,13 @@ public class SQLLink implements BackendStoreLink {
             else
                 ps.setNull(3, Types.CHAR);
 
-            if (compHash != null)
-                ps.setString(4, compHash);
+            if (compId != null)
+                ps.setString(4, compId.toString());
             else
                 ps.setNull(4, Types.CHAR);
 
-            if (flowHash != null)
-                ps.setString(5, flowHash);
+            if (flowId != null)
+                ps.setString(5, flowId.toString());
             else
                 ps.setNull(5, Types.CHAR);
 
@@ -481,6 +481,10 @@ public class SQLLink implements BackendStoreLink {
     @Override
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts)
             throws BackendStoreException {
+
+        JSONObject joResult = new JSONObject();
+        String orgURI = component.getExecutableComponent().getURI();
+        
         return null;
     }
 

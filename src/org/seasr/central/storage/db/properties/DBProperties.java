@@ -54,6 +54,9 @@ public abstract class DBProperties {
     public static final String LOG_FILE = "org.seasr.central.storage.db.logfile";
     public static final String LOG_LEVEL = "org.seasr.central.storage.db.loglevel";
 
+    public static final String COMP_VER_COLS = "org.seasr.central.storage.db.sc_component.version";
+    public static final String FLOW_VER_COLS = "org.seasr.central.storage.db.sc_flow.version";
+
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
 
@@ -71,4 +74,8 @@ public abstract class DBProperties {
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
+
+    public static final String Q_COMP_ADD = "org.seasr.central.storage.db.query.component.add";
+    public static final String Q_COMP_EXISTS = "org.seasr.central.storage.db.query.component.exists";
+    public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";
 }

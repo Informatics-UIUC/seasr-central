@@ -45,6 +45,9 @@ import com.hp.hpl.jena.rdf.model.Model;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
+import org.meandre.core.ExecutableComponent;
+import org.meandre.core.repository.DataPortDescription;
+import org.meandre.core.repository.ExecutableComponentDescription;
 import org.seasr.central.main.SC;
 import org.seasr.central.main.SCServer;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -61,10 +64,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.security.NoSuchAlgorithmException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -431,5 +433,58 @@ public class Tools {
         }
 
         return null;
+    }
+
+    public static String getComponentCoreHash(ExecutableComponentDescription component,
+                                              SortedSet<String> contextHashes) {
+        try {
+            return Crypto.getHexString(Crypto.createMD5Checksum(
+                    getComponentCoreAsString(component, contextHashes).getBytes("UTF-8")));
+        }
+        catch (UnsupportedEncodingException e) {
+            // This should not happen
+            logger.log(Level.SEVERE, null, e);
+        }
+
+        return null;
+    }
+
+    private static String getComponentCoreAsString(ExecutableComponentDescription component,
+                                                   SortedSet<String> contextHashes) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("runnable: ").append(component.getRunnable()).append("\n");
+        sb.append("format: ").append(component.getFormat()).append("\n");
+        String resLocation = component.getLocation().toString();
+        sb.append("resource_location: ").append(resLocation.substring(resLocation.lastIndexOf("/") + 1)).append("\n");
+        sb.append("mode: ").append(component.getMode()).append("\n");
+        sb.append("firing_policy: ").append(component.getFiringPolicy()).append("\n");
+
+        SortedSet<String> sortedStrings = new TreeSet<String>();
+        for (DataPortDescription inputPort : component.getInputs())
+            sortedStrings.add(inputPort.getName());
+
+        for (String inputPort : sortedStrings)
+            sb.append("input: ").append(inputPort).append("\n");
+
+        sortedStrings.clear();
+
+        for (DataPortDescription outputPort : component.getOutputs())
+            sortedStrings.add(outputPort.getName());
+
+        for (String outputPort : sortedStrings)
+            sb.append("output: ").append(outputPort).append("\n");
+
+        SortedMap<String, String> propMap = new TreeMap<String, String>();
+        propMap.putAll(component.getProperties().getValueMap());
+
+        for (Map.Entry<String, String> entry : propMap.entrySet())
+            sb.append("property: ").append("key=").append(entry.getKey())
+                    .append(" value=").append(entry.getValue()).append("\n");
+
+        for (String contextHash : contextHashes)
+            sb.append("context: ").append(contextHash).append("\n");
+
+        return sb.toString();
     }
 }

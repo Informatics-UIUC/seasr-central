@@ -179,13 +179,13 @@ public interface BackendStoreLink {
      * @param eventCode The event code
      * @param userId The user id (or null if not applicable)
      * @param groupId The group id (or null if not applicable)
-     * @param compHash The component hash (or null if not applicable)
-     * @param flowHash The flow hash (or null if not applicable)
+     * @param compId The component id (or null if not applicable)
+     * @param flowId The flow id (or null if not applicable)
      * @param metadata The event metadata (or null)
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public void addEvent(Event eventCode, UUID userId, UUID groupId,
-                         String compHash, String flowHash, JSONObject metadata) throws BackendStoreException;
+                         UUID compId, UUID flowId, JSONObject metadata) throws BackendStoreException;
 
     /**
      * Adds (or updates) a component

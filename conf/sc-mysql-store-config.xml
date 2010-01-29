@@ -166,6 +166,7 @@
             FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
             INDEX (comp_uuid) USING HASH,
             INDEX (comp_hash) USING HASH,
+            INDEX (uri) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -303,6 +304,7 @@
             FOREIGN KEY (rights_id) REFERENCES sc_rights (rights_id),
             INDEX (flow_uuid) USING HASH,
             INDEX (flow_hash) USING HASH,
+            INDEX (uri) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -411,14 +413,14 @@
         // sc_event
         //
         CREATE TABLE IF NOT EXISTS sc_event (
-            evt_id       INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            evt_code     SMALLINT UNSIGNED NOT NULL,
-            timestamp    DATETIME NOT NULL,
-            user_uuid    CHAR(36) NULL,
-            group_uuid   CHAR(36) NULL,
-            comp_ver_id  INT UNSIGNED NULL,
-            flow_ver_id  INT UNSIGNED NULL,
-            metadata     VARCHAR(255) NULL,
+            evt_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            evt_code    SMALLINT UNSIGNED NOT NULL,
+            timestamp   DATETIME NOT NULL,
+            user_uuid   CHAR(36) NULL,
+            group_uuid  CHAR(36) NULL,
+            comp_uuid   CHAR(36) NULL,
+            flow_uuid   CHAR(36) NULL,
+            metadata    VARCHAR(255) NULL,
 
             PRIMARY KEY (evt_id),
             INDEX (evt_code) USING HASH,
@@ -427,10 +429,10 @@
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
+            INDEX (comp_uuid) USING HASH,
+            FOREIGN KEY (comp_uuid) REFERENCES sc_component (comp_uuid),
+            INDEX (flow_uuid) USING HASH,
+            FOREIGN KEY (flow_uuid) REFERENCES sc_flow (flow_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -502,21 +504,21 @@
 
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
-        INSERT INTO sc_event (evt_code, user_uuid, group_uuid, comp_hash, flow_hash, metadata, timestamp) VALUES (?, ?, ? ,?, ?, ?, NOW());
+        INSERT INTO sc_event (evt_code, user_uuid, group_uuid, comp_uuid, flow_uuid, metadata, timestamp) VALUES (?, ?, ? ,?, ?, ?, NOW());
     </entry>
 
     <!-- COMPONENTS -->
     <entry key="org.seasr.central.storage.db.query.component.add">
-        INSERT INTO sc_component (uuid, version, upload_date) VALUES (?, ?, NOW());
+        INSERT INTO sc_component (comp_uuid, comp_hash, name, creator, creation_date, firing_policy, rights_id, tags, format, exec_format, location, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.add.id">
-        INSERT INTO sc_component_id_map (orig_uri, user_uuid, comp_uuid) VALUES (?, ?, ?);
+    <entry key="org.seasr.central.storage.db.query.component.exists">
+        SELECT comp_uuid FROM sc_component WHERE comp_hash = ? AND name = ? AND creator = ? AND creation_date = ? AND firing_policy = ? AND rights_id = ? AND tags = ? AND format = ? AND exec_format = ? AND location = ? AND uri = ? AND deleted = 0;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.get.id.origuri.user">
-        SELECT comp_uuid FROM sc_component_id_map WHERE orig_uri = ? AND user_uuid = ?;
+    <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
+        SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.get.last.version.number">
-        SELECT MAX(version) FROM sc_component WHERE uuid = ? FOR UPDATE;
+    <entry key="org.seasr.central.storage.db.query.component.get.uuid.rdf">
+        SELECT comp_uuid FROM sc_component WHERE uri = ?;
     </entry>
     <!-- SELECT c.base_uri, m.deleted FROM sc_component c INNER JOIN sc_component_id_map m ON c.uuid = m.comp_uuid WHERE c.uuid = ? AND c.version = ?; -->
     <entry key="org.seasr.central.storage.db.query.component.get.state.uuid.version">
