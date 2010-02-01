@@ -75,6 +75,9 @@ public abstract class DBProperties {
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
+    public static final String Q_RIGHTS_ADD = "org.seasr.central.storage.db.query.rights.add";
+    public static final String Q_RIGHTS_GET_ID = "org.seasr.central.storage.db.query.rights.get.id";
+
     public static final String Q_COMP_ADD = "org.seasr.central.storage.db.query.component.add";
     public static final String Q_COMP_EXISTS = "org.seasr.central.storage.db.query.component.exists";
     public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";

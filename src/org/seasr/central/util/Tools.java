@@ -423,32 +423,41 @@ public class Tools {
      */
     public static String computeDigest(String string) {
         try {
-            return Crypto.getSHA1Hash(string);
+            return Crypto.getHexString(Crypto.createSHA1Hash(string.getBytes("UTF-8")));
         }
-        catch (NoSuchAlgorithmException e) {
-            logger.log(Level.WARNING, null, e);
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new RuntimeException(e);
         }
-        catch (UnsupportedEncodingException e) {
-            logger.log(Level.WARNING, null, e);
-        }
-
-        return null;
     }
 
+    /**
+     * Calculates a hash signature for the core parts of a component
+     *
+     * @param component The component
+     * @param contextHashes The hashes of the component's context files
+     * @return The core hash signature
+     */
     public static String getComponentCoreHash(ExecutableComponentDescription component,
                                               SortedSet<String> contextHashes) {
         try {
-            return Crypto.getHexString(Crypto.createMD5Checksum(
+            return Crypto.getHexString(Crypto.createMD5Hash(
                     getComponentCoreAsString(component, contextHashes).getBytes("UTF-8")));
         }
         catch (UnsupportedEncodingException e) {
             // This should not happen
             logger.log(Level.SEVERE, null, e);
+            throw new RuntimeException(e);
         }
-
-        return null;
     }
 
+    /**
+     * Helper method that isolates the "core" features of a component
+     *
+     * @param component The component
+     * @param contextHashes The component's context hashes
+     * @return A string containing the core features
+     */
     private static String getComponentCoreAsString(ExecutableComponentDescription component,
                                                    SortedSet<String> contextHashes) {
         StringBuilder sb = new StringBuilder();
@@ -487,4 +496,36 @@ public class Tools {
 
         return sb.toString();
     }
+
+    /**
+     * Helper method to make a CSV string out of a set of strings
+     *
+     * @param strings The strings
+     * @return A CSV string containing the strings in the input
+     */
+    public static String getCSVString(Set<String> strings) {
+        StringBuilder sb = new StringBuilder();
+
+        for (String s : strings)
+            sb.append(", ").append(s);
+
+        return (sb.length() > 0) ? sb.substring(2) : sb.toString();
+    }
+
+    /**
+     * Returns a hash code for a particular rights text
+     *
+     * @param rights The rights text
+     * @return The hash code
+     */
+    public static String getRightsHash(String rights) {
+        try {
+            return Crypto.getHexString(Crypto.createMD5Hash(rights.getBytes("UTF-8")));
+        }
+        catch (UnsupportedEncodingException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new RuntimeException(e);
+        }
+    }
+
 }
