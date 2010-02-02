@@ -421,7 +421,7 @@ public class Tools {
      * @param string The string
      * @return The SHA1 digest
      */
-    public static String computeDigest(String string) {
+    public static String computePasswordDigest(String string) {
         try {
             return Crypto.getHexString(Crypto.createSHA1Hash(string.getBytes("UTF-8")));
         }
@@ -436,13 +436,12 @@ public class Tools {
      *
      * @param component The component
      * @param contextHashes The hashes of the component's context files
-     * @return The core hash signature
+     * @return The core hash
      */
-    public static String getComponentCoreHash(ExecutableComponentDescription component,
+    public static byte[] getComponentCoreHash(ExecutableComponentDescription component,
                                               SortedSet<String> contextHashes) {
         try {
-            return Crypto.getHexString(Crypto.createMD5Hash(
-                    getComponentCoreAsString(component, contextHashes).getBytes("UTF-8")));
+            return Crypto.createMD5Hash(getComponentCoreAsString(component, contextHashes).getBytes("UTF-8"));
         }
         catch (UnsupportedEncodingException e) {
             // This should not happen
@@ -498,29 +497,14 @@ public class Tools {
     }
 
     /**
-     * Helper method to make a CSV string out of a set of strings
-     *
-     * @param strings The strings
-     * @return A CSV string containing the strings in the input
-     */
-    public static String getCSVString(Set<String> strings) {
-        StringBuilder sb = new StringBuilder();
-
-        for (String s : strings)
-            sb.append(", ").append(s);
-
-        return (sb.length() > 0) ? sb.substring(2) : sb.toString();
-    }
-
-    /**
      * Returns a hash code for a particular rights text
      *
      * @param rights The rights text
      * @return The hash code
      */
-    public static String getRightsHash(String rights) {
+    public static byte[] getRightsHash(String rights) {
         try {
-            return Crypto.getHexString(Crypto.createMD5Hash(rights.getBytes("UTF-8")));
+            return Crypto.createMD5Hash(rights.getBytes("UTF-8"));
         }
         catch (UnsupportedEncodingException e) {
             logger.log(Level.SEVERE, null, e);

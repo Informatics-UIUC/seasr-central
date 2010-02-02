@@ -148,9 +148,9 @@
             comp_hash      DECIMAL(39) NOT NULL,
             name           VARCHAR(45) NULL,
             creator        VARCHAR(45) NULL,
+            rights_hash    DECIMAL(39) NULL,
             creation_date  DATETIME NULL,
             firing_policy  VARCHAR(45) NULL,
-            rights_hash    DECIMAL(39) NULL,
             mode           VARCHAR(45) NULL,
             format         VARCHAR(45) NULL,
             runnable       VARCHAR(45) NULL,
@@ -533,13 +533,19 @@
     <entry key="org.seasr.central.storage.db.query.rights.add">
         INSERT INTO sc_rights (rights_hash, text) VALUES (?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.rights.get.text">
+        SELECT text FROM sc_rights WHERE rights_hash = ?;
+    </entry>
 
     <!-- COMPONENTS -->
     <entry key="org.seasr.central.storage.db.query.component.add">
-        INSERT INTO sc_component (comp_uuid, comp_hash, name, creator, creation_date, firing_policy, rights_hash, mode, format, runnable, res_location, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO sc_component (comp_uuid, comp_hash, name, creator, rights_hash, creation_date, firing_policy, mode, format, runnable, res_location, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.get.uuid.rdf">
-        SELECT comp_uuid FROM sc_component WHERE uri = ?;
+    <entry key="org.seasr.central.storage.db.query.component.get.last_insert">
+        SELECT comp_uuid, comp_hash, name, creator, rights_hash FROM sc_component WHERE uri = ? ORDER BY comp_ver_id DESC LIMIT 1;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
+        SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
     </entry>
 
     <!-- FLOWS -->

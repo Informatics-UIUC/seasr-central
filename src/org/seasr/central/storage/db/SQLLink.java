@@ -72,7 +72,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.seasr.central.util.Tools.computeDigest;
+import static org.seasr.central.util.Tools.computePasswordDigest;
 
 /**
  * Generic SQL backend store link driver
@@ -188,7 +188,7 @@ public class SQLLink implements BackendStoreLink {
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.setString(2, userName);
-            ps.setString(3, computeDigest(password));
+            ps.setString(3, computePasswordDigest(password));
             ps.setString(4, profile.toString());
             ps.executeUpdate();
 
@@ -231,7 +231,7 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
-            ps.setString(1, computeDigest(password));
+            ps.setString(1, computePasswordDigest(password));
             ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.executeUpdate();
         }
@@ -367,7 +367,7 @@ public class SQLLink implements BackendStoreLink {
             conn = dataSource.getConnection();
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setString(2, computeDigest(password));
+            ps.setString(2, computePasswordDigest(password));
             rs = ps.executeQuery();
 
             return rs.next();
@@ -490,58 +490,117 @@ public class SQLLink implements BackendStoreLink {
         JSONObject joResult = new JSONObject();
         String origURI = component.getExecutableComponent().getURI();
 
-        String sqlCompExists = properties.getProperty(DBProperties.Q_COMP_EXISTS).trim();
-        String sqlAddRights = properties.getProperty(DBProperties.Q_RIGHTS_ADD).trim();
+        String sqlRightsGetText = properties.getProperty(DBProperties.Q_RIGHTS_GET_TEXT).trim();
+        String sqlRightsAdd = properties.getProperty(DBProperties.Q_RIGHTS_ADD).trim();
+        String sqlCompGetLastInsert = properties.getProperty(DBProperties.Q_COMP_GET_LASTINSERT).trim();
+        String sqlCompGetVerCount = properties.getProperty(DBProperties.Q_COMP_GET_VERCOUNT).trim();
+        String sqlCompAdd = properties.getProperty(DBProperties.Q_COMP_ADD).trim();
 
-        ResultSet rs = null;
         Connection conn = null;
         try {
             conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
 
-            if (Boolean.FALSE.equals(isUserActive(userId, conn)))
+            if (!Boolean.TRUE.equals(isUserActive(userId, conn)))
                 throw new InactiveUserException(userId);
 
-            SortedMap<String, File> contextHashes = retrieveContextsAndComputeHashes(contexts);
-            String compCoreHash = Tools.getComponentCoreHash(component, (SortedSet)contextHashes.keySet());
+            SortedMap<BigInteger, File> contextHashes = retrieveContextsAndComputeHashes(contexts);
+            BigInteger compCoreHash = new BigInteger(Tools.getComponentCoreHash(component, (SortedSet)contextHashes.keySet()));
 
             final String compRights = component.getRights();
-            Integer compRightsId = getRightsId(compRights, conn);
+            BigInteger rightsHash = new BigInteger(Tools.getRightsHash(compRights));
 
-            if (compRightsId != null) {
-                // Check whether the component already exists
-                PreparedStatement psExists = conn.prepareStatement(sqlCompExists);
-                psExists.setString(1, compCoreHash);
-                psExists.setString(2, component.getName());
-                psExists.setString(3, component.getCreator());
-                psExists.setDate(4, new java.sql.Date(component.getCreationDate().getTime()));
-                psExists.setString(5, component.getFiringPolicy());
-                psExists.setInt(6, compRightsId);
-                psExists.setString(7, Tools.getCSVString(component.getTags().getTags()));
-                psExists.setString(8, component.getFormat());
-                psExists.setString(9, component.getLocation().getURI());
-                psExists.setString(10, origURI);
-                rs = psExists.executeQuery();
+            BigInteger compId = null;
 
-                if (rs.next()) {
-                    String compId = rs.getString(1);
-                    logger.fine(String.format("Component with id %s already exists, ignoring it...", compId));
+            // Check whether the rights text already exists
+            PreparedStatement psRightsGetText = conn.prepareStatement(sqlRightsGetText);
+            psRightsGetText.setBigDecimal(1, new BigDecimal(rightsHash));
 
-                    joResult.put("uuid", compId);
-                    joResult.put("version", "0"); // FIXME: find the correct version
+            boolean hasRights;
+            ResultSet rsRightsGetText = null;
+            try {
+                rsRightsGetText = psRightsGetText.executeQuery();
+                hasRights = rsRightsGetText.next();
+            }
+            finally {
+                closeResultSet(rsRightsGetText);
+            }
 
-                    return joResult;
+            if (hasRights) {
+                // Check whether this component is identical to last inserted
+                PreparedStatement psCompGetLastInsert = conn.prepareStatement(sqlCompGetLastInsert);
+                psCompGetLastInsert.setString(1, origURI);
+
+                ResultSet rsCompGetLastInsert = null;
+                try {
+                    rsCompGetLastInsert = psCompGetLastInsert.executeQuery();
+
+                    if (rsCompGetLastInsert.next()) {
+                        // Extract the query results
+                        compId = rsCompGetLastInsert.getBigDecimal("comp_uuid").toBigInteger();
+                        BigInteger qCompCoreHash = rsCompGetLastInsert.getBigDecimal("comp_hash").toBigInteger();
+                        String qName = rsCompGetLastInsert.getString("name");
+                        String qCreator = rsCompGetLastInsert.getString("creator");
+                        BigInteger qRightsHash = rsCompGetLastInsert.getBigDecimal("rights_hash").toBigInteger();
+
+                        if (qCompCoreHash == compCoreHash
+                                && qName == component.getName()
+                                && qCreator == component.getCreator()
+                                && qRightsHash == rightsHash) {
+
+                            // Component identical to last inserted version, get its version and return info to user
+                            PreparedStatement psCompGetVerCount = conn.prepareStatement(sqlCompGetVerCount);
+                            psCompGetVerCount.setBigDecimal(1, new BigDecimal(compId));
+
+                            ResultSet rsCompVerCount = null;
+                            int qCompVersion;
+                            try {
+                                rsCompVerCount = psCompGetVerCount.executeQuery();
+                                rsCompVerCount.next();
+                                qCompVersion = rsCompVerCount.getInt(1);
+                            }
+                            finally {
+                                closeResultSet(rsCompVerCount);
+                            }
+
+                            joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
+                            joResult.put("version", qCompVersion);
+
+                            logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
+                                    joResult.get("uuid"), qCompVersion));
+
+                            return joResult;
+                        }
+                    }
+                }
+                finally {
+                    closeResultSet(rsCompGetLastInsert);
                 }
             } else {
                 // Insert the license text into the DB
-                PreparedStatement psAddRights = conn.prepareStatement(sqlAddRights);
-                psAddRights.setString(1, Tools.getRightsHash(compRights));
-                psAddRights.setString(2, compRights);
-                psAddRights.executeUpdate();
-
+                PreparedStatement psRightsAdd = conn.prepareStatement(sqlRightsAdd);
+                psRightsAdd.setBigDecimal(1, new BigDecimal(rightsHash));
+                psRightsAdd.setString(2, compRights);
+                psRightsAdd.executeUpdate();
             }
 
+            if (compId == null)
+                compId = UUIDUtils.toBigInteger(UUID.randomUUID());
 
-            conn.setAutoCommit(false);
+            // Insert this component version into the DB
+            PreparedStatement psCompAdd = conn.prepareStatement(sqlCompAdd);
+            psCompAdd.setBigDecimal(1, new BigDecimal(compId));
+            psCompAdd.setBigDecimal(2, new BigDecimal(compCoreHash));
+            psCompAdd.setString(3, component.getName());
+            psCompAdd.setString(4, component.getCreator());
+            psCompAdd.setBigDecimal(5, new BigDecimal(rightsHash));
+            psCompAdd.setDate(6, new java.sql.Date(component.getCreationDate().getTime()));
+            psCompAdd.setString(7, component.getFiringPolicy());
+            psCompAdd.setString(8, component.getMode().getURI());
+            psCompAdd.setString(9, component.getFormat());
+            psCompAdd.setString(10, component.getRunnable());
+            psCompAdd.setString(11, component.getLocation().getURI());
+            psCompAdd.setString(12, origURI);
 
         }
         catch (Exception e) {
@@ -678,10 +737,10 @@ public class SQLLink implements BackendStoreLink {
      * @throws IOException Thrown if a I/O error occurs
      * @throws URISyntaxException Thrown if there is a problem with the context URLs
      */
-    protected SortedMap<String, File> retrieveContextsAndComputeHashes(Set<URL> contexts)
+    protected SortedMap<BigInteger, File> retrieveContextsAndComputeHashes(Set<URL> contexts)
             throws IOException, URISyntaxException {
 
-        SortedMap<String, File> sortedMap = new TreeMap<String, File>();
+        SortedMap<BigInteger, File> sortedMap = new TreeMap<BigInteger, File>();
 
         for (URL url : contexts) {
             String ctxFileName = url.toString().substring(url.toString().lastIndexOf("/") + 1);
@@ -700,7 +759,7 @@ public class SQLLink implements BackendStoreLink {
             }
 
             // Compute the MD5 hash for the context file
-            final String md5 = Crypto.getHexString(Crypto.createMD5Hash(tmpFile));
+            final BigInteger md5 = new BigInteger(Crypto.createMD5Hash(tmpFile));
 
             sortedMap.put(md5, tmpFile);
         }
@@ -735,33 +794,4 @@ public class SQLLink implements BackendStoreLink {
             closeResultSet(rs);
         }
     }
-
-    /**
-     * Returns the rights id for a particular rights string, or null if no id exists
-     *
-     * @param rights The rights text
-     * @param conn The SQL connection to use
-     * @return The rights id for a particular rights string, or null if no id exists
-     * @throws BackendStoreException Thrown if an error occurs
-     */
-    protected Integer getRightsId(String rights, Connection conn) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_RIGHTS_GET_ID).trim();
-        ResultSet rs = null;
-
-        try {
-            PreparedStatement psGetRightsId = conn.prepareStatement(sqlQuery);
-            psGetRightsId.setString(1, Tools.getRightsHash(rights));
-            rs = psGetRightsId.executeQuery();
-
-            return rs.next() ? rs.getInt(1) : null;
-        }
-        catch (SQLException e) {
-            logger.log(Level.SEVERE, null, e);
-            throw new BackendStoreException(e);
-        }
-        finally {
-            closeResultSet(rs);
-        }
-    }
-
 }
