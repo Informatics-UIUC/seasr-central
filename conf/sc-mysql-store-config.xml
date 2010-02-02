@@ -31,7 +31,7 @@
         // sc_role
         //
         CREATE TABLE IF NOT EXISTS sc_role (
-            role_uuid  INT(16) NOT NULL,
+            role_uuid  DECIMAL(39) NOT NULL,
             role_name  VARCHAR(30) NOT NULL,
 
             PRIMARY KEY (role_uuid),
@@ -42,7 +42,7 @@
         // sc_user
         //
         CREATE TABLE IF NOT EXISTS sc_user (
-            user_uuid    INT(16) NOT NULL,
+            user_uuid    DECIMAL(39) NOT NULL,
             screen_name  VARCHAR(20) NOT NULL,
             password     VARCHAR(80) NOT NULL,
             created_at   DATETIME NOT NULL,
@@ -58,7 +58,7 @@
         // sc_role_permission
         //
         CREATE TABLE IF NOT EXISTS sc_role_permission (
-            role_uuid  INT(16) NOT NULL,
+            role_uuid  DECIMAL(39) NOT NULL,
             perm_id    SMALLINT UNSIGNED NOT NULL,
 
             PRIMARY KEY (role_uuid, perm_id),
@@ -72,8 +72,8 @@
         // sc_role_user
         //
         CREATE TABLE IF NOT EXISTS sc_role_user (
-            user_uuid  INT(16) NOT NULL,
-            role_uuid  INT(16) NOT NULL,
+            user_uuid  DECIMAL(39) NOT NULL,
+            role_uuid  DECIMAL(39) NOT NULL,
 
             PRIMARY KEY (user_uuid, role_uuid),
             INDEX (user_uuid) USING HASH,
@@ -105,7 +105,7 @@
         // sc_group
         //
         CREATE TABLE IF NOT EXISTS sc_group (
-            group_uuid  INT(16) NOT NULL,
+            group_uuid  DECIMAL(39) NOT NULL,
             group_name  VARCHAR(45) NOT NULL,
             created_at  DATETIME NOT NULL,
             profile     TEXT NULL,
@@ -119,8 +119,8 @@
         // sc_user_group
         //
         CREATE TABLE IF NOT EXISTS sc_user_group (
-            user_uuid   INT(16) NOT NULL,
-            group_uuid  INT(16) NOT NULL,
+            user_uuid   DECIMAL(39) NOT NULL,
+            group_uuid  DECIMAL(39) NOT NULL,
 
             PRIMARY KEY (user_uuid, group_uuid),
             INDEX (user_uuid) USING HASH,
@@ -133,7 +133,7 @@
         // sc_rights
         //
         CREATE TABLE IF NOT EXISTS sc_rights (
-            rights_hash  INT(16) NOT NULL,
+            rights_hash  DECIMAL(39) NOT NULL,
             text         TEXT NOT NULL,
 
             PRIMARY KEY (rights_hash)
@@ -144,13 +144,13 @@
         //
         CREATE TABLE IF NOT EXISTS sc_component (
             comp_ver_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            comp_uuid      INT(16) NOT NULL,
-            comp_hash      INT(16) NOT NULL,
+            comp_uuid      DECIMAL(39) NOT NULL,
+            comp_hash      DECIMAL(39) NOT NULL,
             name           VARCHAR(45) NULL,
             creator        VARCHAR(45) NULL,
             creation_date  DATETIME NULL,
             firing_policy  VARCHAR(45) NULL,
-            rights_hash    INT(16) NULL,
+            rights_hash    DECIMAL(39) NULL,
             mode           VARCHAR(45) NULL,
             format         VARCHAR(45) NULL,
             runnable       VARCHAR(45) NULL,
@@ -208,7 +208,7 @@
         // sc_context
         //
         CREATE TABLE IF NOT EXISTS sc_context (
-            context_hash  INT(16) NOT NULL,
+            context_hash  DECIMAL(39) NOT NULL,
             data          BLOB NOT NULL,
 
             PRIMARY KEY (context_hash)
@@ -218,7 +218,7 @@
         // sc_context_meta
         //
         CREATE TABLE IF NOT EXISTS sc_context_meta (
-            context_hash  INT(16) NOT NULL,
+            context_hash  DECIMAL(39) NOT NULL,
             mime_type     VARCHAR(45) NOT NULL,
 
             PRIMARY KEY (context_hash),
@@ -231,7 +231,7 @@
         //
         CREATE TABLE IF NOT EXISTS sc_component_context (
             comp_ver_id   BIGINT UNSIGNED NOT NULL,
-            context_hash  INT(16) NOT NULL,
+            context_hash  DECIMAL(39) NOT NULL,
 
             PRIMARY KEY (comp_ver_id, context_hash),
             INDEX (comp_ver_id) USING HASH,
@@ -270,7 +270,7 @@
         // sc_user_component
         //
         CREATE TABLE IF NOT EXISTS sc_user_component (
-            user_uuid    INT(16) NOT NULL,
+            user_uuid    DECIMAL(39) NOT NULL,
             comp_ver_id  BIGINT UNSIGNED NOT NULL,
 
             PRIMARY KEY (user_uuid, comp_ver_id),
@@ -285,7 +285,7 @@
         //
         CREATE TABLE IF NOT EXISTS sc_component_group (
             comp_ver_id  BIGINT UNSIGNED NOT NULL,
-            group_uuid   INT(16) NOT NULL,
+            group_uuid   DECIMAL(39) NOT NULL,
 
             PRIMARY KEY (comp_ver_id, group_uuid),
             INDEX (comp_ver_id) USING HASH,
@@ -299,12 +299,12 @@
         //
         CREATE TABLE IF NOT EXISTS sc_flow (
             flow_ver_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            flow_uuid      INT(16) NOT NULL,
-            flow_hash      INT(16) NOT NULL,
+            flow_uuid      DECIMAL(39) NOT NULL,
+            flow_hash      DECIMAL(39) NOT NULL,
             name           VARCHAR(45) NULL,
             creator        VARCHAR(45) NULL,
             creation_date  DATETIME NULL,
-            rights_hash    INT(16) NULL,
+            rights_hash    DECIMAL(39) NULL,
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -397,7 +397,7 @@
         // sc_user_flow
         //
         CREATE TABLE IF NOT EXISTS sc_user_flow (
-            user_uuid    INT(16) NOT NULL,
+            user_uuid    DECIMAL(39) NOT NULL,
             flow_ver_id  BIGINT UNSIGNED NOT NULL,
 
             PRIMARY KEY (user_uuid, flow_ver_id),
@@ -412,7 +412,7 @@
         //
         CREATE TABLE IF NOT EXISTS sc_flow_group (
             flow_ver_id  BIGINT UNSIGNED NOT NULL,
-            group_uuid   INT(16) NOT NULL,
+            group_uuid   DECIMAL(39) NOT NULL,
 
             PRIMARY KEY (flow_ver_id, group_uuid),
             INDEX (flow_ver_id) USING HASH,
@@ -438,10 +438,10 @@
             evt_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
             evt_code    SMALLINT UNSIGNED NOT NULL,
             timestamp   DATETIME NOT NULL,
-            user_uuid   INT(16) NULL,
-            group_uuid  INT(16) NULL,
-            comp_uuid   INT(16) NULL,
-            flow_uuid   INT(16) NULL,
+            user_uuid   DECIMAL(39) NULL,
+            group_uuid  DECIMAL(39) NULL,
+            comp_uuid   DECIMAL(39) NULL,
+            flow_uuid   DECIMAL(39) NULL,
             metadata    VARCHAR(255) NULL,
 
             PRIMARY KEY (evt_id),

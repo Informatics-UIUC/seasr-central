@@ -181,18 +181,18 @@ public class SQLLink implements BackendStoreLink {
     public UUID addUser(String userName, String password, JSONObject profile) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_ADD).trim();
         Connection conn = null;
-        UUID uuid = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
 
         try {
             conn = dataSource.getConnection();
             PreparedStatement ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(uuid)));
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.setString(2, userName);
             ps.setString(3, computeDigest(password));
             ps.setString(4, profile.toString());
             ps.executeUpdate();
 
-            return uuid;
+            return userId;
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -448,24 +448,24 @@ public class SQLLink implements BackendStoreLink {
             ps.setInt(1, eventCode.getEventCode());
 
             if (userId != null)
-                ps.setString(2, userId.toString());
+                ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             else
-                ps.setNull(2, Types.CHAR);
+                ps.setNull(2, Types.DECIMAL);
 
             if (groupId != null)
-                ps.setString(3, groupId.toString());
+                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             else
-                ps.setNull(3, Types.CHAR);
+                ps.setNull(3, Types.DECIMAL);
 
             if (compId != null)
-                ps.setString(4, compId.toString());
+                ps.setBigDecimal(4, new BigDecimal(UUIDUtils.toBigInteger(compId)));
             else
-                ps.setNull(4, Types.CHAR);
+                ps.setNull(4, Types.DECIMAL);
 
             if (flowId != null)
-                ps.setString(5, flowId.toString());
+                ps.setBigDecimal(5, new BigDecimal(UUIDUtils.toBigInteger(flowId)));
             else
-                ps.setNull(5, Types.CHAR);
+                ps.setNull(5, Types.DECIMAL);
 
             if (metadata != null)
                 ps.setString(6, metadata.toString());
