@@ -541,11 +541,26 @@
     <entry key="org.seasr.central.storage.db.query.component.add">
         INSERT INTO sc_component (comp_uuid, comp_hash, name, creator, rights_hash, creation_date, firing_policy, mode, format, runnable, res_location, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.description">
+        INSERT INTO sc_component_description (comp_ver_id, description) VALUES (?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.tag">
+        INSERT INTO sc_component_tag (comp_ver_id, tag) VALUES (?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.context">
+        INSERT IGNORE INTO sc_context (context_hash, data) VALUES (?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.id">
+        SELECT comp_uuid FROM sc_component WHERE uri = ? LIMIT 1;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.last_insert">
-        SELECT comp_uuid, comp_hash, name, creator, rights_hash FROM sc_component WHERE uri = ? ORDER BY comp_ver_id DESC LIMIT 1;
+        SELECT comp_hash, name, description, tag, creator, rights_hash, uri FROM (SELECT comp_ver_id, comp_hash, name, creator, rights_hash, uri FROM sc_component WHERE comp_uuid = ? ORDER BY comp_ver_id DESC LIMIT 1) c INNER JOIN sc_component_description d INNER JOIN sc_component_tag t ON c.comp_ver_id = d.comp_ver_id AND c.comp_ver_id = t.comp_ver_id;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
         SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.has_context">
+        SELECT 1 FROM sc_context WHERE context_hash = ?;
     </entry>
 
     <!-- FLOWS -->

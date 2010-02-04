@@ -49,10 +49,7 @@ import org.seasr.central.storage.exceptions.BackendStoreException;
 
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Date;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * The interface that any back end storage driver must implement
@@ -192,11 +189,11 @@ public interface BackendStoreLink {
      *
      * @param userId           The user to be credited with the upload
      * @param component        The component
-     * @param contexts         The component context files
+     * @param contexts         The component context files as <URL, ContentType>
      * @return A JSON object keyed on uuid and version containing information about the component
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts)
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
             throws BackendStoreException;
 
     /**
@@ -217,6 +214,15 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public InputStream getContextInputStream(String contextId) throws BackendStoreException;
+
+    /**
+     * Returns the version count for a component
+     *
+     * @param componentId The component id
+     * @return The version count, or null if the component does not exist
+     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     */
+    public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
 
     /**
      * Adds (or updates) a flow

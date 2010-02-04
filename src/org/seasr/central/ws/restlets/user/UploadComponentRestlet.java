@@ -70,6 +70,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -154,11 +155,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
         try {
             // Mapping between component uri and set of contexts, and temp context folders
-            Map<String, Set<URL>> componentsMap = new HashMap<String, Set<URL>>();
-            Map<String, File> contextTempFolderMap = new HashMap<String, File>();
-
-            // Accumulator for the component models
-            Model model = ModelFactory.createDefaultModel();
+            Map<String, Component> componentsMap = new HashMap<String,Component>();
 
             String currentComponentResUri = null;
             boolean skipProcessingContexts = false;
@@ -192,16 +189,9 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                                 ModelUtils.getModel(file.getInputStream(), null);
                         List<Resource> compResList = compModel.listSubjectsWithProperty(
                                 RDF.type, RepositoryVocabulary.executable_component).toList();
-                        if (compResList.size() != 1) {
-                            skipProcessingContexts = true;
-                            throw new Exception("RDF descriptor does not contain an executable component, " +
+                        if (compResList.size() != 1)
+                            throw new Exception("RDF model does not contain an executable component, " +
                                     "or contains more than one component.");
-                        }
-
-                        // Accumulate and create a new entry in the component context hashmap
-                        model.add(compModel);
-                        currentComponentResUri = compResList.get(0).getURI();
-                        componentsMap.put(currentComponentResUri, new HashSet<URL>());
 
                         // Create a temp folder to store any context files for this component
                         File tempFolder = createTempFolder(String.format("%s_%d_",
@@ -211,16 +201,22 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                             sendErrorInternalServerError(response);
                             return true;
                         }
-                        contextTempFolderMap.put(currentComponentResUri, tempFolder);
+
+                        // Accumulate and create a new entry in the component context hashmap
+                        currentComponentResUri = compResList.get(0).getURI();
+                        componentsMap.put(currentComponentResUri, new Component(compModel, tempFolder));
                     }
                     catch (Exception e) {
                         String descriptorName = file.isFormField() ? file.getString().trim() : file.getName();
                         logger.log(Level.WARNING, String.format("Error parsing RDF from '%s'", descriptorName), e);
 
-                        JSONObject joError = createJSONErrorObj("Invalid component RDF descriptor received", e);
-                        joError.put("descriptor", descriptorName);
+                        JSONObject joError = createJSONErrorObj("Invalid component RDF model received", e);
+                        joError.put("model", descriptorName);
 
                         jaErrors.put(joError);
+
+                        skipProcessingContexts = true;
+                        continue;
                     }
                 }
 
@@ -235,20 +231,48 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         return true;
                     }
 
+                    Component component = componentsMap.get(currentComponentResUri);
+
                     // If we're uploading a context file as a form field (non-file)
                     // then assume it's specifying a full URL, otherwise the field
                     // is assumed to be the context file uploaded
                     if (file.isFormField()) {
                         try {
-                            componentsMap.get(currentComponentResUri).add(new URL(file.getString()));
+                            URL url = new URL(file.getString());
+                            URLConnection connection = url.openConnection();
+                            connection.setConnectTimeout(CONNECTION_TIMEOUT);
+                            connection.setReadTimeout(READ_TIMEOUT);
+                            String contentType = connection.getContentType();
+                            component.getContexts().put(url, contentType);
                         }
                         catch (MalformedURLException e) {
                             sendErrorBadRequest(response);
                             return true;
                         }
+                        catch (IOException e) {
+                            // Error reading from URL
+                            logger.log(Level.WARNING, "Error reading from context url: " + file.getString(), e);
+                            JSONObject joError = createJSONErrorObj("Cannot access context location", e);
+                            joError.put("compUri", currentComponentResUri);
+                            joError.put("url", file.getString());
+
+                            jaErrors.put(joError);
+
+                            try {
+                                FileUtils.deleteDirectory(component.getTempContextFolder());
+                            }
+                            catch (IOException ex) {
+                                logger.log(Level.WARNING, "Cannot delete temp context folder: " +
+                                        component.getTempContextFolder(), ex);
+                            }
+
+                            componentsMap.remove(currentComponentResUri);
+                            skipProcessingContexts = true;
+                            continue;
+                        }
                     } else {
                         // Add the context file to the current component being uploaded
-                        File contextFile = new File(contextTempFolderMap.get(currentComponentResUri), file.getName());
+                        File contextFile = new File(component.getTempContextFolder(), file.getName());
                         try {
                             file.write(contextFile);
                         }
@@ -259,7 +283,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         }
 
                         try {
-                            componentsMap.get(currentComponentResUri).add(contextFile.toURI().toURL());
+                            component.getContexts().put(contextFile.toURI().toURL(), file.getContentType());
                         }
                         catch (MalformedURLException e) {
                             // Should never happen
@@ -269,50 +293,58 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 }
             }
 
-            QueryableRepository qr = new RepositoryImpl(model);
+            if (componentsMap.size() > 0) {
+                // Accumulate the component models
+                Model model = ModelFactory.createDefaultModel();
+                for (Component component : componentsMap.values())
+                    model.add(component.getModel());
 
-            for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
-                String origUri = ecd.getExecutableComponent().getURI();
+                QueryableRepository qr = new RepositoryImpl(model);
 
-                try {
-                    // Attempt to add the component to the backend storage
-                    Set<URL> contexts = componentsMap.get(origUri);
-                    JSONObject joResult = bsl.addComponent(userId, ecd, contexts);
+                for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
+                    String origUri = ecd.getExecutableComponent().getURI();
 
-                    String compId = joResult.getString("uuid");
-                    int compVersion = joResult.getInt("version");
+                    try {
+                        // Attempt to add the component to the backend storage
+                        Map<URL, String> contexts = componentsMap.get(origUri).getContexts();
+                        JSONObject joResult = bsl.addComponent(userId, ecd, contexts);
 
-                    String compUrl = String.format("%s://%s:%d/repository/component/%s/%d.ttl",
-                            request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
+                        String compId = joResult.getString("uuid");
+                        int compVersion = joResult.getInt("version");
 
-                    JSONObject joComponent = new JSONObject();
-                    joComponent.put("orig_uri", origUri);
-                    joComponent.put("uuid", compId);
-                    joComponent.put("version", compVersion);
-                    joComponent.put("url", compUrl);
+                        String compUrl = String.format("%s://%s:%d/repository/component/%s/%d.ttl",
+                                request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
 
-                    jaSuccess.put(joComponent);
+                        JSONObject joComponent = new JSONObject();
+                        joComponent.put("orig_uri", origUri);
+                        joComponent.put("uuid", compId);
+                        joComponent.put("version", compVersion);
+                        joComponent.put("url", compUrl);
 
-                    // Record the event
-                    Event event = (compVersion == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
-                    bsl.addEvent(event, userId, null, null, null, joComponent);
+                        jaSuccess.put(joComponent);
+
+                        // Record the event
+                        Event event = (compVersion == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
+                        bsl.addEvent(event, userId, null, null, null, joComponent);
+                    }
+                    catch (BackendStoreException e) {
+                        logger.log(Level.SEVERE, null, e);
+
+                        jaErrors.put(createJSONErrorObj(String.format("Failed to add component '%s' (%s)",
+                                ecd.getName(), origUri), e));
+                    }
                 }
-                catch (BackendStoreException e) {
-                    logger.log(Level.SEVERE, null, e);
 
-                    jaErrors.put(createJSONErrorObj(String.format("Failed to add component '%s' (%s)",
-                            ecd.getName(), origUri), e));
-                }
+                // Clean up the temp folders
+                for (Component component : componentsMap.values())
+                    try {
+                        FileUtils.deleteDirectory(component.getTempContextFolder());
+                    }
+                    catch (IOException e) {
+                        logger.log(Level.WARNING, "Cannot delete temp context folder: "
+                                + component.getTempContextFolder(), e);
+                    }
             }
-
-            // Clean up the temp folders
-            for (File tempFolder : contextTempFolderMap.values())
-                try {
-                    FileUtils.deleteDirectory(tempFolder);
-                }
-                catch (IOException e) {
-                    logger.log(Level.WARNING, "Cannot delete temp context folder: " + tempFolder, e);
-                }
 
             JSONObject joContent = new JSONObject();
             joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
@@ -337,5 +369,28 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
         }
 
         return true;
+    }
+
+    private class Component {
+        private final Model model;
+        private final File tempContextFolder;
+        private final Map<URL, String> contexts = new HashMap<URL, String>();
+
+        public Component(Model model, File tempContextFolder) {
+            this.model = model;
+            this.tempContextFolder = tempContextFolder;
+        }
+
+        public Model getModel() {
+            return model;
+        }
+
+        public Map<URL, String> getContexts() {
+            return contexts;
+        }
+
+        public File getTempContextFolder() {
+            return tempContextFolder;
+        }
     }
 }

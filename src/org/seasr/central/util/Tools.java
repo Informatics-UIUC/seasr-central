@@ -76,6 +76,9 @@ import java.util.logging.Logger;
 public class Tools {
     private static final Logger logger = Logger.getLogger(SCServer.class.getName());
 
+    public static final int CONNECTION_TIMEOUT = 0;   // Used for connecting and reading from URLs
+    public static final int READ_TIMEOUT = 0;         // Setting this value to 0 signifies "wait-forever"
+
     /** The XSL transformation used to convert XML to HTML */
     private static final Transformer xslTrans;
 

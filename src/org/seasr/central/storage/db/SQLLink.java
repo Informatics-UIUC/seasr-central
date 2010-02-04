@@ -53,7 +53,6 @@ import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
 import org.seasr.central.util.SCLogFormatter;
-import org.seasr.central.util.Tools;
 import org.seasr.meandre.support.generic.crypto.Crypto;
 import org.seasr.meandre.support.generic.util.UUIDUtils;
 
@@ -72,7 +71,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.seasr.central.util.Tools.computePasswordDigest;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Generic SQL backend store link driver
@@ -152,18 +151,21 @@ public class SQLLink implements BackendStoreLink {
         }
 
         Connection conn = null;
+        Statement stmt = null;
         try {
             // Initialize the database (create tables, etc.)
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
 
+            stmt = conn.createStatement();
+
             // Create the authentication schema
             for (String sql : parseSQLString(properties.getProperty(DBProperties.AUTH_SCHEMA)))
-                conn.createStatement().executeUpdate(sql);
+                stmt.executeUpdate(sql);
 
             // Create the main SC schema
             for (String sql : parseSQLString(properties.getProperty(DBProperties.SC_SCHEMA)))
-                conn.createStatement().executeUpdate(sql);
+                stmt.executeUpdate(sql);
 
             conn.commit();
         }
@@ -173,7 +175,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, stmt);
         }
     }
 
@@ -181,11 +183,12 @@ public class SQLLink implements BackendStoreLink {
     public UUID addUser(String userName, String password, JSONObject profile) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_ADD).trim();
         Connection conn = null;
+        PreparedStatement ps = null;
         UUID userId = UUID.randomUUID();
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.setString(2, userName);
             ps.setString(3, computePasswordDigest(password));
@@ -199,7 +202,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -207,10 +210,11 @@ public class SQLLink implements BackendStoreLink {
     public void removeUser(UUID userId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_REMOVE).trim();
         Connection conn = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.executeUpdate();
         }
@@ -219,7 +223,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -227,20 +231,22 @@ public class SQLLink implements BackendStoreLink {
     public void updateUserPassword(UUID userId, String password) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PASSWORD).trim();
         Connection conn = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, computePasswordDigest(password));
             ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.executeUpdate();
+            ps.close();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -248,10 +254,11 @@ public class SQLLink implements BackendStoreLink {
     public void updateProfile(UUID userId, JSONObject profile) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PROFILE).trim();
         Connection conn = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, profile.toString());
             ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.executeUpdate();
@@ -261,7 +268,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -269,13 +276,13 @@ public class SQLLink implements BackendStoreLink {
     public UUID getUserId(String userName) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_UUID).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, userName);
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger()) : null;
         }
@@ -284,7 +291,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -292,13 +299,13 @@ public class SQLLink implements BackendStoreLink {
     public String getUserScreenName(UUID userId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_SCREENNAME).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return rs.next() ? rs.getString(1) : null;
         }
@@ -307,7 +314,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -315,13 +322,13 @@ public class SQLLink implements BackendStoreLink {
     public JSONObject getUserProfile(UUID userId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_PROFILE).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return rs.next() ? new JSONObject(rs.getString(1)) : null;
         }
@@ -330,7 +337,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -338,13 +345,13 @@ public class SQLLink implements BackendStoreLink {
     public Date getUserCreationTime(UUID userId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_CREATEDAT).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
         }
@@ -353,7 +360,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -361,14 +368,14 @@ public class SQLLink implements BackendStoreLink {
     public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_PASSWORDVALID).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ps.setString(2, computePasswordDigest(password));
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return rs.next();
         }
@@ -377,7 +384,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -385,11 +392,12 @@ public class SQLLink implements BackendStoreLink {
     public long userCount() throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_COUNT).trim();
         Connection conn = null;
-        ResultSet rs = null;
+        Statement stmt = null;
 
         try {
             conn = dataSource.getConnection();
-            rs = conn.createStatement().executeQuery(sqlQuery);
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sqlQuery);
             rs.next();
 
             return rs.getLong(1);
@@ -399,7 +407,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, stmt);
         }
     }
 
@@ -408,14 +416,14 @@ public class SQLLink implements BackendStoreLink {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_LIST).trim();
         JSONArray jaUsers = new JSONArray();
         Connection conn = null;
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setLong(1, offset);
             ps.setLong(2, count);
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 JSONObject joUser = new JSONObject();
@@ -432,7 +440,7 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn, rs);
+            releaseConnection(conn, ps);
         }
     }
 
@@ -441,10 +449,11 @@ public class SQLLink implements BackendStoreLink {
                          UUID compId, UUID flowId, JSONObject metadata) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
         Connection conn = null;
+        PreparedStatement ps = null;
 
         try {
             conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setInt(1, eventCode.getEventCode());
 
             if (userId != null)
@@ -479,24 +488,17 @@ public class SQLLink implements BackendStoreLink {
             throw new BackendStoreException(e);
         }
         finally {
-            releaseConnection(conn);
+            releaseConnection(conn, ps);
         }
     }
 
     @Override
-    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Set<URL> contexts)
+    public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
             throws BackendStoreException {
 
         JSONObject joResult = new JSONObject();
-        String origURI = component.getExecutableComponent().getURI();
-
-        String sqlRightsGetText = properties.getProperty(DBProperties.Q_RIGHTS_GET_TEXT).trim();
-        String sqlRightsAdd = properties.getProperty(DBProperties.Q_RIGHTS_ADD).trim();
-        String sqlCompGetLastInsert = properties.getProperty(DBProperties.Q_COMP_GET_LASTINSERT).trim();
-        String sqlCompGetVerCount = properties.getProperty(DBProperties.Q_COMP_GET_VERCOUNT).trim();
-        String sqlCompAdd = properties.getProperty(DBProperties.Q_COMP_ADD).trim();
-
         Connection conn = null;
+
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
@@ -504,109 +506,60 @@ public class SQLLink implements BackendStoreLink {
             if (!Boolean.TRUE.equals(isUserActive(userId, conn)))
                 throw new InactiveUserException(userId);
 
-            SortedMap<BigInteger, File> contextHashes = retrieveContextsAndComputeHashes(contexts);
-            BigInteger compCoreHash = new BigInteger(Tools.getComponentCoreHash(component, (SortedSet)contextHashes.keySet()));
+            SortedMap<BigInteger, ContextFile> contextHashes = retrieveContextsAndComputeHashes(contexts);
+            BigInteger compHash = new BigInteger(getComponentCoreHash(component, (SortedSet)contextHashes.keySet()));
 
-            final String compRights = component.getRights();
-            BigInteger rightsHash = new BigInteger(Tools.getRightsHash(compRights));
+            String compRights = component.getRights();
+            BigInteger rightsHash = new BigInteger(getRightsHash(compRights));
 
-            BigInteger compId = null;
+            BigInteger compId = getComponentId(component, conn);
 
             // Check whether the rights text already exists
-            PreparedStatement psRightsGetText = conn.prepareStatement(sqlRightsGetText);
-            psRightsGetText.setBigDecimal(1, new BigDecimal(rightsHash));
+            if (getRightsTextForHash(rightsHash, conn) != null) {
+                if (compId != null) {
+                    Component lastAddComp = getLastAddedComponent(compId, conn);
+                    if (lastAddComp == null) // sanity check - should not happen
+                        throw new BackendStoreException("Problem retrieving last added component for existing comp id: "
+                                + UUIDUtils.fromBigInteger(compId));
 
-            boolean hasRights;
-            ResultSet rsRightsGetText = null;
-            try {
-                rsRightsGetText = psRightsGetText.executeQuery();
-                hasRights = rsRightsGetText.next();
-            }
-            finally {
-                closeResultSet(rsRightsGetText);
-            }
+                    // Check whether this component is identical to last added
+                    if (compHash == lastAddComp.getComponentCoreHash()
+                            && component.getName() == lastAddComp.getName()
+                            && component.getCreator() == lastAddComp.getCreator()
+                            && component.getDescription() == lastAddComp.getDescription()
+                            && rightsHash == lastAddComp.getRightsHash()
+                            && component.getExecutableComponent().getURI() == lastAddComp.getUri()
+                            && component.getTags().getTags().containsAll(lastAddComp.getTags())
+                            && lastAddComp.getTags().containsAll(component.getTags().getTags())) {
 
-            if (hasRights) {
-                // Check whether this component is identical to last inserted
-                PreparedStatement psCompGetLastInsert = conn.prepareStatement(sqlCompGetLastInsert);
-                psCompGetLastInsert.setString(1, origURI);
+                        // Component identical to last inserted version, get its version and return info to user
+                        int qCompVersion = getComponentVersionCount(compId, conn);
 
-                ResultSet rsCompGetLastInsert = null;
-                try {
-                    rsCompGetLastInsert = psCompGetLastInsert.executeQuery();
+                        joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
+                        joResult.put("version", qCompVersion);
 
-                    if (rsCompGetLastInsert.next()) {
-                        // Extract the query results
-                        compId = rsCompGetLastInsert.getBigDecimal("comp_uuid").toBigInteger();
-                        BigInteger qCompCoreHash = rsCompGetLastInsert.getBigDecimal("comp_hash").toBigInteger();
-                        String qName = rsCompGetLastInsert.getString("name");
-                        String qCreator = rsCompGetLastInsert.getString("creator");
-                        BigInteger qRightsHash = rsCompGetLastInsert.getBigDecimal("rights_hash").toBigInteger();
+                        logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
+                                joResult.get("uuid"), qCompVersion));
 
-                        if (qCompCoreHash == compCoreHash
-                                && qName == component.getName()
-                                && qCreator == component.getCreator()
-                                && qRightsHash == rightsHash) {
-
-                            // Component identical to last inserted version, get its version and return info to user
-                            PreparedStatement psCompGetVerCount = conn.prepareStatement(sqlCompGetVerCount);
-                            psCompGetVerCount.setBigDecimal(1, new BigDecimal(compId));
-
-                            ResultSet rsCompVerCount = null;
-                            int qCompVersion;
-                            try {
-                                rsCompVerCount = psCompGetVerCount.executeQuery();
-                                rsCompVerCount.next();
-                                qCompVersion = rsCompVerCount.getInt(1);
-                            }
-                            finally {
-                                closeResultSet(rsCompVerCount);
-                            }
-
-                            joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
-                            joResult.put("version", qCompVersion);
-
-                            logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
-                                    joResult.get("uuid"), qCompVersion));
-
-                            return joResult;
-                        }
+                        return joResult;
                     }
-                }
-                finally {
-                    closeResultSet(rsCompGetLastInsert);
-                }
-            } else {
+                } else
+                    // Generate a new id for the component
+                    compId = UUIDUtils.toBigInteger(UUID.randomUUID());
+            } else
                 // Insert the license text into the DB
-                PreparedStatement psRightsAdd = conn.prepareStatement(sqlRightsAdd);
-                psRightsAdd.setBigDecimal(1, new BigDecimal(rightsHash));
-                psRightsAdd.setString(2, compRights);
-                psRightsAdd.executeUpdate();
-            }
-
-            if (compId == null)
-                compId = UUIDUtils.toBigInteger(UUID.randomUUID());
+                addRights(compRights, rightsHash, conn);
 
             // Insert this component version into the DB
-            PreparedStatement psCompAdd = conn.prepareStatement(sqlCompAdd);
-            psCompAdd.setBigDecimal(1, new BigDecimal(compId));
-            psCompAdd.setBigDecimal(2, new BigDecimal(compCoreHash));
-            psCompAdd.setString(3, component.getName());
-            psCompAdd.setString(4, component.getCreator());
-            psCompAdd.setBigDecimal(5, new BigDecimal(rightsHash));
-            psCompAdd.setDate(6, new java.sql.Date(component.getCreationDate().getTime()));
-            psCompAdd.setString(7, component.getFiringPolicy());
-            psCompAdd.setString(8, component.getMode().getURI());
-            psCompAdd.setString(9, component.getFormat());
-            psCompAdd.setString(10, component.getRunnable());
-            psCompAdd.setString(11, component.getLocation().getURI());
-            psCompAdd.setString(12, origURI);
-
+            long compVerId = addComponent(compId, compHash, rightsHash, contextHashes, component, conn);
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             rollbackTransaction(conn);
-            throw new BackendStoreException(e);
+            if (e instanceof BackendStoreException)
+                throw (BackendStoreException)e;
+            else
+                throw new BackendStoreException(e);
         }
         finally {
             releaseConnection(conn);
@@ -614,6 +567,124 @@ public class SQLLink implements BackendStoreLink {
 
         return joResult;
     }
+
+    protected long addComponent(BigInteger compId, BigInteger compHash, BigInteger rightsHash,
+                                Map<BigInteger, ContextFile> contextHashes, ExecutableComponentDescription component,
+                                Connection conn) throws SQLException, FileNotFoundException {
+        PreparedStatement ps = null;
+        long compVerId;
+
+        try {
+            // Insert this component version into the DB
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD).trim();
+            ps = conn.prepareStatement(sqlQuery, Statement.RETURN_GENERATED_KEYS);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setBigDecimal(2, new BigDecimal(compHash));
+            ps.setString(3, component.getName());
+            ps.setString(4, component.getCreator());
+            ps.setBigDecimal(5, new BigDecimal(rightsHash));
+            ps.setDate(6, new java.sql.Date(component.getCreationDate().getTime()));
+            ps.setString(7, component.getFiringPolicy());
+            ps.setString(8, component.getMode().getURI());
+            ps.setString(9, component.getFormat());
+            ps.setString(10, component.getRunnable());
+            ps.setString(11, component.getLocation().getURI());
+            ps.setString(12, component.getExecutableComponent().getURI());
+            ps.executeUpdate();
+
+            compVerId = getAutoGeneratedKey(ps);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component description
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_DESCRIPTION).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, compVerId);
+            ps.setString(2, component.getDescription());
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component tags
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_TAG).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (String tag : component.getTags().getTags()) {
+                ps.setLong(1, compVerId);
+                ps.setString(2, tag);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component contexts
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_CONTEXT).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
+                if (!hasContext(context.getKey(), conn)) {
+                    ps.setBigDecimal(1, new BigDecimal(context.getKey()));
+                    ps.setBlob(2, new FileInputStream(context.getValue().getFile()));
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+        catch (SQLException e) {
+            logger.log(Level.WARNING, "Ignoring SQLException on adding contexts!", e);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component tags
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_TAG).trim();
+            ps = conn.prepareStatement(sqlQuery);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        return compVerId;
+    }
+
+    /**
+     * Checks whether the DB contains the specified context hash
+     *
+     * @param contextHash The context hash
+     * @param conn The DB connection to use
+     * @return True if this context hash exists in the DB, False otherwise
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected boolean hasContext(BigInteger contextHash, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_HASCONTEXT).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(contextHash));
+
+            return ps.getResultSet().next();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
 
     @Override
     public Model getComponent(UUID componentId, int version) throws BackendStoreException {
@@ -623,6 +694,20 @@ public class SQLLink implements BackendStoreLink {
     @Override
     public InputStream getContextInputStream(String contextId) throws BackendStoreException {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public Integer getComponentVersionCount(UUID compId) throws BackendStoreException {
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            return getComponentVersionCount(UUIDUtils.toBigInteger(compId), conn);
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
     }
 
     @Override
@@ -696,12 +781,12 @@ public class SQLLink implements BackendStoreLink {
      * Returns a connection back to the connection pool
      *
      * @param connection The connection
-     * @param resultSet  (Optional) Any ResultSet(s) that need to be closed before the connection is released
+     * @param statements  (Optional) Any ResultSet(s) that need to be closed before the connection is released
      */
-    protected void releaseConnection(Connection connection, ResultSet... resultSet) {
-        if (resultSet != null)
-            for (ResultSet rs : resultSet)
-                closeResultSet(rs);
+    protected void releaseConnection(Connection connection, Statement... statements) {
+        if (statements != null)
+            for (Statement stmt : statements)
+                closeStatement(stmt);
 
         if (connection != null) {
             try {
@@ -714,14 +799,14 @@ public class SQLLink implements BackendStoreLink {
     }
 
     /**
-     * Closes a ResultSet
+     * Closes a Statement
      *
-     * @param rs The ResultSet
+     * @param stmt The Statement
      */
-    protected void closeResultSet(ResultSet rs) {
-        if (rs != null) {
+    protected void closeStatement(Statement stmt) {
+        if (stmt != null) {
             try {
-                rs.close();
+                stmt.close();
             }
             catch (SQLException e) {
                 logger.log(Level.WARNING, null, e);
@@ -737,12 +822,13 @@ public class SQLLink implements BackendStoreLink {
      * @throws IOException Thrown if a I/O error occurs
      * @throws URISyntaxException Thrown if there is a problem with the context URLs
      */
-    protected SortedMap<BigInteger, File> retrieveContextsAndComputeHashes(Set<URL> contexts)
+    protected SortedMap<BigInteger, ContextFile> retrieveContextsAndComputeHashes(Map<URL, String> contexts)
             throws IOException, URISyntaxException {
 
-        SortedMap<BigInteger, File> sortedMap = new TreeMap<BigInteger, File>();
+        SortedMap<BigInteger, ContextFile> sortedMap = new TreeMap<BigInteger, ContextFile>();
 
-        for (URL url : contexts) {
+        for (Map.Entry<URL, String> context : contexts.entrySet()) {
+            URL url = context.getKey();
             String ctxFileName = url.toString().substring(url.toString().lastIndexOf("/") + 1);
             if (ctxFileName.length() == 0) ctxFileName = "unnamed";
 
@@ -761,7 +847,7 @@ public class SQLLink implements BackendStoreLink {
             // Compute the MD5 hash for the context file
             final BigInteger md5 = new BigInteger(Crypto.createMD5Hash(tmpFile));
 
-            sortedMap.put(md5, tmpFile);
+            sortedMap.put(md5, new ContextFile(tmpFile, context.getValue()));
         }
 
         return sortedMap;
@@ -773,25 +859,344 @@ public class SQLLink implements BackendStoreLink {
      * @param userId The user id
      * @param conn The DB transaction connection to use
      * @return Tue if user exists and is not deleted, False if user exists and is marked as deleted, null if user does not exist
-     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
-    protected Boolean isUserActive(UUID userId, Connection conn) throws BackendStoreException {
+    protected Boolean isUserActive(UUID userId, Connection conn) throws SQLException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_DELETED).trim();
-        ResultSet rs = null;
+        PreparedStatement ps = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, userId.toString());
-            rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             return rs.next() ? !rs.getBoolean(1) : null;
         }
-        catch (SQLException e) {
-            logger.log(Level.SEVERE, null, e);
-            throw new BackendStoreException(e);
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the version count for a component
+     *
+     * @param compId The component id
+     * @param conn The DB connection to use
+     * @return The version count, or null if no component with that id has been found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Integer getComponentVersionCount(BigInteger compId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_VERCOUNT).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getInt(1) : null;
         }
         finally {
-            closeResultSet(rs);
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the rights text for a particular hash value
+     *
+     * @param rightsHash The hash value
+     * @param conn The DB connection to use
+     * @return The rights text, or null if the hash value is not known to the DB
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected String getRightsTextForHash(BigInteger rightsHash, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_RIGHTS_GET_TEXT).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(rightsHash));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getString(1) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Adds a rights text (license) to the DB
+     *
+     * @param rights The text of the license
+     * @param rightsHash The hash signature of the license if known, or null if unknown
+     * @param conn The DB connection to use
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected void addRights(String rights, BigInteger rightsHash, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_RIGHTS_ADD).trim();
+
+        if (rightsHash == null)
+            rightsHash = new BigInteger(getRightsHash(rights));
+
+        PreparedStatement ps = null;
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(rightsHash));
+            ps.setString(2, rights);
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the last added version for a particular component
+     *
+     * @param compId The component id
+     * @param conn The DB connection to use
+     * @return The last added component for the given component id, or null if none found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Component getLastAddedComponent(BigInteger compId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_LASTINSERT).trim();
+        Component component = null;
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                component = new Component();
+                component.setComponentId(compId);
+                component.setComponentCoreHash(rs.getBigDecimal("comp_hash").toBigInteger());
+                component.setName(rs.getString("name"));
+                component.setDescription(rs.getString("description"));
+                component.setCreator(rs.getString("creator"));
+                component.setRightsHash(rs.getBigDecimal("rights_hash").toBigInteger());
+                component.setUri(rs.getString("uri"));
+
+                do {
+                    component.addTag(rs.getString("tag"));
+                } while (rs.next());
+            }
+
+            return component;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Returns the component id based on the attributes that determine its uniqueness.
+     * This method should be overridden in case the meaning of what constitutes a unique component
+     * is changed from its default assumption that 'uri' values determine a component's uniqueness.
+     * NOTE: If this method is overridden it is very likely that the SQL query associated with it needs to be changed
+     *
+     * @param component The component whose (subset of) attributes will be used to determine its uniqueness
+     * @param conn The DB connection to use
+     * @return The component id, or null if no matching component was found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected BigInteger getComponentId(ExecutableComponentDescription component, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_ID).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, component.getExecutableComponent().getURI());
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getBigDecimal(1).toBigInteger() : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the auto-generated key for the specified SQL statement
+     *
+     * @param stmt The SQL statement
+     * @return The key
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected long getAutoGeneratedKey(Statement stmt) throws SQLException {
+        ResultSet rs = stmt.getGeneratedKeys();
+        if (rs.next())
+            return rs.getLong(1);
+        else
+            throw new SQLException("Could not retrieve the auto-generated key");
+    }
+
+    protected class Component {
+        Long        comp_ver_id = null;
+        BigInteger  comp_uuid = null;
+        BigInteger  comp_hash = null;
+        String      name = null;
+        String      creator = null;
+        String      description = null;
+        BigInteger  rights_hash = null;
+        Date        creation_date = null;
+        Set<String> tags = null;
+        String      firing_policy = null;
+        String      mode = null;
+        String      format = null;
+        String      runnable = null;
+        String      res_location = null;
+        String      uri = null;
+        Boolean     deleted = null;
+
+        public Long getComponentVersionId() {
+            return comp_ver_id;
+        }
+
+        public void setComponentVersionId(Long comp_ver_id) {
+            this.comp_ver_id = comp_ver_id;
+        }
+
+        public BigInteger getComponentId() {
+            return comp_uuid;
+        }
+
+        public void setComponentId(BigInteger comp_uuid) {
+            this.comp_uuid = comp_uuid;
+        }
+
+        public BigInteger getComponentCoreHash() {
+            return comp_hash;
+        }
+
+        public void setComponentCoreHash(BigInteger comp_hash) {
+            this.comp_hash = comp_hash;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getCreator() {
+            return creator;
+        }
+
+        public void setCreator(String creator) {
+            this.creator = creator;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public void setDescription(String description) {
+            this.description = description;
+        }
+
+        public BigInteger getRightsHash() {
+            return rights_hash;
+        }
+
+        public void setRightsHash(BigInteger rights_hash) {
+            this.rights_hash = rights_hash;
+        }
+
+        public Date getCreationDate() {
+            return creation_date;
+        }
+
+        public void setCreationDate(Date creation_date) {
+            this.creation_date = creation_date;
+        }
+
+        public Set<String> getTags() {
+            return tags;
+        }
+
+        public void addTag(String tag) {
+            if (tags == null)
+                tags = new HashSet<String>();
+            tags.add(tag);
+        }
+
+        public String getFiringPolicy() {
+            return firing_policy;
+        }
+
+        public void setFiringPolicy(String firing_policy) {
+            this.firing_policy = firing_policy;
+        }
+
+        public String getMode() {
+            return mode;
+        }
+
+        public void setMode(String mode) {
+            this.mode = mode;
+        }
+
+        public String getFormat() {
+            return format;
+        }
+
+        public void setFormat(String format) {
+            this.format = format;
+        }
+
+        public String getRunnable() {
+            return runnable;
+        }
+
+        public void setRunnable(String runnable) {
+            this.runnable = runnable;
+        }
+
+        public String getResLocation() {
+            return res_location;
+        }
+
+        public void setResLocation(String res_location) {
+            this.res_location = res_location;
+        }
+
+        public String getUri() {
+            return uri;
+        }
+
+        public void setUri(String uri) {
+            this.uri = uri;
+        }
+
+        public Boolean isDeleted() {
+            return deleted;
+        }
+
+        public void setDeleted(Boolean deleted) {
+            this.deleted = deleted;
+        }
+    }
+
+    protected class ContextFile {
+        private final File file;
+        private final String contentType;
+
+        public ContextFile(File file, String contentType) {
+            this.file = file;
+            this.contentType = contentType;
+        }
+
+        public File getFile() {
+            return file;
+        }
+
+        public String getContentType() {
+            return contentType;
         }
     }
 }
