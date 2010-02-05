@@ -72,6 +72,7 @@ public abstract class DBProperties {
     public static final String Q_USER_PASSWORDVALID = "org.seasr.central.storage.db.query.user.password.valid";
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
+    public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
@@ -82,6 +83,8 @@ public abstract class DBProperties {
     public static final String Q_COMP_ADD_DESCRIPTION = "org.seasr.central.storage.db.query.component.add.description";
     public static final String Q_COMP_ADD_TAG = "org.seasr.central.storage.db.query.component.add.tag";
     public static final String Q_COMP_ADD_CONTEXT = "org.seasr.central.storage.db.query.component.add.context";
+    public static final String Q_COMP_ADD_COMPCONTEXT = "org.seasr.central.storage.db.query.component.add.comp_context";
+    public static final String Q_COMP_ADD_DESCRIPTOR = "org.seasr.central.storage.db.query.component.add.descriptor";
 
     public static final String Q_COMP_GET_ID = "org.seasr.central.storage.db.query.component.get.id";
     public static final String Q_COMP_GET_LASTINSERT = "org.seasr.central.storage.db.query.component.get.last_insert";

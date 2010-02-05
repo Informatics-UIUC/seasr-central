@@ -64,6 +64,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -442,7 +443,7 @@ public class Tools {
      * @return The core hash
      */
     public static byte[] getComponentCoreHash(ExecutableComponentDescription component,
-                                              SortedSet<String> contextHashes) {
+                                              SortedSet<BigInteger> contextHashes) {
         try {
             return Crypto.createMD5Hash(getComponentCoreAsString(component, contextHashes).getBytes("UTF-8"));
         }
@@ -461,7 +462,7 @@ public class Tools {
      * @return A string containing the core features
      */
     private static String getComponentCoreAsString(ExecutableComponentDescription component,
-                                                   SortedSet<String> contextHashes) {
+                                                   SortedSet<BigInteger> contextHashes) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("runnable: ").append(component.getRunnable()).append("\n");
@@ -493,7 +494,7 @@ public class Tools {
             sb.append("property: ").append("key=").append(entry.getKey())
                     .append(" value=").append(entry.getValue()).append("\n");
 
-        for (String contextHash : contextHashes)
+        for (BigInteger contextHash : contextHashes)
             sb.append("context: ").append(contextHash).append("\n");
 
         return sb.toString();

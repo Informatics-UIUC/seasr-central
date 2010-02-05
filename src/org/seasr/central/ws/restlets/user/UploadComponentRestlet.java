@@ -202,7 +202,6 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                             return true;
                         }
 
-                        // Accumulate and create a new entry in the component context hashmap
                         currentComponentResUri = compResList.get(0).getURI();
                         componentsMap.put(currentComponentResUri, new Component(compModel, tempFolder));
                     }
@@ -325,7 +324,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
                         // Record the event
                         Event event = (compVersion == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
-                        bsl.addEvent(event, userId, null, null, null, joComponent);
+                        bsl.addEvent(event, userId, null, UUID.fromString(compId), null, joComponent);
                     }
                     catch (BackendStoreException e) {
                         logger.log(Level.SEVERE, null, e);

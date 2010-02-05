@@ -41,12 +41,17 @@
 package org.seasr.central.storage.db;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.NodeIterator;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.vocabulary.RDF;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
+import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.Event;
 import org.seasr.central.storage.db.properties.DBProperties;
@@ -54,6 +59,7 @@ import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
 import org.seasr.central.util.SCLogFormatter;
 import org.seasr.meandre.support.generic.crypto.Crypto;
+import org.seasr.meandre.support.generic.io.ModelUtils;
 import org.seasr.meandre.support.generic.util.UUIDUtils;
 
 import java.beans.PropertyVetoException;
@@ -497,13 +503,14 @@ public class SQLLink implements BackendStoreLink {
             throws BackendStoreException {
 
         JSONObject joResult = new JSONObject();
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
         Connection conn = null;
 
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
 
-            if (!Boolean.TRUE.equals(isUserActive(userId, conn)))
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
                 throw new InactiveUserException(userId);
 
             SortedMap<BigInteger, ContextFile> contextHashes = retrieveContextsAndComputeHashes(contexts);
@@ -512,46 +519,66 @@ public class SQLLink implements BackendStoreLink {
             String compRights = component.getRights();
             BigInteger rightsHash = new BigInteger(getRightsHash(compRights));
 
-            BigInteger compId = getComponentId(component, conn);
+            BigInteger compId = null;
+            Integer version = null;
 
             // Check whether the rights text already exists
-            if (getRightsTextForHash(rightsHash, conn) != null) {
-                if (compId != null) {
-                    Component lastAddComp = getLastAddedComponent(compId, conn);
-                    if (lastAddComp == null) // sanity check - should not happen
-                        throw new BackendStoreException("Problem retrieving last added component for existing comp id: "
-                                + UUIDUtils.fromBigInteger(compId));
-
-                    // Check whether this component is identical to last added
-                    if (compHash == lastAddComp.getComponentCoreHash()
-                            && component.getName() == lastAddComp.getName()
-                            && component.getCreator() == lastAddComp.getCreator()
-                            && component.getDescription() == lastAddComp.getDescription()
-                            && rightsHash == lastAddComp.getRightsHash()
-                            && component.getExecutableComponent().getURI() == lastAddComp.getUri()
-                            && component.getTags().getTags().containsAll(lastAddComp.getTags())
-                            && lastAddComp.getTags().containsAll(component.getTags().getTags())) {
-
-                        // Component identical to last inserted version, get its version and return info to user
-                        int qCompVersion = getComponentVersionCount(compId, conn);
-
-                        joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
-                        joResult.put("version", qCompVersion);
-
-                        logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
-                                joResult.get("uuid"), qCompVersion));
-
-                        return joResult;
-                    }
-                } else
-                    // Generate a new id for the component
-                    compId = UUIDUtils.toBigInteger(UUID.randomUUID());
-            } else
+            if (getRightsTextForHash(rightsHash, conn) == null)
                 // Insert the license text into the DB
                 addRights(compRights, rightsHash, conn);
+            else
+                compId = getComponentId(component, conn);
+
+            if (compId == null) {
+                // Generate a new id for the component
+                compId = UUIDUtils.toBigInteger(UUID.randomUUID());
+                version = 1;
+            } else {
+                Component lastAddComp = getLastAddedComponent(compId, conn);
+                if (lastAddComp == null) // sanity check - should not happen
+                    throw new BackendStoreException("Problem retrieving last added component for existing comp id: "
+                            + UUIDUtils.fromBigInteger(compId));
+
+                // Check whether this component is identical to last added
+                if (compHash.equals(lastAddComp.getComponentCoreHash())
+                        && component.getName().equals(lastAddComp.getName())
+                        && component.getCreator().equals(lastAddComp.getCreator())
+                        && component.getDescription().equals(lastAddComp.getDescription())
+                        && rightsHash.equals(lastAddComp.getRightsHash())
+                        && component.getExecutableComponent().getURI().equals(lastAddComp.getUri())
+                        && component.getTags().getTags().containsAll(lastAddComp.getTags())
+                        && lastAddComp.getTags().containsAll(component.getTags().getTags())) {
+
+                    // Component identical to last inserted version, get its version and return info to user
+                    int qCompVersion = getComponentVersionCount(compId, conn);
+
+                    joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
+                    joResult.put("version", qCompVersion);
+
+                    logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
+                            joResult.getString("uuid"), qCompVersion));
+
+                    return joResult;
+                }
+            }
 
             // Insert this component version into the DB
             long compVerId = addComponent(compId, compHash, rightsHash, contextHashes, component, conn);
+
+            // Insert the user -> component mapping
+            String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_ADD).trim();
+            PreparedStatement ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setLong(2, compVerId);
+            ps.executeUpdate();
+
+            if (version == null)
+                version = getComponentVersionCount(compId, conn);
+
+            joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
+            joResult.put("version", version);
+
+            conn.commit();
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
@@ -567,124 +594,6 @@ public class SQLLink implements BackendStoreLink {
 
         return joResult;
     }
-
-    protected long addComponent(BigInteger compId, BigInteger compHash, BigInteger rightsHash,
-                                Map<BigInteger, ContextFile> contextHashes, ExecutableComponentDescription component,
-                                Connection conn) throws SQLException, FileNotFoundException {
-        PreparedStatement ps = null;
-        long compVerId;
-
-        try {
-            // Insert this component version into the DB
-            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD).trim();
-            ps = conn.prepareStatement(sqlQuery, Statement.RETURN_GENERATED_KEYS);
-            ps.setBigDecimal(1, new BigDecimal(compId));
-            ps.setBigDecimal(2, new BigDecimal(compHash));
-            ps.setString(3, component.getName());
-            ps.setString(4, component.getCreator());
-            ps.setBigDecimal(5, new BigDecimal(rightsHash));
-            ps.setDate(6, new java.sql.Date(component.getCreationDate().getTime()));
-            ps.setString(7, component.getFiringPolicy());
-            ps.setString(8, component.getMode().getURI());
-            ps.setString(9, component.getFormat());
-            ps.setString(10, component.getRunnable());
-            ps.setString(11, component.getLocation().getURI());
-            ps.setString(12, component.getExecutableComponent().getURI());
-            ps.executeUpdate();
-
-            compVerId = getAutoGeneratedKey(ps);
-        }
-        finally {
-            closeStatement(ps);
-            ps = null;
-        }
-
-        try {
-            // Insert the component description
-            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_DESCRIPTION).trim();
-            ps = conn.prepareStatement(sqlQuery);
-            ps.setLong(1, compVerId);
-            ps.setString(2, component.getDescription());
-            ps.executeUpdate();
-        }
-        finally {
-            closeStatement(ps);
-            ps = null;
-        }
-
-        try {
-            // Insert the component tags
-            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_TAG).trim();
-            ps = conn.prepareStatement(sqlQuery);
-            for (String tag : component.getTags().getTags()) {
-                ps.setLong(1, compVerId);
-                ps.setString(2, tag);
-                ps.addBatch();
-            }
-            ps.executeBatch();
-        }
-        finally {
-            closeStatement(ps);
-            ps = null;
-        }
-
-        try {
-            // Insert the component contexts
-            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_CONTEXT).trim();
-            ps = conn.prepareStatement(sqlQuery);
-            for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
-                if (!hasContext(context.getKey(), conn)) {
-                    ps.setBigDecimal(1, new BigDecimal(context.getKey()));
-                    ps.setBlob(2, new FileInputStream(context.getValue().getFile()));
-                    ps.addBatch();
-                }
-            }
-            ps.executeBatch();
-        }
-        catch (SQLException e) {
-            logger.log(Level.WARNING, "Ignoring SQLException on adding contexts!", e);
-        }
-        finally {
-            closeStatement(ps);
-            ps = null;
-        }
-
-        try {
-            // Insert the component tags
-            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_TAG).trim();
-            ps = conn.prepareStatement(sqlQuery);
-        }
-        finally {
-            closeStatement(ps);
-            ps = null;
-        }
-
-        return compVerId;
-    }
-
-    /**
-     * Checks whether the DB contains the specified context hash
-     *
-     * @param contextHash The context hash
-     * @param conn The DB connection to use
-     * @return True if this context hash exists in the DB, False otherwise
-     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
-     */
-    protected boolean hasContext(BigInteger contextHash, Connection conn) throws SQLException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_HASCONTEXT).trim();
-        PreparedStatement ps = null;
-
-        try {
-            ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(contextHash));
-
-            return ps.getResultSet().next();
-        }
-        finally {
-            closeStatement(ps);
-        }
-    }
-
 
     @Override
     public Model getComponent(UUID componentId, int version) throws BackendStoreException {
@@ -830,9 +739,8 @@ public class SQLLink implements BackendStoreLink {
         for (Map.Entry<URL, String> context : contexts.entrySet()) {
             URL url = context.getKey();
             String ctxFileName = url.toString().substring(url.toString().lastIndexOf("/") + 1);
-            if (ctxFileName.length() == 0) ctxFileName = "unnamed";
 
-            logger.finer("Processing context file: " + ctxFileName);
+            logger.finer("Processing context file: " + ((ctxFileName.length() > 0) ? ctxFileName : "<unnamed>"));
 
             File tmpFile;
 
@@ -847,7 +755,7 @@ public class SQLLink implements BackendStoreLink {
             // Compute the MD5 hash for the context file
             final BigInteger md5 = new BigInteger(Crypto.createMD5Hash(tmpFile));
 
-            sortedMap.put(md5, new ContextFile(tmpFile, context.getValue()));
+            sortedMap.put(md5, new ContextFile(ctxFileName, tmpFile, context.getValue()));
         }
 
         return sortedMap;
@@ -861,13 +769,13 @@ public class SQLLink implements BackendStoreLink {
      * @return Tue if user exists and is not deleted, False if user exists and is marked as deleted, null if user does not exist
      * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
-    protected Boolean isUserActive(UUID userId, Connection conn) throws SQLException {
+    protected Boolean isUserActive(BigInteger userId, Connection conn) throws SQLException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_DELETED).trim();
         PreparedStatement ps = null;
 
         try {
             ps = conn.prepareStatement(sqlQuery);
-            ps.setString(1, userId.toString());
+            ps.setBigDecimal(1, new BigDecimal(userId));
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? !rs.getBoolean(1) : null;
@@ -1033,6 +941,190 @@ public class SQLLink implements BackendStoreLink {
             throw new SQLException("Could not retrieve the auto-generated key");
     }
 
+    /**
+     * Adds a component to the DB
+     *
+     * @param compId The component id
+     * @param compHash The component core hash
+     * @param rightsHash The rights hash
+     * @param contextHashes The context hashes
+     * @param component The component
+     * @param conn The DB connection to use
+     * @return The component version id assigned by the DB
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     * @throws FileNotFoundException Thrown if one of the specified contexts cannot be found
+     */
+    protected long addComponent(BigInteger compId, BigInteger compHash, BigInteger rightsHash,
+                                Map<BigInteger, ContextFile> contextHashes, ExecutableComponentDescription component,
+                                Connection conn) throws SQLException, FileNotFoundException {
+        PreparedStatement ps = null;
+        long compVerId;
+
+        try {
+            // Insert this component version into the DB
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD).trim();
+            ps = conn.prepareStatement(sqlQuery, Statement.RETURN_GENERATED_KEYS);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setBigDecimal(2, new BigDecimal(compHash));
+            ps.setString(3, component.getName());
+            ps.setString(4, component.getCreator());
+            ps.setBigDecimal(5, new BigDecimal(rightsHash));
+            ps.setDate(6, new java.sql.Date(component.getCreationDate().getTime()));
+            ps.setString(7, component.getFiringPolicy());
+            ps.setString(8, component.getMode().getURI());
+            ps.setString(9, component.getFormat());
+            ps.setString(10, component.getRunnable());
+            ps.setString(11, component.getLocation().getURI());
+            ps.setString(12, component.getExecutableComponent().getURI());
+            ps.executeUpdate();
+
+            compVerId = getAutoGeneratedKey(ps);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component description
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_DESCRIPTION).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, compVerId);
+            ps.setString(2, component.getDescription());
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component tags
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_TAG).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (String tag : component.getTags().getTags()) {
+                ps.setLong(1, compVerId);
+                ps.setString(2, tag);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component contexts
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_CONTEXT).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
+                if (!hasContext(context.getKey(), conn)) {
+                    ps.setBigDecimal(1, new BigDecimal(context.getKey()));
+                    File file = context.getValue().getFile();
+                    ps.setBinaryStream(2, new FileInputStream(file), (int)file.length());
+                    ps.addBatch();
+                }
+            }
+            ps.executeBatch();
+        }
+        catch (SQLException e) {
+            logger.log(Level.WARNING, "Ignoring SQLException on adding contexts!", e);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the component -> context mapping
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_COMPCONTEXT).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
+                ps.setLong(1, compVerId);
+                ps.setBigDecimal(2, new BigDecimal(context.getKey()));
+                ps.setString(3, context.getValue().getContentType());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        Model model = rewriteComponentContexts(component, contextHashes);
+        byte[] modelData = ModelUtils.modelToByteArray(model, "TURTLE");
+        try {
+            // Insert the component descriptor
+            String sqlQuery = properties.getProperty(DBProperties.Q_COMP_ADD_DESCRIPTOR).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, compVerId);
+            ps.setBinaryStream(2, new ByteArrayInputStream(modelData), modelData.length);
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        return compVerId;
+    }
+
+    /**
+     * Checks whether the DB contains the specified context hash
+     *
+     * @param contextHash The context hash
+     * @param conn The DB connection to use
+     * @return True if this context hash exists in the DB, False otherwise
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected boolean hasContext(BigInteger contextHash, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_HASCONTEXT).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(contextHash));
+
+            return ps.executeQuery().next();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Prepares the component RDF descriptor for storage
+     *
+     * @param component The component
+     * @param contextHashes The new component contexts
+     * @return The updated component descriptor
+     */
+    protected Model rewriteComponentContexts(ExecutableComponentDescription component,
+                                           Map<BigInteger, ContextFile> contextHashes) {
+        // Remove all existing non-"implementation" contexts
+        List<RDFNode> ctxToRemove = new ArrayList<RDFNode>();
+        for (RDFNode node : component.getContext())
+            if (node.toString().endsWith("implementation/"))
+                ctxToRemove.add(node);
+        component.getContext().removeAll(ctxToRemove);
+
+        Model model = component.getExecutableComponent().getModel();
+        Resource resExecComp = model.listSubjectsWithProperty(RDF.type,
+                RepositoryVocabulary.executable_component).nextResource();
+
+        for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
+            String ctxFileName = context.getValue().getFileName();
+            String md5 = context.getKey().toString(16);
+
+            // Add the modified context info to the model
+            resExecComp.addProperty(RepositoryVocabulary.execution_context,
+                    model.createResource(String.format("context://localhost/%s/%s", md5, ctxFileName)));
+        }
+
+        return model;
+    }
+
     protected class Component {
         Long        comp_ver_id = null;
         BigInteger  comp_uuid = null;
@@ -1183,12 +1275,18 @@ public class SQLLink implements BackendStoreLink {
     }
 
     protected class ContextFile {
+        private final String fileName;
         private final File file;
         private final String contentType;
 
-        public ContextFile(File file, String contentType) {
+        public ContextFile(String fileName, File file, String contentType) {
+            this.fileName = fileName;
             this.file = file;
             this.contentType = contentType;
+        }
+
+        public String getFileName() {
+            return fileName;
         }
 
         public File getFile() {

@@ -151,10 +151,10 @@
             rights_hash    DECIMAL(39) NULL,
             creation_date  DATETIME NULL,
             firing_policy  VARCHAR(45) NULL,
-            mode           VARCHAR(45) NULL,
+            mode           VARCHAR(255) NULL,
             format         VARCHAR(45) NULL,
             runnable       VARCHAR(45) NULL,
-            res_location   VARCHAR(45) NULL,
+            res_location   VARCHAR(255) NULL,
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -184,7 +184,7 @@
         //
         CREATE TABLE IF NOT EXISTS sc_component_descriptor (
             comp_ver_id  BIGINT UNSIGNED NOT NULL,
-            descriptor   BLOB NOT NULL,
+            descriptor   MEDIUMBLOB NOT NULL,
 
             PRIMARY KEY (comp_ver_id),
             INDEX (comp_ver_id) USING HASH,
@@ -209,21 +209,9 @@
         //
         CREATE TABLE IF NOT EXISTS sc_context (
             context_hash  DECIMAL(39) NOT NULL,
-            data          BLOB NOT NULL,
+            data          LONGBLOB NOT NULL,
 
             PRIMARY KEY (context_hash)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // sc_context_meta
-        //
-        CREATE TABLE IF NOT EXISTS sc_context_meta (
-            context_hash  DECIMAL(39) NOT NULL,
-            mime_type     VARCHAR(45) NOT NULL,
-
-            PRIMARY KEY (context_hash),
-            INDEX (context_hash) USING HASH,
-            FOREIGN KEY (context_hash) REFERENCES sc_context (context_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -232,6 +220,7 @@
         CREATE TABLE IF NOT EXISTS sc_component_context (
             comp_ver_id   BIGINT UNSIGNED NOT NULL,
             context_hash  DECIMAL(39) NOT NULL,
+            mime_type     VARCHAR(45) NOT NULL,
 
             PRIMARY KEY (comp_ver_id, context_hash),
             INDEX (comp_ver_id) USING HASH,
@@ -523,6 +512,9 @@
     <entry key="org.seasr.central.storage.db.query.user.list">
         SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.add">
+        INSERT INTO sc_user_component (user_uuid, comp_ver_id) VALUES (?, ?);
+    </entry>
 
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
@@ -548,7 +540,13 @@
         INSERT INTO sc_component_tag (comp_ver_id, tag) VALUES (?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.context">
-        INSERT IGNORE INTO sc_context (context_hash, data) VALUES (?, ?);
+        INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.comp_context">
+        INSERT INTO sc_component_context (comp_ver_id, context_hash, mime_type) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.descriptor">
+        INSERT INTO sc_component_descriptor (comp_ver_id, descriptor) VALUES (?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.id">
         SELECT comp_uuid FROM sc_component WHERE uri = ? LIMIT 1;
