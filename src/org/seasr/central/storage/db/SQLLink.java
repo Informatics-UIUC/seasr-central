@@ -41,7 +41,6 @@
 package org.seasr.central.storage.db;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
@@ -1079,7 +1078,7 @@ public class SQLLink implements BackendStoreLink {
      * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
     protected boolean hasContext(BigInteger contextHash, Connection conn) throws SQLException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_HASCONTEXT).trim();
+        String sqlQuery = properties.getProperty(DBProperties.Q_CONTEXT_EXISTS).trim();
         PreparedStatement ps = null;
 
         try {

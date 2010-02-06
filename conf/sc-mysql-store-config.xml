@@ -20,22 +20,22 @@
         // sc_permission
         //
         CREATE TABLE IF NOT EXISTS sc_permission (
-            perm_id    SMALLINT UNSIGNED NOT NULL,
-            perm_name  VARCHAR(45) NOT NULL,
+            perm_id  SMALLINT UNSIGNED NOT NULL,
+            name     VARCHAR(45) NOT NULL,
 
             PRIMARY KEY (perm_id),
-            UNIQUE INDEX (perm_name ASC)
+            UNIQUE INDEX (name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_role
         //
         CREATE TABLE IF NOT EXISTS sc_role (
-            role_uuid  DECIMAL(39) NOT NULL,
-            role_name  VARCHAR(30) NOT NULL,
+            role_id  SMALLINT UNSIGNED NOT NULL,
+            name     VARCHAR(30) NOT NULL,
 
-            PRIMARY KEY (role_uuid),
-            UNIQUE INDEX (role_name ASC)
+            PRIMARY KEY (role_id),
+            UNIQUE INDEX (name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -58,35 +58,35 @@
         // sc_role_permission
         //
         CREATE TABLE IF NOT EXISTS sc_role_permission (
-            role_uuid  DECIMAL(39) NOT NULL,
-            perm_id    SMALLINT UNSIGNED NOT NULL,
+            role_id  SMALLINT UNSIGNED NOT NULL,
+            perm_id  SMALLINT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (role_uuid, perm_id),
-            INDEX (role_uuid) USING HASH,
-            FOREIGN KEY (role_uuid) REFERENCES sc_role (role_uuid),
+            PRIMARY KEY (role_id, perm_id),
+            INDEX (role_id) USING HASH,
+            FOREIGN KEY (role_id) REFERENCES sc_role (role_id),
             INDEX (perm_id) USING HASH,
             FOREIGN KEY (perm_id) REFERENCES sc_permission (perm_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_role_user
+        // sc_user_role
         //
-        CREATE TABLE IF NOT EXISTS sc_role_user (
+        CREATE TABLE IF NOT EXISTS sc_user_role (
             user_uuid  DECIMAL(39) NOT NULL,
-            role_uuid  DECIMAL(39) NOT NULL,
+            role_id    SMALLINT UNSIGNED NOT NULL,
 
-            PRIMARY KEY (user_uuid, role_uuid),
+            PRIMARY KEY (user_uuid, role_id),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
-            INDEX (role_uuid) USING HASH,
-            FOREIGN KEY (role_uuid) REFERENCES sc_role (role_uuid)
+            INDEX (role_id) USING HASH,
+            FOREIGN KEY (role_id) REFERENCES sc_role (role_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // Populate default roles
         //
-        INSERT IGNORE INTO sc_role (role_uuid, role_name) VALUES (256, "admin");
-        INSERT IGNORE INTO sc_role (role_uuid, role_name) VALUES (512, "user");
+        INSERT IGNORE INTO sc_role (role_id, name) VALUES (100, "admin");
+        INSERT IGNORE INTO sc_role (role_id, name) VALUES (200, "user");
 
         //
         // Create the 'admin' user
@@ -97,7 +97,7 @@
         //
         // Assign the 'admin' user to the 'admin' role
         //
-        INSERT IGNORE INTO sc_role_user (user_uuid, role_uuid) VALUES (1, 256);
+        INSERT IGNORE INTO sc_user_role (user_uuid, role_id) VALUES (1, 100);
     </entry>
 
     <entry key="org.seasr.central.storage.db.schema">
@@ -106,13 +106,13 @@
         //
         CREATE TABLE IF NOT EXISTS sc_group (
             group_uuid  DECIMAL(39) NOT NULL,
-            group_name  VARCHAR(45) NOT NULL,
+            name        VARCHAR(45) NOT NULL,
             created_at  DATETIME NOT NULL,
-            profile     TEXT NULL,
+            profile     TEXT NOT NULL,
             deleted     BOOLEAN NOT NULL DEFAULT FALSE,
 
             PRIMARY KEY (group_uuid),
-            UNIQUE INDEX (group_name ASC)
+            UNIQUE INDEX (name ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -134,74 +134,110 @@
         //
         CREATE TABLE IF NOT EXISTS sc_rights (
             rights_hash  DECIMAL(39) NOT NULL,
-            text         TEXT NOT NULL,
+            text         MEDIUMTEXT NOT NULL,
 
             PRIMARY KEY (rights_hash)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_component_core
+        //
+        CREATE TABLE IF NOT EXISTS sc_component_core (
+            core_hash      DECIMAL(39) NOT NULL,
+            firing_policy  VARCHAR(45) NOT NULL,
+            mode           VARCHAR(255) NOT NULL,
+            format         VARCHAR(45) NOT NULL,
+            runnable       VARCHAR(45) NOT NULL,
+            res_location   VARCHAR(255) NOT NULL,
+
+            PRIMARY KEY (core_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component
         //
         CREATE TABLE IF NOT EXISTS sc_component (
-            comp_ver_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             comp_uuid      DECIMAL(39) NOT NULL,
-            comp_hash      DECIMAL(39) NOT NULL,
+            uploaded_at    DATETIME NOT NULL,
+            core_hash      DECIMAL(39) NOT NULL,
             name           VARCHAR(45) NULL,
             creator        VARCHAR(45) NULL,
-            rights_hash    DECIMAL(39) NULL,
             creation_date  DATETIME NULL,
-            firing_policy  VARCHAR(45) NULL,
-            mode           VARCHAR(255) NULL,
-            format         VARCHAR(45) NULL,
-            runnable       VARCHAR(45) NULL,
-            res_location   VARCHAR(255) NULL,
+            rights_hash    DECIMAL(39) NULL,
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (comp_ver_id),
+            PRIMARY KEY (comp_uuid, uploaded_at),
+            INDEX (core_hash) USING HASH,
+            FOREIGN KEY (core_hash) REFERENCES sc_component_core (core_hash),
             INDEX (rights_hash) USING HASH,
             FOREIGN KEY (rights_hash) REFERENCES sc_rights (rights_hash),
             INDEX (comp_uuid) USING HASH,
-            INDEX (comp_hash) USING HASH,
             INDEX (uri) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_component_description
+        // sc_comp_description
         //
-        CREATE TABLE IF NOT EXISTS sc_component_description (
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
-            description  TEXT NOT NULL,
+        CREATE TABLE IF NOT EXISTS sc_comp_description (
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            description  TEXT NULL,
 
-            PRIMARY KEY (comp_ver_id),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
+            PRIMARY KEY (comp_uuid, uploaded_at),
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_component_descriptor
+        // sc_comp_descriptor
         //
-        CREATE TABLE IF NOT EXISTS sc_component_descriptor (
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
-            descriptor   MEDIUMBLOB NOT NULL,
+        CREATE TABLE IF NOT EXISTS sc_comp_descriptor (
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            descriptor   LONGTEXT NOT NULL,
 
-            PRIMARY KEY (comp_ver_id),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
+            PRIMARY KEY (comp_uuid, uploaded_at),
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_component_tag
+        // sc_comp_tag
         //
-        CREATE TABLE IF NOT EXISTS sc_component_tag (
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
+        CREATE TABLE IF NOT EXISTS sc_comp_tag (
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
             tag          VARCHAR(45) NOT NULL,
 
-            PRIMARY KEY (comp_ver_id, tag),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
+            PRIMARY KEY (comp_uuid, uploaded_at, tag),
+            INDEX (comp_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at),
             INDEX (tag ASC)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_comp_category
+        //
+        CREATE TABLE IF NOT EXISTS sc_comp_category (
+            cat_name     VARCHAR(45) NOT NULL,
+            description  TEXT NOT NULL,
+
+            PRIMARY KEY (cat_name)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_comp_cat_map
+        //
+        CREATE TABLE IF NOT EXISTS sc_comp_cat_map (
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            cat_name     VARCHAR(45) NOT NULL,
+
+            PRIMARY KEY (comp_uuid, uploaded_at, cat_name),
+            INDEX (comp_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at),
+            INDEX (cat_name) USING HASH,
+            FOREIGN KEY (cat_name) REFERENCES sc_comp_category (cat_name)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -218,41 +254,30 @@
         // sc_component_context
         //
         CREATE TABLE IF NOT EXISTS sc_component_context (
-            comp_ver_id   BIGINT UNSIGNED NOT NULL,
+            comp_uuid     DECIMAL(39) NOT NULL,
+            uploaded_at   DATETIME NOT NULL,
             context_hash  DECIMAL(39) NOT NULL,
             mime_type     VARCHAR(45) NOT NULL,
 
-            PRIMARY KEY (comp_ver_id, context_hash),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
+            PRIMARY KEY (comp_uuid, uploaded_at, context_hash),
+            INDEX (comp_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at),
             INDEX (context_hash) USING HASH,
             FOREIGN KEY (context_hash) REFERENCES sc_context (context_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_component_category
+        // sc_core_context
         //
-        CREATE TABLE IF NOT EXISTS sc_component_category (
-            comp_cat_id  SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            name         VARCHAR(45) NOT NULL,
-            description  TEXT NOT NULL,
+        CREATE TABLE IF NOT EXISTS sc_core_context (
+            core_hash     DECIMAL(39) NOT NULL,
+            context_hash  DECIMAL(39) NOT NULL,
 
-            PRIMARY KEY (comp_cat_id),
-            UNIQUE INDEX (name ASC)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // sc_comp_cat_map
-        //
-        CREATE TABLE IF NOT EXISTS sc_comp_cat_map (
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
-            comp_cat_id  SMALLINT UNSIGNED NOT NULL,
-
-            PRIMARY KEY (comp_ver_id, comp_cat_id),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
-            INDEX (comp_cat_id) USING HASH,
-            FOREIGN KEY (comp_cat_id) REFERENCES sc_component_category (comp_cat_id)
+            PRIMARY KEY (core_hash, context_hash),
+            INDEX (core_hash) USING HASH,
+            FOREIGN KEY (core_hash) REFERENCES sc_component_core (core_hash),
+            INDEX (context_hash) USING HASH,
+            FOREIGN KEY (context_hash) REFERENCES sc_context (context_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -260,25 +285,27 @@
         //
         CREATE TABLE IF NOT EXISTS sc_user_component (
             user_uuid    DECIMAL(39) NOT NULL,
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
 
-            PRIMARY KEY (user_uuid, comp_ver_id),
+            PRIMARY KEY (user_uuid, comp_uuid, uploaded_at),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
+            INDEX (comp_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_component_group
         //
         CREATE TABLE IF NOT EXISTS sc_component_group (
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
+            comp_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
             group_uuid   DECIMAL(39) NOT NULL,
 
-            PRIMARY KEY (comp_ver_id, group_uuid),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id),
+            PRIMARY KEY (comp_uuid, uploaded_at, group_uuid),
+            INDEX (comp_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (comp_uuid, uploaded_at) REFERENCES sc_component (comp_uuid, uploaded_at),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -287,9 +314,9 @@
         // sc_flow
         //
         CREATE TABLE IF NOT EXISTS sc_flow (
-            flow_ver_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             flow_uuid      DECIMAL(39) NOT NULL,
-            flow_hash      DECIMAL(39) NOT NULL,
+            uploaded_at    DATETIME NOT NULL,
+            core_hash      DECIMAL(39) NOT NULL,
             name           VARCHAR(45) NULL,
             creator        VARCHAR(45) NULL,
             creation_date  DATETIME NULL,
@@ -297,11 +324,11 @@
             uri            VARCHAR(255) NULL,
             deleted        BOOLEAN NOT NULL DEFAULT FALSE,
 
-            PRIMARY KEY (flow_ver_id),
+            PRIMARY KEY (flow_uuid, uploaded_at),
             INDEX (rights_hash) USING HASH,
             FOREIGN KEY (rights_hash) REFERENCES sc_rights (rights_hash),
             INDEX (flow_uuid) USING HASH,
-            INDEX (flow_hash) USING HASH,
+            INDEX (core_hash) USING HASH,
             INDEX (uri) USING HASH,
             INDEX (deleted) USING HASH
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
@@ -310,35 +337,37 @@
         // sc_flow_description
         //
         CREATE TABLE IF NOT EXISTS sc_flow_description (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
-            description  TEXT NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            description  TEXT NULL,
 
-            PRIMARY KEY (flow_ver_id),
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
+            PRIMARY KEY (flow_uuid, uploaded_at),
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_descriptor
         //
         CREATE TABLE IF NOT EXISTS sc_flow_descriptor (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
-            descriptor   BLOB NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            descriptor   LONGTEXT NOT NULL,
 
-            PRIMARY KEY (flow_ver_id),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
+            PRIMARY KEY (flow_uuid, uploaded_at),
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_tag
         //
         CREATE TABLE IF NOT EXISTS sc_flow_tag (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
             tag          VARCHAR(45) NOT NULL,
 
-            PRIMARY KEY (flow_ver_id, tag),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
+            PRIMARY KEY (flow_uuid, uploaded_at, tag),
+            INDEX (flow_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at),
             INDEX (tag ASC)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
@@ -346,40 +375,39 @@
         // sc_flow_category
         //
         CREATE TABLE IF NOT EXISTS sc_flow_category (
-            flow_cat_id  SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            name         VARCHAR(45) NOT NULL,
+            cat_name     VARCHAR(45) NOT NULL,
             description  TEXT NOT NULL,
 
-            PRIMARY KEY (flow_cat_id),
-            UNIQUE INDEX (name ASC)
+            PRIMARY KEY (cat_name)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_cat_map
         //
         CREATE TABLE IF NOT EXISTS sc_flow_cat_map (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
-            flow_cat_id  SMALLINT UNSIGNED NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
+            cat_name     VARCHAR(45) NOT NULL,
 
-            PRIMARY KEY (flow_ver_id, flow_cat_id),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
-            INDEX (flow_cat_id) USING HASH,
-            FOREIGN KEY (flow_cat_id) REFERENCES sc_flow_category (flow_cat_id)
+            PRIMARY KEY (flow_uuid, uploaded_at, cat_name),
+            INDEX (flow_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at),
+            INDEX (cat_name) USING HASH,
+            FOREIGN KEY (cat_name) REFERENCES sc_flow_category (cat_name)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_flow_component
+        // sc_flow_comp_core
         //
-        CREATE TABLE IF NOT EXISTS sc_flow_component (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
-            comp_ver_id  BIGINT UNSIGNED NOT NULL,
+        CREATE TABLE IF NOT EXISTS sc_flow_comp_core (
+            flow_core_hash  DECIMAL(39) NOT NULL,
+            comp_core_hash  DECIMAL(39) NOT NULL,
 
-            PRIMARY KEY (flow_ver_id, comp_ver_id),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
-            INDEX (comp_ver_id) USING HASH,
-            FOREIGN KEY (comp_ver_id) REFERENCES sc_component (comp_ver_id)
+            PRIMARY KEY (flow_core_hash, comp_core_hash),
+            INDEX (flow_core_hash) USING HASH,
+            FOREIGN KEY (flow_core_hash) REFERENCES sc_flow (core_hash),
+            INDEX (comp_core_hash) USING HASH,
+            FOREIGN KEY (comp_core_hash) REFERENCES sc_component_core (core_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -387,31 +415,33 @@
         //
         CREATE TABLE IF NOT EXISTS sc_user_flow (
             user_uuid    DECIMAL(39) NOT NULL,
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
 
-            PRIMARY KEY (user_uuid, flow_ver_id),
+            PRIMARY KEY (user_uuid, flow_uuid, uploaded_at),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id)
+            INDEX (flow_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
         // sc_flow_group
         //
         CREATE TABLE IF NOT EXISTS sc_flow_group (
-            flow_ver_id  BIGINT UNSIGNED NOT NULL,
+            flow_uuid    DECIMAL(39) NOT NULL,
+            uploaded_at  DATETIME NOT NULL,
             group_uuid   DECIMAL(39) NOT NULL,
 
-            PRIMARY KEY (flow_ver_id, group_uuid),
-            INDEX (flow_ver_id) USING HASH,
-            FOREIGN KEY (flow_ver_id) REFERENCES sc_flow (flow_ver_id),
+            PRIMARY KEY (flow_uuid, uploaded_at, group_uuid),
+            INDEX (flow_uuid, uploaded_at) USING HASH,
+            FOREIGN KEY (flow_uuid, uploaded_at) REFERENCES sc_flow (flow_uuid, uploaded_at),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_event_codes
+        // sc_event_code
         //
         CREATE TABLE IF NOT EXISTS sc_event_code (
             evt_code     SMALLINT UNSIGNED NOT NULL,
@@ -424,16 +454,15 @@
         // sc_event
         //
         CREATE TABLE IF NOT EXISTS sc_event (
-            evt_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            evt_code    SMALLINT UNSIGNED NOT NULL,
             timestamp   DATETIME NOT NULL,
+            evt_code    SMALLINT UNSIGNED NOT NULL,
             user_uuid   DECIMAL(39) NULL,
             group_uuid  DECIMAL(39) NULL,
             comp_uuid   DECIMAL(39) NULL,
             flow_uuid   DECIMAL(39) NULL,
-            metadata    VARCHAR(255) NULL,
+            metadata    TEXT NULL,
 
-            PRIMARY KEY (evt_id),
+            PRIMARY KEY (timestamp),
             INDEX (evt_code) USING HASH,
             FOREIGN KEY (evt_code) REFERENCES sc_event_code (evt_code),
             INDEX (user_uuid) USING HASH,
@@ -513,12 +542,12 @@
         SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.add">
-        INSERT INTO sc_user_component (user_uuid, comp_ver_id) VALUES (?, ?);
+        INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
 
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
-        INSERT INTO sc_event (evt_code, user_uuid, group_uuid, comp_uuid, flow_uuid, metadata, timestamp) VALUES (?, ?, ? ,?, ?, ?, NOW());
+        INSERT INTO sc_event (timestamp, evt_code, user_uuid, group_uuid, comp_uuid, flow_uuid, metadata) VALUES (NOW(), ?, ? ,?, ?, ?, ?);
     </entry>
 
     <!-- RIGHTS -->
@@ -531,33 +560,39 @@
 
     <!-- COMPONENTS -->
     <entry key="org.seasr.central.storage.db.query.component.add">
-        INSERT INTO sc_component (comp_uuid, comp_hash, name, creator, rights_hash, creation_date, firing_policy, mode, format, runnable, res_location, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO sc_component (comp_uuid, uploaded_at, core_hash, name, creator, creation_date, rights_hash, uri) VALUES (?, NOW(), ?, ?, ?, ?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.core">
+        INSERT INTO sc_component_core (core_hash, firing_policy, mode, format, runnable, res_location) VALUES (?, ?, ?, ?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.description">
-        INSERT INTO sc_component_description (comp_ver_id, description) VALUES (?, ?);
+        INSERT INTO sc_comp_description (comp_uuid, uploaded_at, description) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.tag">
-        INSERT INTO sc_component_tag (comp_ver_id, tag) VALUES (?, ?);
+        INSERT INTO sc_comp_tag (comp_uuid, uploaded_at, tag) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.context">
         INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.add.core_context">
+        INSERT INTO sc_core_context (core_hash, context_hash) VALUES (?, ?);
+    </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.comp_context">
-        INSERT INTO sc_component_context (comp_ver_id, context_hash, mime_type) VALUES (?, ?, ?);
+        INSERT INTO sc_component_context (comp_uuid, uploaded_at, context_hash, mime_type) VALUES (?, ?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.descriptor">
-        INSERT INTO sc_component_descriptor (comp_ver_id, descriptor) VALUES (?, ?);
+        INSERT INTO sc_comp_descriptor (comp_uuid, uploaded_at, descriptor) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.id">
         SELECT comp_uuid FROM sc_component WHERE uri = ? LIMIT 1;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.last_insert">
-        SELECT comp_hash, name, description, tag, creator, rights_hash, uri FROM (SELECT comp_ver_id, comp_hash, name, creator, rights_hash, uri FROM sc_component WHERE comp_uuid = ? ORDER BY comp_ver_id DESC LIMIT 1) c INNER JOIN sc_component_description d INNER JOIN sc_component_tag t ON c.comp_ver_id = d.comp_ver_id AND c.comp_ver_id = t.comp_ver_id;
+        SELECT core_hash, name, creator, rights_hash, uri, description, tag FROM (SELECT comp_uuid, uploaded_at, core_hash, name, creator, rights_hash, uri FROM sc_component WHERE comp_uuid = ? ORDER BY uploaded_at DESC LIMIT 1) c INNER JOIN sc_comp_description d INNER JOIN sc_comp_tag t ON (c.comp_uuid = d.comp_uuid AND c.uploaded_at = d.uploaded_at) AND (c.comp_uuid = t.comp_uuid AND c.uploaded_at = t.uploaded_at);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
         SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.get.has_context">
+    <entry key="org.seasr.central.storage.db.query.context.exists">
         SELECT 1 FROM sc_context WHERE context_hash = ?;
     </entry>
 
