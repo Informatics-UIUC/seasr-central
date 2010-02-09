@@ -321,10 +321,6 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         joComponent.put("url", compUrl);
 
                         jaSuccess.put(joComponent);
-
-                        // Record the event
-                        Event event = (compVersion == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
-                        bsl.addEvent(event, userId, null, UUID.fromString(compId), null, joComponent);
                     }
                     catch (BackendStoreException e) {
                         logger.log(Level.SEVERE, null, e);

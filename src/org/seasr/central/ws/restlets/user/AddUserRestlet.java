@@ -157,9 +157,6 @@ public class AddUserRestlet extends AbstractBaseRestlet {
                     joUser.put("profile", joProfile);
 
                     jaSuccess.put(joUser);
-
-                    // Record this event
-                    bsl.addEvent(Event.USER_CREATED, userId, null, null, null, joUser);
                 }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);

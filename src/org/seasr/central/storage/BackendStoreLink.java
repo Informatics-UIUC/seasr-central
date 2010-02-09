@@ -171,20 +171,6 @@ public interface BackendStoreLink {
     public JSONArray listUsers(long offset, long count) throws BackendStoreException;
 
     /**
-     * Adds a new event
-     *
-     * @param eventCode The event code
-     * @param userId The user id (or null if not applicable)
-     * @param groupId The group id (or null if not applicable)
-     * @param compId The component id (or null if not applicable)
-     * @param flowId The flow id (or null if not applicable)
-     * @param metadata The event metadata (or null)
-     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
-     */
-    public void addEvent(Event eventCode, UUID userId, UUID groupId,
-                         UUID compId, UUID flowId, JSONObject metadata) throws BackendStoreException;
-
-    /**
      * Adds (or updates) a component
      *
      * @param userId           The user to be credited with the upload

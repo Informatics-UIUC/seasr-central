@@ -133,9 +133,6 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
                 joUser.put("screen_name", screenName);
 
                 jaSuccess.put(joUser);
-
-                // Record the event
-                bsl.addEvent(Event.USER_DELETED, userId, null, null, null, joUser);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);

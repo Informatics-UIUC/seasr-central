@@ -223,7 +223,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
                     // Record the event
                     Event event = (flowVersion == 1) ? Event.FLOW_UPLOADED : Event.FLOW_UPDATED;
-                    bsl.addEvent(event, userId, null, null, null, joFlow);
+                    //bsl.addEvent(event, userId, null, null, null, joFlow);
                 }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);

@@ -190,15 +190,23 @@ public class SQLLink implements BackendStoreLink {
         Connection conn = null;
         PreparedStatement ps = null;
         UUID userId = UUID.randomUUID();
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setString(2, userName);
             ps.setString(3, computePasswordDigest(password));
             ps.setString(4, profile.toString());
             ps.executeUpdate();
+
+            // Record this event
+            addEvent(Event.USER_CREATED, uid, null, null, null, null, conn);
+
+            conn.commit();
 
             return userId;
         }
@@ -216,12 +224,20 @@ public class SQLLink implements BackendStoreLink {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_REMOVE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
             ps.executeUpdate();
+
+            // Record the event
+            addEvent(Event.USER_DELETED, uid, null, null, null, null, conn);
+
+            conn.commit();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -450,54 +466,6 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void addEvent(Event eventCode, UUID userId, UUID groupId,
-                         UUID compId, UUID flowId, JSONObject metadata) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
-        Connection conn = null;
-        PreparedStatement ps = null;
-
-        try {
-            conn = dataSource.getConnection();
-            ps = conn.prepareStatement(sqlQuery);
-            ps.setInt(1, eventCode.getEventCode());
-
-            if (userId != null)
-                ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            else
-                ps.setNull(2, Types.DECIMAL);
-
-            if (groupId != null)
-                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
-            else
-                ps.setNull(3, Types.DECIMAL);
-
-            if (compId != null)
-                ps.setBigDecimal(4, new BigDecimal(UUIDUtils.toBigInteger(compId)));
-            else
-                ps.setNull(4, Types.DECIMAL);
-
-            if (flowId != null)
-                ps.setBigDecimal(5, new BigDecimal(UUIDUtils.toBigInteger(flowId)));
-            else
-                ps.setNull(5, Types.DECIMAL);
-
-            if (metadata != null)
-                ps.setString(6, metadata.toString());
-            else
-                ps.setNull(6, Types.VARCHAR);
-
-            ps.executeUpdate();
-        }
-        catch (SQLException e) {
-            logger.log(Level.SEVERE, null, e);
-            throw new BackendStoreException(e);
-        }
-        finally {
-            releaseConnection(conn, ps);
-        }
-    }
-
-    @Override
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
             throws BackendStoreException {
 
@@ -578,6 +546,10 @@ public class SQLLink implements BackendStoreLink {
 
             joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
             joResult.put("version", version);
+
+            // Record the event
+            Event event = (version == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
+            addEvent(event, uid, null, compId, null, joResult, conn);
 
             conn.commit();
         }
@@ -962,6 +934,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeBatch();
         }
         catch (SQLException e) {
+            // TODO: Check the error code and ignore "duplicate key" errors
             logger.log(Level.WARNING, "Ignoring SQLException on adding contexts!", e);
         }
         finally {
@@ -981,6 +954,10 @@ public class SQLLink implements BackendStoreLink {
                 ps.setString(5, component.getRunnable());
                 ps.setString(6, component.getLocation().getURI());
                 ps.executeUpdate();
+            }
+            catch (SQLException e) {
+                // TODO: Check the error code and ignore "duplicate key" errors
+                logger.log(Level.WARNING, "Ignoring SQLException when inserting into sc_component_core");
             }
             finally {
                 closeStatement(ps);
@@ -1190,6 +1167,60 @@ public class SQLLink implements BackendStoreLink {
 
         return model;
     }
+
+    /**
+     * Adds a new event
+     *
+     * @param eventCode The event code
+     * @param userId The user id (or null if not applicable)
+     * @param groupId The group id (or null if not applicable)
+     * @param compId The component id (or null if not applicable)
+     * @param flowId The flow id (or null if not applicable)
+     * @param metadata The event metadata (or null)
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected void addEvent(Event eventCode, BigInteger userId, BigInteger groupId, BigInteger compId,
+                            BigInteger flowId, JSONObject metadata, Connection conn) throws SQLException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setInt(1, eventCode.getEventCode());
+
+            if (userId != null)
+                ps.setBigDecimal(2, new BigDecimal(userId));
+            else
+                ps.setNull(2, Types.DECIMAL);
+
+            if (groupId != null)
+                ps.setBigDecimal(3, new BigDecimal(groupId));
+            else
+                ps.setNull(3, Types.DECIMAL);
+
+            if (compId != null)
+                ps.setBigDecimal(4, new BigDecimal(compId));
+            else
+                ps.setNull(4, Types.DECIMAL);
+
+            if (flowId != null)
+                ps.setBigDecimal(5, new BigDecimal(flowId));
+            else
+                ps.setNull(5, Types.DECIMAL);
+
+            if (metadata != null)
+                ps.setString(6, metadata.toString());
+            else
+                ps.setNull(6, Types.VARCHAR);
+
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
 
     protected class Component {
         Long        comp_ver_id = null;

@@ -593,7 +593,7 @@
         SELECT 1 FROM sc_component_core WHERE core_hash = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.core.add">
-        INSERT INTO sc_component_core (core_hash, firing_policy, mode, format, runnable, res_location) VALUES (?, ?, ?, ?, ?, ?);
+        INSERT IGNORE INTO sc_component_core (core_hash, firing_policy, mode, format, runnable, res_location) VALUES (?, ?, ?, ?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.context.exists">
         SELECT 1 FROM sc_context WHERE context_hash = ?;
