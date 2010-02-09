@@ -559,11 +559,11 @@
     </entry>
 
     <!-- COMPONENTS -->
-    <entry key="org.seasr.central.storage.db.query.component.add">
-        INSERT INTO sc_component (comp_uuid, uploaded_at, core_hash, name, creator, creation_date, rights_hash, uri) VALUES (?, NOW(), ?, ?, ?, ?, ?, ?);
+    <entry key="org.seasr.central.storage.db.query.datetime.now">
+        SELECT NOW();
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.add.core">
-        INSERT INTO sc_component_core (core_hash, firing_policy, mode, format, runnable, res_location) VALUES (?, ?, ?, ?, ?, ?);
+    <entry key="org.seasr.central.storage.db.query.component.add">
+        INSERT INTO sc_component (comp_uuid, uploaded_at, core_hash, name, creator, creation_date, rights_hash, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.description">
         INSERT INTO sc_comp_description (comp_uuid, uploaded_at, description) VALUES (?, ?, ?);
@@ -571,13 +571,10 @@
     <entry key="org.seasr.central.storage.db.query.component.add.tag">
         INSERT INTO sc_comp_tag (comp_uuid, uploaded_at, tag) VALUES (?, ?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.add.context">
-        INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
-    </entry>
-    <entry key="org.seasr.central.storage.db.query.component.add.core_context">
+    <entry key="org.seasr.central.storage.db.query.core.context.add">
         INSERT INTO sc_core_context (core_hash, context_hash) VALUES (?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.component.add.comp_context">
+    <entry key="org.seasr.central.storage.db.query.component.context.add">
         INSERT INTO sc_component_context (comp_uuid, uploaded_at, context_hash, mime_type) VALUES (?, ?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.descriptor">
@@ -592,8 +589,17 @@
     <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
         SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.core.exists">
+        SELECT 1 FROM sc_component_core WHERE core_hash = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.core.add">
+        INSERT INTO sc_component_core (core_hash, firing_policy, mode, format, runnable, res_location) VALUES (?, ?, ?, ?, ?, ?);
+    </entry>
     <entry key="org.seasr.central.storage.db.query.context.exists">
         SELECT 1 FROM sc_context WHERE context_hash = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.context.add">
+        INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
     </entry>
 
     <!-- FLOWS -->
