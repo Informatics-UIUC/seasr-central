@@ -522,6 +522,11 @@ public class SQLLink implements BackendStoreLink {
                     joResult.put("uuid", UUIDUtils.fromBigInteger(compId).toString());
                     joResult.put("version", qCompVersion);
 
+                    // Record the event
+                    addEvent(Event.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
+
+                    conn.commit();
+
                     logger.fine(String.format("Ignoring repeated upload of component %s, version %d",
                             joResult.getString("uuid"), qCompVersion));
 
@@ -534,12 +539,18 @@ public class SQLLink implements BackendStoreLink {
 
             // Insert the user -> component mapping
             String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_ADD).trim();
-            PreparedStatement ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(uid));
-            ps.setBigDecimal(2, new BigDecimal(compId));
-            ps.setTimestamp(3, new Timestamp(timestamp));
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(sqlQuery);
+                ps.setBigDecimal(1, new BigDecimal(uid));
+                ps.setBigDecimal(2, new BigDecimal(compId));
+                ps.setTimestamp(3, new Timestamp(timestamp));
 
-            ps.executeUpdate();
+                ps.executeUpdate();
+            }
+            finally {
+                closeStatement(ps);
+            }
 
             if (version == null)
                 version = getComponentVersionCount(compId, conn);
@@ -548,8 +559,7 @@ public class SQLLink implements BackendStoreLink {
             joResult.put("version", version);
 
             // Record the event
-            Event event = (version == 1) ? Event.COMPONENT_UPLOADED : Event.COMPONENT_UPDATED;
-            addEvent(event, uid, null, compId, null, joResult, conn);
+            addEvent(Event.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
 
             conn.commit();
         }

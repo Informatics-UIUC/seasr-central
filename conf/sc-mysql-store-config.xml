@@ -493,15 +493,13 @@
 
         INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (300, "COMPONENT_UPLOADED");
         INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (301, "COMPONENT_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (303, "COMPONENT_UPDATED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (304, "COMPONENT_SHARED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (305, "COMPONENT_UNSHARED");
+        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (302, "COMPONENT_SHARED");
+        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (303, "COMPONENT_UNSHARED");
 
         INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (400, "FLOW_UPLOADED");
         INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (401, "FLOW_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (403, "FLOW_UPDATED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (404, "FLOW_SHARED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (405, "FLOW_UNSHARED");
+        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (402, "FLOW_SHARED");
+        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (403, "FLOW_UNSHARED");
     </entry>
 
     <!-- USER -->

@@ -56,7 +56,6 @@ import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.storage.Event;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -222,7 +221,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     jaSuccess.put(joFlow);
 
                     // Record the event
-                    Event event = (flowVersion == 1) ? Event.FLOW_UPLOADED : Event.FLOW_UPDATED;
+                    //Event event = (flowVersion == 1) ? Event.FLOW_UPLOADED : Event.FLOW_UPDATED;
                     //bsl.addEvent(event, userId, null, null, null, joFlow);
                 }
                 catch (BackendStoreException e) {
