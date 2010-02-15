@@ -462,7 +462,6 @@
             flow_uuid   DECIMAL(39) NULL,
             metadata    TEXT NULL,
 
-            PRIMARY KEY (timestamp),
             INDEX (evt_code) USING HASH,
             FOREIGN KEY (evt_code) REFERENCES sc_event_code (evt_code),
             INDEX (user_uuid) USING HASH,
