@@ -46,10 +46,13 @@ import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.ws.restlets.ComponentContext;
 
-import java.io.InputStream;
 import java.net.URL;
-import java.util.*;
+import java.util.Date;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 
 /**
  * The interface that any back end storage driver must implement
@@ -193,13 +196,16 @@ public interface BackendStoreLink {
     public Model getComponent(UUID componentId, int version) throws BackendStoreException;
 
     /**
-     * Retrieves an input stream to the context file specified by an id
+     * Retrieves a component context for a particular component version
      *
+     * @param componentId The component id
+     * @param version     The component version
      * @param contextId The id of the context file
-     * @return An input stream to the context file specified
+     * @return The component context, or null if no results were obtained
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public InputStream getContextInputStream(String contextId) throws BackendStoreException;
+    public ComponentContext getComponentContext(UUID componentId, int version, String contextId)
+            throws BackendStoreException;
 
     /**
      * Returns the version count for a component

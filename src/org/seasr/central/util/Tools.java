@@ -45,10 +45,8 @@ import com.hp.hpl.jena.rdf.model.Model;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
-import org.meandre.core.ExecutableComponent;
 import org.meandre.core.repository.DataPortDescription;
 import org.meandre.core.repository.ExecutableComponentDescription;
-import org.seasr.central.main.SC;
 import org.seasr.central.main.SCServer;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.crypto.Crypto;
@@ -65,8 +63,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.net.URL;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -427,7 +423,7 @@ public class Tools {
      */
     public static String computePasswordDigest(String string) {
         try {
-            return Crypto.getHexString(Crypto.createSHA1Hash(string.getBytes("UTF-8")));
+            return Crypto.toHexString(Crypto.createSHA1Hash(string.getBytes("UTF-8")));
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

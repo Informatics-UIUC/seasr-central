@@ -57,6 +57,7 @@ import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
 import org.seasr.central.util.SCLogFormatter;
+import org.seasr.central.ws.restlets.ComponentContext;
 import org.seasr.meandre.support.generic.crypto.Crypto;
 import org.seasr.meandre.support.generic.io.ModelUtils;
 import org.seasr.meandre.support.generic.util.UUIDUtils;
@@ -580,12 +581,51 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public Model getComponent(UUID componentId, int version) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        Connection conn = null;
+
+        BigInteger compId = UUIDUtils.toBigInteger(componentId);
+
+        try {
+            conn = dataSource.getConnection();
+            Long versionId = getComponentVersionId(compId, version, conn);
+            if (versionId == null) return null;
+
+            InputStream is = getComponentDescriptor(compId, versionId, conn);
+            if (is == null) return null;
+
+            return ModelUtils.getModel(is, null);
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
-    public InputStream getContextInputStream(String contextId) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    public ComponentContext getComponentContext(UUID componentId, int version, String contextId)
+            throws BackendStoreException {
+
+        Connection conn = null;
+        BigInteger compId = UUIDUtils.toBigInteger(componentId);
+
+        try {
+            conn = dataSource.getConnection();
+            Long versionId = getComponentVersionId(compId, version, conn);
+            if (versionId == null) return null;
+
+            BigInteger ctxHash = new BigInteger(Crypto.fromHexString(contextId));
+            return getComponentContext(compId, versionId, ctxHash, conn);
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
@@ -910,6 +950,89 @@ public class SQLLink implements BackendStoreLink {
     }
 
     /**
+     * Retrieves the version id for a particular component version
+     *
+     * @param componentId The component id
+     * @param version The component version
+     * @param conn The DB connection to use
+     * @return The version id, or null if no results were obtained
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Long getComponentVersionId(BigInteger componentId, int version, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_VERID).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(componentId));
+            ps.setInt(2, version-1);
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getTimestamp(1).getTime() : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the component descriptor for a particular component version
+     *
+     * @param componentId The component id
+     * @param verId The component version id
+     * @param conn The DB connection to use
+     * @return An InputStream to the descriptor, or null if no results were obtained
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected InputStream getComponentDescriptor(BigInteger componentId, long verId, Connection conn)
+            throws SQLException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_DESCRIPTOR).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(componentId));
+            ps.setTimestamp(2, new Timestamp(verId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getBinaryStream(1) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the specified component context for a particular component version
+     *
+     * @param componentId The component id
+     * @param verId The component version id
+     * @param ctxHash The context hash
+     * @param conn The DB connection to use
+     * @return The component context
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected ComponentContext getComponentContext(BigInteger componentId, long verId, BigInteger ctxHash,
+                                                   Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_CONTEXT_GET).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(componentId));
+            ps.setTimestamp(2, new Timestamp(verId));
+            ps.setBigDecimal(3, new BigDecimal(ctxHash));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? new ComponentContext(rs.getString("mime_type"), rs.getBinaryStream("data")) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
      * Adds a component to the DB
      *
      * @param compId The component id
@@ -1155,20 +1278,20 @@ public class SQLLink implements BackendStoreLink {
      */
     protected Model rewriteComponentContexts(ExecutableComponentDescription component,
                                            Map<BigInteger, ContextFile> contextHashes) {
-        // Remove all existing non-"implementation" contexts
-        List<RDFNode> ctxToRemove = new ArrayList<RDFNode>();
-        for (RDFNode node : component.getContext())
-            if (node.toString().endsWith("implementation/"))
-                ctxToRemove.add(node);
-        component.getContext().removeAll(ctxToRemove);
 
         Model model = component.getExecutableComponent().getModel();
         Resource resExecComp = model.listSubjectsWithProperty(RDF.type,
                 RepositoryVocabulary.executable_component).nextResource();
+        // Remove existing context statements
+        model.remove(model.listStatements(resExecComp, RepositoryVocabulary.execution_context, (RDFNode)null));
+
+        // Add the "implementation" context
+        resExecComp.addProperty(RepositoryVocabulary.execution_context,
+                model.createResource("context://localhost/implementation/"));
 
         for (Map.Entry<BigInteger, ContextFile> context : contextHashes.entrySet()) {
             String ctxFileName = context.getValue().getFileName();
-            String md5 = context.getKey().toString(16);
+            String md5 = Crypto.toHexString(context.getKey().toByteArray());
 
             // Add the modified context info to the model
             resExecComp.addProperty(RepositoryVocabulary.execution_context,

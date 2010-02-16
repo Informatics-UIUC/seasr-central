@@ -41,9 +41,9 @@
 package org.seasr.central.ws.restlets.repository;
 
 import com.google.gdata.util.ContentType;
-import org.seasr.central.main.SC;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
+import org.seasr.central.ws.restlets.ComponentContext;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -51,9 +51,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import static org.seasr.central.util.Tools.sendErrorBadRequest;
 import static org.seasr.central.util.Tools.sendErrorInternalServerError;
 
 /**
@@ -70,7 +71,8 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/context/(.+?)(?:/.*)?$";
+        return "/repository/component/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/(\\d+)" +
+                "/context/([a-f0-9]{32})(?:/.*)?$";
     }
 
     @Override
@@ -78,14 +80,29 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
         // Check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
-        String contextId = values[0];
+        UUID componentId;
+        int version;
 
         try {
-            InputStream contextStream = bsl.getContextInputStream(contextId);
+            componentId = UUID.fromString(values[0]);
+            version = Integer.parseInt(values[1]);
+            if (version < 1)
+                throw new IllegalArgumentException("The version number cannot be less than 1");
+        }
+        catch (IllegalArgumentException e) {
+            sendErrorBadRequest(response);
+            return true;
+        }
+
+        String contextId = values[2];
+
+        try {
+            ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
+            InputStream contextStream = context.getDataStream();
             OutputStream responseStream = response.getOutputStream();
 
             response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/octet-stream");
+            response.setContentType(context.getContentType());
 
             byte[] buffer = new byte[8192];
             int nRead;

@@ -57,7 +57,6 @@ import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.storage.Event;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -187,6 +186,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                                 // TODO: Add mechanism for request timeouts when retrieving remote descriptors
                                 ModelUtils.getModel(new URI(file.getString()), null) :
                                 ModelUtils.getModel(file.getInputStream(), null);
+
                         List<Resource> compResList = compModel.listSubjectsWithProperty(
                                 RDF.type, RepositoryVocabulary.executable_component).toList();
                         if (compResList.size() != 1)
@@ -295,6 +295,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             if (componentsMap.size() > 0) {
                 // Accumulate the component models
                 Model model = ModelFactory.createDefaultModel();
+
                 for (Component component : componentsMap.values())
                     model.add(component.getModel());
 

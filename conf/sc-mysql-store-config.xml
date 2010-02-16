@@ -574,8 +574,14 @@
     <entry key="org.seasr.central.storage.db.query.component.context.add">
         INSERT INTO sc_component_context (comp_uuid, uploaded_at, context_hash, mime_type) VALUES (?, ?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.context.get">
+        SELECT mime_type, data FROM (SELECT context_hash, mime_type FROM sc_component_context WHERE comp_uuid = ? AND uploaded_at = ? AND context_hash = ?) c INNER JOIN sc_context ctx ON c.context_hash = ctx.context_hash;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.component.add.descriptor">
         INSERT INTO sc_comp_descriptor (comp_uuid, uploaded_at, descriptor) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.descriptor">
+        SELECT descriptor FROM sc_comp_descriptor WHERE comp_uuid = ? AND uploaded_at = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.id">
         SELECT comp_uuid FROM sc_component WHERE uri = ? LIMIT 1;
@@ -585,6 +591,9 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
         SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.ver_id">
+        SELECT uploaded_at FROM sc_component WHERE comp_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.core.exists">
         SELECT 1 FROM sc_component_core WHERE core_hash = ?;

@@ -42,10 +42,9 @@ package org.seasr.central.ws.restlets.repository;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.main.SC;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -53,14 +52,11 @@ import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import static org.seasr.central.util.Tools.*;
@@ -87,7 +83,8 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/(.+)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/repository/component/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/(\\d+)" +
+                "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -132,32 +129,25 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String oldCompUri = compModel.listSubjectsWithProperty(
-                RDF.type, RepositoryVocabulary.executable_component).nextResource().getURI();
+        Resource resExecComp = compModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.executable_component).nextResource();
+        String oldCompUri = resExecComp.getURI();
 
-        String serverBase = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+        String serverBase = String.format("%s://%s:%d",
+                request.getScheme(), request.getServerName(), request.getServerPort());
+
         String compUri = String.format("%s/repository/component/%s/%d", serverBase, componentId, version);
-        String contextBase = String.format("%s/repository/context/", serverBase);
+        String contextBase = String.format("%s/context/", compUri);
 
         if (oldCompUri.endsWith("/")) compUri += "/";
 
-        // Update the component URI and component context(s) URIs
         // TODO: Find a better method to do this (one that relies on direct Model manipulation)
-        String sModel;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        compModel.write(baos);
-        try {
-            sModel = baos.toString("UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
-        }
+        String sModel = ModelUtils.modelToDialect(compModel, "TURTLE");
         sModel = sModel.replaceAll(Pattern.quote(oldCompUri), compUri);  // Update the component URI
         sModel = sModel.replaceAll("context://localhost/", contextBase); // Update the component context(s) URIs
 
-        compModel = ModelFactory.createDefaultModel();
+        compModel.removeAll();
+
         try {
             ModelUtils.readModelFromString(compModel, sModel);
 

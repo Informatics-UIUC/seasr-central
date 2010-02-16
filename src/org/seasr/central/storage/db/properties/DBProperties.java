@@ -86,11 +86,14 @@ public abstract class DBProperties {
     public static final String Q_COMP_ADD_TAG = "org.seasr.central.storage.db.query.component.add.tag";
     public static final String Q_CORE_CONTEXT_ADD = "org.seasr.central.storage.db.query.core.context.add";
     public static final String Q_COMP_CONTEXT_ADD = "org.seasr.central.storage.db.query.component.context.add";
+    public static final String Q_COMP_CONTEXT_GET = "org.seasr.central.storage.db.query.component.context.get";
     public static final String Q_COMP_ADD_DESCRIPTOR = "org.seasr.central.storage.db.query.component.add.descriptor";
+    public static final String Q_COMP_GET_DESCRIPTOR = "org.seasr.central.storage.db.query.component.get.descriptor";
 
     public static final String Q_COMP_GET_ID = "org.seasr.central.storage.db.query.component.get.id";
     public static final String Q_COMP_GET_LASTINSERT = "org.seasr.central.storage.db.query.component.get.last_insert";
     public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";
+    public static final String Q_COMP_GET_VERID = "org.seasr.central.storage.db.query.component.get.ver_id";
 
     public static final String Q_COMP_CORE_EXISTS = "org.seasr.central.storage.db.query.component.core.exists";
     public static final String Q_COMP_CORE_ADD = "org.seasr.central.storage.db.query.component.core.add";
