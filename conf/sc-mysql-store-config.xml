@@ -400,14 +400,18 @@
         // sc_flow_comp_core
         //
         CREATE TABLE IF NOT EXISTS sc_flow_comp_core (
-            flow_core_hash  DECIMAL(39) NOT NULL,
-            comp_core_hash  DECIMAL(39) NOT NULL,
+            flow_core_hash    DECIMAL(39) NOT NULL,
+            comp_core_hash    DECIMAL(39) NOT NULL,
+            flow_uploaded_at  DATETIME NOT NULL,
+            comp_uploaded_at  DATETIME NOT NULL,
 
-            PRIMARY KEY (flow_core_hash, comp_core_hash),
+            PRIMARY KEY (flow_core_hash, comp_core_hash, flow_uploaded_at, comp_uploaded_at),
             INDEX (flow_core_hash) USING HASH,
             FOREIGN KEY (flow_core_hash) REFERENCES sc_flow (core_hash),
             INDEX (comp_core_hash) USING HASH,
-            FOREIGN KEY (comp_core_hash) REFERENCES sc_component_core (core_hash)
+            FOREIGN KEY (comp_core_hash) REFERENCES sc_component_core (core_hash),
+            FOREIGN KEY (flow_uploaded_at) REFERENCES sc_flow (uploaded_at),
+            FOREIGN KEY (comp_uploaded_at) REFERENCES sc_component (uploaded_at)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //

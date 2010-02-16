@@ -46,6 +46,7 @@ import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.ws.restlets.ComponentContext;
 
 import java.net.URL;

@@ -57,6 +57,7 @@ import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.io.ModelUtils;
@@ -226,8 +227,15 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);
 
-                    jaErrors.put(createJSONErrorObj(String.format("Failed to add flow '%s' (%s)",
-                            fd.getName(), origUri), e));
+                    JSONObject errorObj = createJSONErrorObj(String.format("Failed to add flow '%s' (%s)",
+                            fd.getName(), origUri), e);
+
+                    if (e.getCause() != null && e.getCause() instanceof UnknownComponentsException) {
+                        UnknownComponentsException ex = (UnknownComponentsException) e.getCause();
+                        errorObj.put("unknown_components", new JSONArray(ex.getUnknownComponents()));
+                    }
+
+                    jaErrors.put(errorObj);
                 }
             }
 
@@ -255,14 +263,4 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
         return true;
     }
-//
-//    protected void updateComponents(FlowDescription flow) {
-//        // Check whether the backend contains the components in this flow
-//        Set<String> components = new HashSet<String>();
-//        for (ExecutableComponentInstanceDescription ecid : flow.getExecutableComponentInstances())
-//            components.add(ecid.getExecutableComponent().getURI());
-//
-//
-//    }
-
 }

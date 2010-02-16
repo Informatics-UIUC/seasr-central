@@ -47,8 +47,10 @@ import com.hp.hpl.jena.vocabulary.RDF;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
+import org.meandre.core.repository.ExecutableComponentInstanceDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.BackendStoreLink;
@@ -56,6 +58,7 @@ import org.seasr.central.storage.Event;
 import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
+import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.util.SCLogFormatter;
 import org.seasr.central.ws.restlets.ComponentContext;
 import org.seasr.meandre.support.generic.crypto.Crypto;
@@ -76,6 +79,8 @@ import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.seasr.central.util.Tools.*;
 
@@ -89,6 +94,9 @@ public class SQLLink implements BackendStoreLink {
 
     /** Date parser for the DATETIME SQL datatype */
     private static final SimpleDateFormat SQL_DATE_PARSER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    private static final Pattern REGEX_UUID_VERSION =
+            Pattern.compile(".*([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/(\\d+)/?$");
 
     protected static final Logger logger;
 
@@ -564,13 +572,15 @@ public class SQLLink implements BackendStoreLink {
 
             conn.commit();
         }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw e;
+        }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             rollbackTransaction(conn);
-            if (e instanceof BackendStoreException)
-                throw (BackendStoreException)e;
-            else
-                throw new BackendStoreException(e);
+            throw new BackendStoreException(e);
         }
         finally {
             releaseConnection(conn);
@@ -655,8 +665,22 @@ public class SQLLink implements BackendStoreLink {
             if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
                 throw new InactiveUserException(userId);
 
-            // TODO: Check whether all the components specified in this flow exist
+            // Check whether this flow contains any unknown components
+            List<String> unknownComponents = new ArrayList<String>();
+            for (ExecutableComponentInstanceDescription ecid : flow.getExecutableComponentInstances()) {
+                String compUri = ecid.getExecutableComponent().getURI();
+                Matcher m = REGEX_UUID_VERSION.matcher(compUri);
+                if (m.matches()) {
+                    UUID compId = UUID.fromString(m.group(1));
+                    int compVer = Integer.parseInt(m.group(2));
+                    if (getComponentVersionId(UUIDUtils.toBigInteger(compId), compVer, conn) == null)
+                        unknownComponents.add(compUri);
+                } else
+                    unknownComponents.add(compUri);
+            }
 
+            if (unknownComponents.size() > 0)
+                throw new UnknownComponentsException(unknownComponents);
 
             BigInteger coreHash = new BigInteger(getFlowCoreHash(flow));
 
@@ -740,13 +764,15 @@ public class SQLLink implements BackendStoreLink {
 
             conn.commit();
         }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw e;
+        }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             rollbackTransaction(conn);
-            if (e instanceof BackendStoreException)
-                throw (BackendStoreException)e;
-            else
-                throw new BackendStoreException(e);
+            throw new BackendStoreException(e);
         }
         finally {
             releaseConnection(conn);
