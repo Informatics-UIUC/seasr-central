@@ -43,6 +43,7 @@ package org.seasr.central.ws.restlets.repository;
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.main.SC;
@@ -87,7 +88,8 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/flow/(.+?)/(.+?)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/repository/flow/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/(\\d+)" +
+                "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -132,30 +134,23 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String oldFlowUri = flowModel.listSubjectsWithProperty(
-                RDF.type, RepositoryVocabulary.flow_component).nextResource().getURI();
+        Resource resFlow = flowModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.flow_component).nextResource();
+        String oldFlowUri = resFlow.getURI();
 
-        String serverBase = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+        String serverBase = String.format("%s://%s:%d", request.getScheme(),
+                request.getServerName(), request.getServerPort());
         String flowUri = String.format("%s/repository/flow/%s/%d", serverBase, flowId, version);
 
         if (oldFlowUri.endsWith("/")) flowUri += "/";
 
         // Update the flow URI
         // TODO: Find a better method to do this (one that relies on direct Model manipulation)
-        String sModel;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        flowModel.write(baos);
-        try {
-            sModel = baos.toString("UTF-8");
-        }
-        catch (UnsupportedEncodingException e) {
-            logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
-        }
+        String sModel = ModelUtils.modelToDialect(flowModel, "TURTLE");
         sModel = sModel.replaceAll(Pattern.quote(oldFlowUri), flowUri);  // Update the flow URI
 
-        flowModel = ModelFactory.createDefaultModel();
+        flowModel.removeAll();
+        
         try {
             ModelUtils.readModelFromString(flowModel, sModel);
 

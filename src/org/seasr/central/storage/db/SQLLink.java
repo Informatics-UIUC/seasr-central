@@ -784,7 +784,27 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public Model getFlow(UUID flowId, int version) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        Connection conn = null;
+
+        BigInteger fId = UUIDUtils.toBigInteger(flowId);
+
+        try {
+            conn = dataSource.getConnection();
+            Long versionId = getFlowVersionId(fId, version, conn);
+            if (versionId == null) return null;
+
+            InputStream is = getFlowDescriptor(fId, versionId, conn);
+            if (is == null) return null;
+
+            return ModelUtils.getModel(is, null);
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
     }
 
     @Override
@@ -1561,6 +1581,32 @@ public class SQLLink implements BackendStoreLink {
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? rs.getTimestamp(1).getTime() : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the flow descriptor for a particular flow version
+     *
+     * @param flowId The flow id
+     * @param verId The flow version id
+     * @param conn The DB connection to use
+     * @return An InputStream to the descriptor, or null if no results were obtained
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected InputStream getFlowDescriptor(BigInteger flowId, long verId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_DESCRIPTOR).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ps.setTimestamp(2, new Timestamp(verId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getBinaryStream(1) : null;
         }
         finally {
             closeStatement(ps);
