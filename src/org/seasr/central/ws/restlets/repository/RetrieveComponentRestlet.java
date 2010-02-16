@@ -83,7 +83,7 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/(\\d+)" +
+        return "/repository/component/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/(\\d+)" +
                 "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 

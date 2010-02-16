@@ -644,12 +644,135 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStoreException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        JSONObject joResult = new JSONObject();
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new InactiveUserException(userId);
+
+            // TODO: Check whether all the components specified in this flow exist
+
+
+            BigInteger coreHash = new BigInteger(getFlowCoreHash(flow));
+
+            String flowRights = flow.getRights();
+            BigInteger rightsHash = new BigInteger(getRightsHash(flowRights));
+
+            BigInteger flowId = null;
+            Integer version = null;
+
+            // Check whether the rights text already exists
+            if (getRightsTextForHash(rightsHash, conn) == null)
+                // Insert the license text into the DB
+                addRights(flowRights, rightsHash, conn);
+            else
+                flowId = getFlowId(flow, conn);
+
+            if (flowId == null) {
+                // Generate a new id for the flow
+                flowId = UUIDUtils.toBigInteger(UUID.randomUUID());
+                version = 1;
+            } else {
+                Flow lastAddedFlow = getLastAddedFlow(flowId, conn);
+                if (lastAddedFlow == null) // sanity check - should not happen
+                    throw new BackendStoreException("Problem retrieving last added flow for existing flow id: "
+                            + UUIDUtils.fromBigInteger(flowId));
+
+                // Check whether this flow is identical to last added
+                if (coreHash.equals(lastAddedFlow.getFlowCoreHash())
+                        && flow.getName().equals(lastAddedFlow.getName())
+                        && flow.getCreator().equals(lastAddedFlow.getCreator())
+                        && flow.getDescription().equals(lastAddedFlow.getDescription())
+                        && rightsHash.equals(lastAddedFlow.getRightsHash())
+                        && flow.getFlowComponent().getURI().equals(lastAddedFlow.getUri())
+                        && flow.getTags().getTags().containsAll(lastAddedFlow.getTags())
+                        && lastAddedFlow.getTags().containsAll(flow.getTags().getTags())) {
+
+                    // Flow identical to last inserted version, get its version and return info to user
+                    int qFlowVersion = getFlowVersionCount(flowId, conn);
+
+                    joResult.put("uuid", UUIDUtils.fromBigInteger(flowId).toString());
+                    joResult.put("version", qFlowVersion);
+
+                    // Record the event
+                    addEvent(Event.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
+
+                    conn.commit();
+
+                    logger.fine(String.format("Ignoring repeated upload of flow %s, version %d",
+                            joResult.getString("uuid"), qFlowVersion));
+
+                    return joResult;
+                }
+            }
+
+            // Insert this flow version into the DB
+            long timestamp = addFlow(flowId, coreHash, rightsHash, flow, conn);
+
+            // Insert the user -> flow mapping
+            String sqlQuery = properties.getProperty(DBProperties.Q_USER_FLOW_ADD).trim();
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(sqlQuery);
+                ps.setBigDecimal(1, new BigDecimal(uid));
+                ps.setBigDecimal(2, new BigDecimal(flowId));
+                ps.setTimestamp(3, new Timestamp(timestamp));
+
+                ps.executeUpdate();
+            }
+            finally {
+                closeStatement(ps);
+            }
+
+            if (version == null)
+                version = getFlowVersionCount(flowId, conn);
+
+            joResult.put("uuid", UUIDUtils.fromBigInteger(flowId).toString());
+            joResult.put("version", version);
+
+            // Record the event
+            addEvent(Event.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
+
+            conn.commit();
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            if (e instanceof BackendStoreException)
+                throw (BackendStoreException)e;
+            else
+                throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
+
+        return joResult;
+
     }
 
     @Override
     public Model getFlow(UUID flowId, int version) throws BackendStoreException {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException {
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            return getFlowVersionCount(UUIDUtils.toBigInteger(flowId), conn);
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
     }
 
     /**
@@ -833,6 +956,30 @@ public class SQLLink implements BackendStoreLink {
     }
 
     /**
+     * Retrieves the version count for a flow
+     *
+     * @param flowId The flow id
+     * @param conn The DB connection to use
+     * @return The version count, or null if no flow with that id has been found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Integer getFlowVersionCount(BigInteger flowId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_VERCOUNT).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getInt(1) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
      * Retrieves the rights text for a particular hash value
      *
      * @param rightsHash The hash value
@@ -925,7 +1072,7 @@ public class SQLLink implements BackendStoreLink {
     /**
      * Returns the component id based on the attributes that determine its uniqueness.
      * This method should be overridden in case the meaning of what constitutes a unique component
-     * is changed from its default assumption that 'uri' values determine a component's uniqueness.
+     * is changed from its default assumption that 'uri' values determine the uniqueness of a component.
      * NOTE: If this method is overridden it is very likely that the SQL query associated with it needs to be changed
      *
      * @param component The component whose (subset of) attributes will be used to determine its uniqueness
@@ -1302,6 +1449,184 @@ public class SQLLink implements BackendStoreLink {
     }
 
     /**
+     * Returns the flow id based on the attributes that determine its uniqueness.
+     * This method should be overridden in case the meaning of what constitutes a unique flow
+     * is changed from its default assumption that 'uri' values determine the uniqueness of a flow.
+     * NOTE: If this method is overridden it is very likely that the SQL query associated with it needs to be changed
+     *
+     * @param flow The flow whose (subset of) attributes will be used to determine its uniqueness
+     * @param conn The DB connection to use
+     * @return The flow id, or null if no matching flow was found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected BigInteger getFlowId(FlowDescription flow, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_ID).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, flow.getFlowComponent().getURI());
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getBigDecimal(1).toBigInteger() : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the last added version for a particular flow
+     *
+     * @param flowId The flow id
+     * @param conn The DB connection to use
+     * @return The last added flow for the given flow id, or null if none found
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Flow getLastAddedFlow(BigInteger flowId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_LASTINSERT).trim();
+        Flow flow = null;
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                flow = new Flow();
+                flow.setFlowId(flowId);
+                flow.setFlowCoreHash(rs.getBigDecimal("core_hash").toBigInteger());
+                flow.setName(rs.getString("name"));
+                flow.setDescription(rs.getString("description"));
+                flow.setCreator(rs.getString("creator"));
+                flow.setRightsHash(rs.getBigDecimal("rights_hash").toBigInteger());
+                flow.setUri(rs.getString("uri"));
+
+                do {
+                    flow.addTag(rs.getString("tag"));
+                } while (rs.next());
+            }
+
+            return flow;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the version id for a particular flow version
+     *
+     * @param flowId The flow id
+     * @param version The flow version
+     * @param conn The DB connection to use
+     * @return The version id, or null if no results were obtained
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Long getFlowVersionId(BigInteger flowId, int version, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_VERID).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ps.setInt(2, version-1);
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getTimestamp(1).getTime() : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Adds a flow to the DB
+     *
+     * @param flowId The flow id
+     * @param coreHash The flow core hash
+     * @param rightsHash The rights hash
+     * @param flow The flow
+     * @param conn The DB connection to use
+     * @return The flow version id assigned by the DB
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected long addFlow(BigInteger flowId, BigInteger coreHash, BigInteger rightsHash, FlowDescription flow,
+                         Connection conn) throws SQLException {
+        long timestamp = getCurrentDateTime(conn).getTime();
+        PreparedStatement ps = null;
+
+        try {
+            // Insert this flow version into the DB
+            String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_ADD).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ps.setTimestamp(2, new Timestamp(timestamp));
+            ps.setBigDecimal(3, new BigDecimal(coreHash));
+            ps.setString(4, flow.getName());
+            ps.setString(5, flow.getCreator());
+            ps.setTimestamp(6, new Timestamp(flow.getCreationDate().getTime()));
+            ps.setBigDecimal(7, new BigDecimal(rightsHash));
+            ps.setString(8, flow.getFlowComponent().getURI());
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the flow description
+            String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_ADD_DESCRIPTION).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ps.setTimestamp(2, new Timestamp(timestamp));
+            ps.setString(3, flow.getDescription());
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        try {
+            // Insert the flow tags
+            String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_ADD_TAG).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            for (String tag : flow.getTags().getTags()) {
+                ps.setBigDecimal(1, new BigDecimal(flowId));
+                ps.setTimestamp(2, new Timestamp(timestamp));
+                ps.setString(3, tag);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        Model model = flow.getModel();
+        byte[] modelData = ModelUtils.modelToByteArray(model, "TURTLE");
+        try {
+            // Insert the flow descriptor
+            String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_ADD_DESCRIPTOR).trim();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(flowId));
+            ps.setTimestamp(2, new Timestamp(timestamp));
+            ps.setBinaryStream(3, new ByteArrayInputStream(modelData), modelData.length);
+            ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+            ps = null;
+        }
+
+        return timestamp;
+    }
+
+    /**
      * Adds a new event
      *
      * @param eventCode The event code
@@ -1485,6 +1810,110 @@ public class SQLLink implements BackendStoreLink {
 
         public void setResLocation(String res_location) {
             this.res_location = res_location;
+        }
+
+        public String getUri() {
+            return uri;
+        }
+
+        public void setUri(String uri) {
+            this.uri = uri;
+        }
+
+        public Boolean isDeleted() {
+            return deleted;
+        }
+
+        public void setDeleted(Boolean deleted) {
+            this.deleted = deleted;
+        }
+    }
+
+    protected class Flow {
+        Long        flow_ver_id = null;
+        BigInteger  flow_uuid = null;
+        BigInteger  flow_hash = null;
+        String      name = null;
+        String      creator = null;
+        String      description = null;
+        BigInteger  rights_hash = null;
+        Date        creation_date = null;
+        Set<String> tags = null;
+        String      uri = null;
+        Boolean     deleted = null;
+
+        public Long getFlowVersionId() {
+            return flow_ver_id;
+        }
+
+        public void setFlowVersionId(Long flow_ver_id) {
+            this.flow_ver_id = flow_ver_id;
+        }
+
+        public BigInteger getFlowId() {
+            return flow_uuid;
+        }
+
+        public void setFlowId(BigInteger flow_uuid) {
+            this.flow_uuid = flow_uuid;
+        }
+
+        public BigInteger getFlowCoreHash() {
+            return flow_hash;
+        }
+
+        public void setFlowCoreHash(BigInteger flow_hash) {
+            this.flow_hash = flow_hash;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getCreator() {
+            return creator;
+        }
+
+        public void setCreator(String creator) {
+            this.creator = creator;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public void setDescription(String description) {
+            this.description = description;
+        }
+
+        public BigInteger getRightsHash() {
+            return rights_hash;
+        }
+
+        public void setRightsHash(BigInteger rights_hash) {
+            this.rights_hash = rights_hash;
+        }
+
+        public Date getCreationDate() {
+            return creation_date;
+        }
+
+        public void setCreationDate(Date creation_date) {
+            this.creation_date = creation_date;
+        }
+
+        public Set<String> getTags() {
+            return tags;
+        }
+
+        public void addTag(String tag) {
+            if (tags == null)
+                tags = new HashSet<String>();
+            tags.add(tag);
         }
 
         public String getUri() {

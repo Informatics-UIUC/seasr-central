@@ -45,8 +45,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
-import org.meandre.core.repository.DataPortDescription;
-import org.meandre.core.repository.ExecutableComponentDescription;
+import org.meandre.core.repository.*;
 import org.seasr.central.main.SCServer;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.crypto.Crypto;
@@ -432,7 +431,7 @@ public class Tools {
     }
 
     /**
-     * Calculates a hash signature for the core parts of a component
+     * Computes a hash signature for the core parts of a component
      *
      * @param component The component
      * @param contextHashes The hashes of the component's context files
@@ -442,6 +441,23 @@ public class Tools {
                                               SortedSet<BigInteger> contextHashes) {
         try {
             return Crypto.createMD5Hash(getComponentCoreAsString(component, contextHashes).getBytes("UTF-8"));
+        }
+        catch (UnsupportedEncodingException e) {
+            // This should not happen
+            logger.log(Level.SEVERE, null, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Computes a hash signature for the core parts of a flow
+     *
+     * @param flow The flow
+     * @return The core hash
+     */
+    public static byte[] getFlowCoreHash(FlowDescription flow) {
+        try {
+            return Crypto.createMD5Hash(getFlowCoreAsString(flow).getBytes("UTF-8"));
         }
         catch (UnsupportedEncodingException e) {
             // This should not happen
@@ -483,8 +499,7 @@ public class Tools {
         for (String outputPort : sortedStrings)
             sb.append("output: ").append(outputPort).append("\n");
 
-        SortedMap<String, String> propMap = new TreeMap<String, String>();
-        propMap.putAll(component.getProperties().getValueMap());
+        SortedMap<String, String> propMap = new TreeMap<String, String>(component.getProperties().getValueMap());
 
         for (Map.Entry<String, String> entry : propMap.entrySet())
             sb.append("property: ").append("key=").append(entry.getKey())
@@ -492,6 +507,41 @@ public class Tools {
 
         for (BigInteger contextHash : contextHashes)
             sb.append("context: ").append(contextHash).append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Helper method that isolates the "core" features of a flow
+     *
+     * @param flow The flow
+     * @return A string containing the core features
+     */
+    private static String getFlowCoreAsString(FlowDescription flow) {
+        StringBuilder sb = new StringBuilder();
+
+        for (ExecutableComponentInstanceDescription ecid : flow.getExecutableComponentInstancesOrderedByName()) {
+            sb.append("instance: ").append(ecid.getExecutableComponentInstance().getURI()).append("\n");
+            sb.append("instance_of: ").append(ecid.getExecutableComponent().getURI()).append("\n");
+            SortedMap<String, String> propMap = new TreeMap<String, String>(ecid.getProperties().getValueMap());
+            for (Map.Entry<String, String> entry : propMap.entrySet())
+                sb.append("property: ").append("key=").append(entry.getKey())
+                        .append(" value=").append(entry.getValue()).append("\n");
+        }
+
+        SortedMap<String, String> connectorMap = new TreeMap<String, String>();
+        for (ConnectorDescription cd : flow.getConnectorDescriptions()) {
+            StringBuilder csb = new StringBuilder();
+            csb.append("connector: ").append(cd.getConnector().getURI()).append("\n");
+            csb.append("source_instance: ").append(cd.getSourceInstance().getURI()).append("\n");
+            csb.append("source_port: ").append(cd.getSourceInstanceDataPort().getURI()).append("\n");
+            csb.append("target_instance: ").append(cd.getTargetInstance().getURI()).append("\n");
+            csb.append("target_port: ").append(cd.getTargetInstanceDataPort().getURI()).append("\n");
+            connectorMap.put(cd.getConnector().getURI(), csb.toString());
+        }
+
+        for (String connector : connectorMap.values())
+            sb.append("\n").append(connector);
 
         return sb.toString();
     }

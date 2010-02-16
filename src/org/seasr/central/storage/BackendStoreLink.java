@@ -235,4 +235,14 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public Model getFlow(UUID flowId, int version) throws BackendStoreException;
+
+    /**
+     * Returns the version count for a flow
+     *
+     * @param flowId The flow id
+     * @return The version count, or null if the flow does not exist
+     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     */
+    public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
+
 }

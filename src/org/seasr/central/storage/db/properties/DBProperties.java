@@ -73,6 +73,7 @@ public abstract class DBProperties {
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
+    public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
@@ -101,4 +102,13 @@ public abstract class DBProperties {
     public static final String Q_CONTEXT_EXISTS = "org.seasr.central.storage.db.query.context.exists";
     public static final String Q_CONTEXT_ADD = "org.seasr.central.storage.db.query.context.add";
 
+    public static final String Q_FLOW_ADD = "org.seasr.central.storage.db.query.flow.add";
+    public static final String Q_FLOW_ADD_DESCRIPTION = "org.seasr.central.storage.db.query.flow.add.description";
+    public static final String Q_FLOW_ADD_TAG = "org.seasr.central.storage.db.query.flow.add.tag";
+    public static final String Q_FLOW_ADD_DESCRIPTOR = "org.seasr.central.storage.db.query.flow.add.descriptor";
+    public static final String Q_FLOW_GET_DESCRIPTOR = "org.seasr.central.storage.db.query.flow.get.descriptor";
+    public static final String Q_FLOW_GET_ID = "org.seasr.central.storage.db.query.flow.get.id";
+    public static final String Q_FLOW_GET_LASTINSERT = "org.seasr.central.storage.db.query.flow.get.last_insert";
+    public static final String Q_FLOW_GET_VERCOUNT = "org.seasr.central.storage.db.query.flow.get.ver_count";
+    public static final String Q_FLOW_GET_VERID = "org.seasr.central.storage.db.query.flow.get.ver_id";
 }

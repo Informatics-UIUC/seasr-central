@@ -209,8 +209,8 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         String descriptorName = file.isFormField() ? file.getString().trim() : file.getName();
                         logger.log(Level.WARNING, String.format("Error parsing RDF from '%s'", descriptorName), e);
 
-                        JSONObject joError = createJSONErrorObj("Invalid component RDF model received", e);
-                        joError.put("model", descriptorName);
+                        JSONObject joError = createJSONErrorObj("Invalid component RDF descriptor received", e);
+                        joError.put("descriptor", descriptorName);
 
                         jaErrors.put(joError);
 

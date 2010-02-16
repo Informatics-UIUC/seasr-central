@@ -162,7 +162,8 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     continue;
 
                 if (!file.isFormField()) {
-                    logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]", file.getName(), file.getSize(), file.getFieldName()));
+                    logger.fine(String.format("Uploaded file '%s' (%,d bytes) [%s]",
+                            file.getName(), file.getSize(), file.getFieldName()));
                     if (file.getSize() == 0)
                         logger.warning(String.format("Uploaded file '%s' has size 0", file.getName()));
                 }
@@ -174,10 +175,12 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                                 // TODO: Add mechanism for request timeouts when retrieving remote descriptors
                                 ModelUtils.getModel(new URI(file.getString()), null) :
                                 ModelUtils.getModel(file.getInputStream(), null);
+
                         List<Resource> flowResList = flowModel.listSubjectsWithProperty(
                                 RDF.type, RepositoryVocabulary.flow_component).toList();
                         if (flowResList.size() != 1)
-                            throw new Exception("RDF descriptor does not contain a flow, or contains more than one flow.");
+                            throw new Exception("RDF descriptor does not contain a flow, " +
+                                    "or contains more than one flow.");
 
                         // Accumulate the flow model
                         model.add(flowModel);
@@ -219,10 +222,6 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     joFlow.put("url", flowUrl);
 
                     jaSuccess.put(joFlow);
-
-                    // Record the event
-                    //Event event = (flowVersion == 1) ? Event.FLOW_UPLOADED : Event.FLOW_UPDATED;
-                    //bsl.addEvent(event, userId, null, null, null, joFlow);
                 }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);

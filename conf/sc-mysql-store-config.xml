@@ -541,6 +541,9 @@
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.flow.add">
+        INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
+    </entry>
 
     <!-- EVENTS -->
     <entry key="org.seasr.central.storage.db.query.event.add">
@@ -610,18 +613,33 @@
 
     <!-- FLOWS -->
     <entry key="org.seasr.central.storage.db.query.flow.add">
-        INSERT INTO sc_flow (uuid, version, upload_date) VALUES (?, ?, NOW());
+        INSERT INTO sc_flow (flow_uuid, uploaded_at, core_hash, name, creator, creation_date, rights_hash, uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.add.description">
+        INSERT INTO sc_flow_description (flow_uuid, uploaded_at, description) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.add.tag">
+        INSERT INTO sc_flow_tag (flow_uuid, uploaded_at, tag) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.add.descriptor">
+        INSERT INTO sc_flow_descriptor (flow_uuid, uploaded_at, descriptor) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.descriptor">
+        SELECT descriptor FROM sc_flow_descriptor WHERE flow_uuid = ? AND uploaded_at = ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.add.id">
         INSERT IGNORE INTO sc_flow_id_map (orig_uri, user_uuid, flow_uuid) VALUES (?, ?, ?);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.flow.get.id.origuri.user">
-        SELECT flow_uuid FROM sc_flow_id_map WHERE orig_uri = ? AND user_uuid = ?;
+    <entry key="org.seasr.central.storage.db.query.flow.get.id">
+        SELECT flow_uuid FROM sc_flow WHERE uri = ? LIMIT 1;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.flow.get.last.version.number">
-        SELECT MAX(version) FROM sc_flow WHERE uuid = ? FOR UPDATE;
+    <entry key="org.seasr.central.storage.db.query.flow.get.last_insert">
+        SELECT core_hash, name, creator, rights_hash, uri, description, tag FROM (SELECT flow_uuid, uploaded_at, core_hash, name, creator, rights_hash, uri FROM sc_flow WHERE flow_uuid = ? ORDER BY uploaded_at DESC LIMIT 1) f INNER JOIN sc_flow_description d INNER JOIN sc_flow_tag t ON (f.flow_uuid = d.flow_uuid AND f.uploaded_at = d.uploaded_at) AND (f.flow_uuid = t.flow_uuid AND f.uploaded_at = t.uploaded_at);
     </entry>
-    <entry key="org.seasr.central.storage.db.query.flow.get.state.uuid.version">
-        SELECT deleted FROM sc_flow WHERE uuid = ? AND version = ?;
+    <entry key="org.seasr.central.storage.db.query.flow.get.ver_count">
+        SELECT COUNT(1) FROM sc_flow WHERE flow_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.ver_id">
+        SELECT uploaded_at FROM sc_flow WHERE flow_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;
     </entry>
 </properties>
