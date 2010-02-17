@@ -54,8 +54,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.sendErrorBadRequest;
-import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Restlet for retrieving component contexts
@@ -98,6 +97,11 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
         try {
             ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
+            if (context == null) {
+                sendErrorNotFound(response);
+                return true;
+            }
+            
             InputStream contextStream = context.getDataStream();
             OutputStream responseStream = response.getOutputStream();
 
