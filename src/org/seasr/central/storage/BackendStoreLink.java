@@ -174,6 +174,12 @@ public interface BackendStoreLink {
      */
     public JSONArray listUsers(long offset, long count) throws BackendStoreException;
 
+    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
+    public UUID getGroupId(String groupName) throws BackendStoreException;
+    public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
+    public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
+
+
     /**
      * Adds (or updates) a component
      *

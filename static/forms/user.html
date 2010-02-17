@@ -1,158 +1,191 @@
 <html>
 <head>
-<title>SEASR Central Test Form</title>
+    <title>SEASR Central Test Form</title>
 </head>
 
 <body>
 <script>
-function actionBuilder(form) {
-    var re = new RegExp("\\[(.+?)\\]", "g");
-    var paramAction = form.attributes["paramAction"];
+    function actionBuilder(form) {
+        var re = new RegExp("\\[(.+?)\\]", "g");
+        var paramAction = form.attributes["paramAction"];
 
-    if (paramAction != null) {
-	    var str = paramAction.value;
+        if (paramAction != null) {
+            var str = paramAction.value;
 
-		do {
-			var result = re.exec(str);
-			if (result != null)
-				  str = str.replace(result[0], form[result[1]].value);
-		}
-		while (result != null);
+            do {
+                var result = re.exec(str);
+                if (result != null)
+                    str = str.replace(result[0], form[result[1]].value);
+            }
+            while (result != null);
 
-		form.action = str;
+            form.action = str;
+        }
+
+        function actionHandler(evt) {
+            if (evt.target.readyState == 4 && evt.target.status == 200) {
+                alert("Request successful");
+            } else
+                alert("There was a problem while processing your request!");
+        }
+
+        if (form.method.toUpperCase() != "GET" && form.method.toUpperCase() != "POST") {
+            var req = new XMLHttpRequest();
+            req.onload = actionHandler;
+            req.open(form.method, form.action, false);
+            req.send("");
+
+            return false;
+        }
+
+        return true;
     }
-
-	function actionHandler(evt) {
-		if (evt.target.readyState == 4 && evt.target.status == 200) {
-			alert("Request successful");
-		} else
-			alert("There was a problem while processing your request!");
-	}
-
-	if (form.method.toUpperCase() != "GET" && form.method.toUpperCase() != "POST") {
-	    var req = new XMLHttpRequest();
-	    req.onload = actionHandler;
-	    req.open(form.method, form.action, false);
-	    req.send("");
-
-		return false;
-	}
-
-	return true;
-}
 </script>
 
 <h3>Add a user</h3>
+
 <form name="addUser" method="POST" action="/services/users/.txt">
-<table>
-    <tr>
-        <td>Screen name:</td>
-        <td><input type="text" name="screen_name"></td>
-    </tr>
-    <tr>
-        <td>Password:</td>
-        <td><input type="password" name="password"></td>
-    </tr>
-    <tr>
-        <td>Profile:</td>
-        <td><textarea name="profile">{"foo":"true"}</textarea></td>
-    </tr>
-    <tr>
-        <td colspan="2"><input type="submit" onClick="return actionBuilder(document.addUser);"> <input type="reset"></td>
-    </tr>
-</table>
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Password:</td>
+            <td><input type="password" name="password"></td>
+        </tr>
+        <tr>
+            <td>Profile:</td>
+            <td><textarea name="profile">{"foo":"true"}</textarea></td>
+        </tr>
+        <tr>
+            <td colspan="2"><input type="submit" onClick="return actionBuilder(document.addUser);"> <input type="reset">
+            </td>
+        </tr>
+    </table>
 </form>
 
 <h3>Remove a user</h3>
+
 <form name="removeUser" method="DELETE" paramAction="/services/users/[screen_name].txt">
-<table>
-	<tr>
-		<td>Screen name:</td>
-		<td><input type="text" name="screen_name"></td>
-	</tr>
-	<tr>
-		<td colspan="2"><input type="submit" value="Delete" onClick="return actionBuilder(document.removeUser);"></td>
-	</tr>
-</table>
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2"><input type="submit" value="Delete" onClick="return actionBuilder(document.removeUser);">
+            </td>
+        </tr>
+    </table>
 </form>
 
 <h3>List users</h3>
 <a href="/services/users/.txt">Show users</a>
 
+<h3>Create group</h3>
+
+<form name="createGroup" method="POST" paramAction="/services/users/[screen_name]/groups.txt">
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Group name:</td>
+            <td><input type="text" name="name"></td>
+        </tr>
+        <tr>
+            <td>Profile:</td>
+            <td><textarea name="profile">{"foo":"true"}</textarea></td>
+        </tr>
+        <tr>
+            <td colspan="2"><input type="submit" onClick="return actionBuilder(document.createGroup);"> <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>Upload component</h3>
-<form name="uploadComponent" method="POST" enctype="multipart/form-data" paramAction="/services/users/[screen_name]/components.txt">
-<table>
-	<tr>
-		<td>Screen name:</td>
-		<td><input type="text" name="screen_name"></td>
-	</tr>
-	<tr>
-		<td>Component RDF file:</td>
-		<td><input type="file" name="component_rdf"></td>
-	</tr>
-	<tr>
-	   <td>Component RDF URL:</td>
-	   <td><input type="text" name="component_rdf"></td>
-	</tr>
-	<tr>
-		<td>Context:</td>
-		<td><input type="file" name="context"></td>
-	</tr>
-	<tr>
-		<td>Context:</td>
-		<td><input type="file" name="context"></td>
-	</tr>
-	<tr>
-		<td>Context:</td>
-		<td><input type="file" name="context"></td>
-	</tr>
-	<tr>
-        <td>Context URL:</td>
-        <td><input type="text" name="context"></td>
-    </tr>
 
-	<tr>
-        <td>Component RDF file:</td>
-        <td><input type="file" name="component_rdf"></td>
-    </tr>
-    <tr>
-        <td>Context:</td>
-        <td><input type="file" name="context"></td>
-    </tr>
-    <tr>
-        <td>Context:</td>
-        <td><input type="file" name="context"></td>
-    </tr>
-    <tr>
-        <td>Context:</td>
-        <td><input type="file" name="context"></td>
-    </tr>
+<form name="uploadComponent" method="POST" enctype="multipart/form-data"
+      paramAction="/services/users/[screen_name]/components.txt">
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Component RDF file:</td>
+            <td><input type="file" name="component_rdf"></td>
+        </tr>
+        <tr>
+            <td>Component RDF URL:</td>
+            <td><input type="text" name="component_rdf"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+        <tr>
+            <td>Context URL:</td>
+            <td><input type="text" name="context"></td>
+        </tr>
 
-	<tr>
-		<td colspan="2"><input type="submit" value="Upload" onClick="return actionBuilder(document.uploadComponent);"> <input type="reset"></td>
-	</tr>
-</table>
+        <tr>
+            <td>Component RDF file:</td>
+            <td><input type="file" name="component_rdf"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+        <tr>
+            <td>Context:</td>
+            <td><input type="file" name="context"></td>
+        </tr>
+
+        <tr>
+            <td colspan="2"><input type="submit" value="Upload"
+                                   onClick="return actionBuilder(document.uploadComponent);"> <input type="reset"></td>
+        </tr>
+    </table>
 </form>
 
 <h3>Upload flow</h3>
-<form name="uploadFlow" method="POST" enctype="multipart/form-data" paramAction="/services/users/[screen_name]/flows.txt">
-<table>
-    <tr>
-        <td>Screen name:</td>
-        <td><input type="text" name="screen_name"></td>
-    </tr>
-    <tr>
-        <td>Flow RDF file:</td>
-        <td><input type="file" name="flow_rdf"></td>
-    </tr>
-    <tr>
-        <td>Flow RDF URL:</td>
-        <td><input type="text" name="flow_rdf"></td>
-    </tr>
-    <tr>
-        <td colspan="2"><input type="submit" value="Upload" onClick="return actionBuilder(document.uploadFlow);"> <input type="reset"></td>
-    </tr>
-</table>
+
+<form name="uploadFlow" method="POST" enctype="multipart/form-data"
+      paramAction="/services/users/[screen_name]/flows.txt">
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Flow RDF file:</td>
+            <td><input type="file" name="flow_rdf"></td>
+        </tr>
+        <tr>
+            <td>Flow RDF URL:</td>
+            <td><input type="text" name="flow_rdf"></td>
+        </tr>
+        <tr>
+            <td colspan="2"><input type="submit" value="Upload" onClick="return actionBuilder(document.uploadFlow);">
+                <input type="reset"></td>
+        </tr>
+    </table>
 </form>
 
 </body>

@@ -72,8 +72,14 @@ public abstract class DBProperties {
     public static final String Q_USER_PASSWORDVALID = "org.seasr.central.storage.db.query.user.password.valid";
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
+    public static final String Q_USER_GROUP_ADD = "org.seasr.central.storage.db.query.user.group.add";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
     public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
+
+    public static final String Q_GROUP_ADD = "org.seasr.central.storage.db.query.group.add";
+    public static final String Q_GROUP_GET_UUID = "org.seasr.central.storage.db.query.group.get.uuid";
+    public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";
+    public static final String Q_GROUP_GET_CREATEDAT = "org.seasr.central.storage.db.query.group.get.createdat";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 

@@ -221,6 +221,7 @@ public class SQLLink implements BackendStoreLink {
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStoreException(e);
         }
         finally {
@@ -250,6 +251,7 @@ public class SQLLink implements BackendStoreLink {
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStoreException(e);
         }
         finally {
@@ -475,6 +477,118 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        UUID groupId = UUID.randomUUID();
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
+
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
+            // Insert the group into the sc_group table
+            ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_GROUP_ADD).trim());
+            ps.setBigDecimal(1, new BigDecimal(gid));
+            ps.setString(2, groupName);
+            ps.setString(3, profile.toString());
+            ps.executeUpdate();
+            ps.close();
+
+            // Join the owner to the group (the first user joined is considered the "owner" of the group)
+            ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_USER_GROUP_ADD).trim());
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setBigDecimal(2, new BigDecimal(gid));
+            ps.executeUpdate();
+
+            // Record this event
+            addEvent(Event.GROUP_CREATED, uid, gid, null, null, null, conn);
+
+            conn.commit();
+
+            return groupId;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public UUID getGroupId(String groupName) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_UUID).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, groupName);
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger()) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_PROFILE).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? new JSONObject(rs.getString(1)) : null;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public Date getGroupCreationTime(UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_CREATEDAT).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ResultSet rs = ps.executeQuery();
+
+            return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
             throws BackendStoreException {
 
@@ -644,7 +758,7 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
-            
+
             return hasContext(new BigInteger(Crypto.fromHexString(contextId)), conn);
         }
         catch (SQLException e) {

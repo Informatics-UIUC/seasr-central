@@ -540,11 +540,28 @@
     <entry key="org.seasr.central.storage.db.query.user.list">
         SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.group.add">
+        INSERT INTO sc_user_group (user_uuid, group_uuid) VALUES (?, ?);
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
+    </entry>
+
+    <!-- GROUP -->
+    <entry key="org.seasr.central.storage.db.query.group.add">
+        INSERT INTO sc_group (group_uuid, name, created_at, profile) VALUES (?, ?, NOW(), ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.get.uuid">
+        SELECT group_uuid FROM sc_group WHERE name = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.get.profile">
+        SELECT profile FROM sc_group WHERE group_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.get.createdat">
+        SELECT created_at FROM sc_group WHERE group_uuid = ? AND deleted = 0;
     </entry>
 
     <!-- EVENTS -->
