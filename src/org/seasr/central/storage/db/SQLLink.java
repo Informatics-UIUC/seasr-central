@@ -666,15 +666,24 @@ public class SQLLink implements BackendStoreLink {
                 throw new InactiveUserException(userId);
 
             // Check whether this flow contains any unknown components
+            // and also build the list of components used in the flow
+            List<Component> components = new ArrayList<Component>();
             List<String> unknownComponents = new ArrayList<String>();
             for (ExecutableComponentInstanceDescription ecid : flow.getExecutableComponentInstances()) {
                 String compUri = ecid.getExecutableComponent().getURI();
                 Matcher m = REGEX_UUID_VERSION.matcher(compUri);
                 if (m.matches()) {
-                    UUID compId = UUID.fromString(m.group(1));
+                    BigInteger compId = UUIDUtils.toBigInteger(UUID.fromString(m.group(1)));
                     int compVer = Integer.parseInt(m.group(2));
-                    if (getComponentVersionId(UUIDUtils.toBigInteger(compId), compVer, conn) == null)
+                    Long compVerId = getComponentVersionId(compId, compVer, conn);
+                    if (compVerId == null)
                         unknownComponents.add(compUri);
+                    else {
+                        Component comp = new Component();
+                        comp.setComponentVersionId(compVerId);
+                        comp.setComponentCoreHash(getComponentCore(compId, compVerId, conn));
+                        components.add(comp);
+                    }
                 } else
                     unknownComponents.add(compUri);
             }
@@ -748,6 +757,24 @@ public class SQLLink implements BackendStoreLink {
                 ps.setTimestamp(3, new Timestamp(timestamp));
 
                 ps.executeUpdate();
+            }
+            finally {
+                closeStatement(ps);
+            }
+
+            // Insert the flow -> component mapping
+            sqlQuery = properties.getProperty(DBProperties.Q_FLOW_COMPONENT_ADD).trim();
+            try {
+                ps = conn.prepareStatement(sqlQuery);
+                for (Component c : components) {
+                    ps.setBigDecimal(1, new BigDecimal(coreHash));
+                    ps.setTimestamp(2, new Timestamp(timestamp));
+                    ps.setBigDecimal(3, new BigDecimal(c.getComponentCoreHash()));
+                    ps.setTimestamp(4, new Timestamp(c.getComponentVersionId()));
+                    ps.addBatch();
+                }
+
+                ps.executeBatch();
             }
             finally {
                 closeStatement(ps);
@@ -1411,6 +1438,32 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(coreHash));
 
             return ps.executeQuery().next();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Retrieves the component core hash for a particular component version
+     *
+     * @param compId The component id
+     * @param compVerId The component version id
+     * @param conn The DB connection to use
+     * @return The component core hash value, or null if no results were obtained
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected BigInteger getComponentCore(BigInteger compId, long compVerId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_COREHASH).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setTimestamp(2, new Timestamp(compVerId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getBigDecimal(1).toBigInteger() : null;
         }
         finally {
             closeStatement(ps);

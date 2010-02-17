@@ -401,17 +401,15 @@
         //
         CREATE TABLE IF NOT EXISTS sc_flow_comp_core (
             flow_core_hash    DECIMAL(39) NOT NULL,
-            comp_core_hash    DECIMAL(39) NOT NULL,
             flow_uploaded_at  DATETIME NOT NULL,
+            comp_core_hash    DECIMAL(39) NOT NULL,
             comp_uploaded_at  DATETIME NOT NULL,
 
             PRIMARY KEY (flow_core_hash, comp_core_hash, flow_uploaded_at, comp_uploaded_at),
             INDEX (flow_core_hash) USING HASH,
             FOREIGN KEY (flow_core_hash) REFERENCES sc_flow (core_hash),
             INDEX (comp_core_hash) USING HASH,
-            FOREIGN KEY (comp_core_hash) REFERENCES sc_component_core (core_hash),
-            FOREIGN KEY (flow_uploaded_at) REFERENCES sc_flow (uploaded_at),
-            FOREIGN KEY (comp_uploaded_at) REFERENCES sc_component (uploaded_at)
+            FOREIGN KEY (comp_core_hash) REFERENCES sc_component_core (core_hash)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -593,6 +591,9 @@
     <entry key="org.seasr.central.storage.db.query.component.get.id">
         SELECT comp_uuid FROM sc_component WHERE uri = ? LIMIT 1;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.core_hash">
+        SELECT core_hash FROM sc_component WHERE comp_uuid = ? AND uploaded_at = ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.last_insert">
         SELECT core_hash, name, creator, rights_hash, uri, description, tag FROM (SELECT comp_uuid, uploaded_at, core_hash, name, creator, rights_hash, uri FROM sc_component WHERE comp_uuid = ? ORDER BY uploaded_at DESC LIMIT 1) c INNER JOIN sc_comp_description d INNER JOIN sc_comp_tag t ON (c.comp_uuid = d.comp_uuid AND c.uploaded_at = d.uploaded_at) AND (c.comp_uuid = t.comp_uuid AND c.uploaded_at = t.uploaded_at);
     </entry>
@@ -645,5 +646,8 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.get.ver_id">
         SELECT uploaded_at FROM sc_flow WHERE flow_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.component.add">
+        INSERT INTO sc_flow_comp_core (flow_core_hash, flow_uploaded_at, comp_core_hash, comp_uploaded_at) VALUES (?, ?, ?, ?);
     </entry>
 </properties>

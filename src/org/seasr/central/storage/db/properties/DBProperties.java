@@ -92,6 +92,7 @@ public abstract class DBProperties {
     public static final String Q_COMP_GET_DESCRIPTOR = "org.seasr.central.storage.db.query.component.get.descriptor";
 
     public static final String Q_COMP_GET_ID = "org.seasr.central.storage.db.query.component.get.id";
+    public static final String Q_COMP_GET_COREHASH = "org.seasr.central.storage.db.query.component.get.core_hash";
     public static final String Q_COMP_GET_LASTINSERT = "org.seasr.central.storage.db.query.component.get.last_insert";
     public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";
     public static final String Q_COMP_GET_VERID = "org.seasr.central.storage.db.query.component.get.ver_id";
@@ -111,4 +112,6 @@ public abstract class DBProperties {
     public static final String Q_FLOW_GET_LASTINSERT = "org.seasr.central.storage.db.query.flow.get.last_insert";
     public static final String Q_FLOW_GET_VERCOUNT = "org.seasr.central.storage.db.query.flow.get.ver_count";
     public static final String Q_FLOW_GET_VERID = "org.seasr.central.storage.db.query.flow.get.ver_id";
+
+    public static final String Q_FLOW_COMPONENT_ADD = "org.seasr.central.storage.db.query.flow.component.add";
 }
