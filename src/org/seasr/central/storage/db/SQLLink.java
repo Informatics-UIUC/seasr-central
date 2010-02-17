@@ -639,6 +639,24 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public boolean hasComponentContext(String contextId) throws BackendStoreException {
+        Connection conn = null;
+
+        try {
+            conn = dataSource.getConnection();
+            
+            return hasContext(new BigInteger(Crypto.fromHexString(contextId)), conn);
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn);
+        }
+    }
+
+    @Override
     public Integer getComponentVersionCount(UUID compId) throws BackendStoreException {
         Connection conn = null;
 

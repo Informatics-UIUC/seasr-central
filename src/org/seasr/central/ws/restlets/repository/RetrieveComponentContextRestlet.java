@@ -96,12 +96,24 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
         String contextId = values[2];
 
         try {
+            // Check whether this is a special request for the MD5 value of a resource
+            if (request.getRequestURI().endsWith(".md5")) {
+                if (bsl.hasComponentContext(contextId)) {
+                    response.setContentType("text/plain");
+                    response.getWriter().print(contextId);
+                } else {
+                    sendErrorNotFound(response);
+                }
+
+                return true;
+            }
+
             ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
             if (context == null) {
                 sendErrorNotFound(response);
                 return true;
             }
-            
+
             InputStream contextStream = context.getDataStream();
             OutputStream responseStream = response.getOutputStream();
 

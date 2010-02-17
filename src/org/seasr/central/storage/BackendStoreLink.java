@@ -209,6 +209,15 @@ public interface BackendStoreLink {
             throws BackendStoreException;
 
     /**
+     * Checks whether a component context exists in the backend store
+     *
+     * @param contextId The id of the context file
+     * @return True if exists, False otherwise
+     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     */
+    public boolean hasComponentContext(String contextId) throws BackendStoreException;
+
+    /**
      * Returns the version count for a component
      *
      * @param componentId The component id
