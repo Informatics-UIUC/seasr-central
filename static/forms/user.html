@@ -44,7 +44,7 @@
 
 <h3>Add a user</h3>
 
-<form name="addUser" method="POST" action="/services/users/.txt">
+<form name="addUser" method="POST" action="/services/users.txt">
     <table>
         <tr>
             <td>Screen name:</td>
@@ -59,7 +59,9 @@
             <td><textarea name="profile">{"foo":"true"}</textarea></td>
         </tr>
         <tr>
-            <td colspan="2"><input type="submit" onClick="return actionBuilder(document.addUser);"> <input type="reset">
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.addUser);">
+                <input type="reset">
             </td>
         </tr>
     </table>
@@ -74,14 +76,16 @@
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
-            <td colspan="2"><input type="submit" value="Delete" onClick="return actionBuilder(document.removeUser);">
+            <td colspan="2">
+                <input type="submit" value="Delete" onClick="return actionBuilder(document.removeUser);">
+                <input type="reset">
             </td>
         </tr>
     </table>
 </form>
 
 <h3>List users</h3>
-<a href="/services/users/.txt">Show users</a>
+<a href="/services/users.txt">Show users</a>
 
 <h3>Create group</h3>
 
@@ -100,7 +104,26 @@
             <td><textarea name="profile">{"foo":"true"}</textarea></td>
         </tr>
         <tr>
-            <td colspan="2"><input type="submit" onClick="return actionBuilder(document.createGroup);"> <input type="reset">
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.createGroup);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>List groups for user</h3>
+
+<form name="listGroupsForUser" method="GET" paramAction="/services/users/[screen_name]/groups.txt">
+    <table>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listGroupsForUser);">
+                <input type="reset">
             </td>
         </tr>
     </table>
@@ -158,8 +181,10 @@
         </tr>
 
         <tr>
-            <td colspan="2"><input type="submit" value="Upload"
-                                   onClick="return actionBuilder(document.uploadComponent);"> <input type="reset"></td>
+            <td colspan="2">
+                <input type="submit" value="Upload" onClick="return actionBuilder(document.uploadComponent);">
+                <input type="reset">
+            </td>
         </tr>
     </table>
 </form>
@@ -182,8 +207,10 @@
             <td><input type="text" name="flow_rdf"></td>
         </tr>
         <tr>
-            <td colspan="2"><input type="submit" value="Upload" onClick="return actionBuilder(document.uploadFlow);">
-                <input type="reset"></td>
+            <td colspan="2">
+                <input type="submit" value="Upload" onClick="return actionBuilder(document.uploadFlow);">
+                <input type="reset">
+            </td>
         </tr>
     </table>
 </form>

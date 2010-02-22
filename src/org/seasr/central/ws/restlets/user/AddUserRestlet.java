@@ -44,7 +44,6 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.seasr.central.storage.Event;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -84,7 +83,7 @@ public class AddUserRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/?(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/users(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override

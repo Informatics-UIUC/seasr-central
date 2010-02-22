@@ -47,7 +47,6 @@ import com.hp.hpl.jena.vocabulary.RDF;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.ExecutableComponentInstanceDescription;
@@ -283,7 +282,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void updateProfile(UUID userId, JSONObject profile) throws BackendStoreException {
+    public void updateUserProfile(UUID userId, JSONObject profile) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PROFILE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -421,7 +420,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public long userCount() throws BackendStoreException {
+    public long getUserCount() throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_COUNT).trim();
         Connection conn = null;
         Statement stmt = null;
@@ -474,6 +473,49 @@ public class SQLLink implements BackendStoreLink {
         finally {
             releaseConnection(conn, ps);
         }
+    }
+
+    @Override
+    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_GROUP_LIST).trim();
+        JSONArray jaGroups = new JSONArray();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setLong(2, offset);
+            ps.setLong(3, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joGroup = new JSONObject();
+                joGroup.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("group_uuid").toBigInteger()).toString());
+                joGroup.put("role_id", rs.getInt("role_id"));
+                jaGroups.put(joGroup);
+            }
+
+            return jaGroups;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
+        return null;
+    }
+
+    @Override
+    public Model getUserComponents(UUID userId) throws BackendStoreException {
+        return null;
     }
 
     @Override

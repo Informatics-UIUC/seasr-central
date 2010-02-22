@@ -561,6 +561,9 @@
     <entry key="org.seasr.central.storage.db.query.user.group.add">
         INSERT INTO sc_user_group (user_uuid, group_uuid) VALUES (?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.group.list">
+        SELECT group_uuid, role_id FROM sc_user_group WHERE user_uuid = ? LIMIT ?, ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>

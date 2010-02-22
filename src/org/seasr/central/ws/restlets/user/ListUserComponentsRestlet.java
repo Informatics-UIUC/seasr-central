@@ -45,6 +45,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -60,12 +61,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for deleting users
+ * Restlet for obtaining the list of components uploaded by a user
  *
- * @author Xavier Llora
  * @author Boris Capitanu
  */
-public class DeleteUserRestlet extends AbstractBaseRestlet {
+public class ListUserComponentsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -84,13 +84,13 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/([^/\\s]+?)(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // check for DELETE
-        if (!method.equalsIgnoreCase("DELETE")) return false;
+        // check for GET
+        if (!method.equalsIgnoreCase("GET")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
@@ -100,6 +100,9 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
 
         UUID userId;
         String screenName;
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
@@ -111,10 +114,28 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
                 sendErrorNotFound(response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
+            return true;
+        }
+
+        long offset = 0;
+        long count = Long.MAX_VALUE;
+
+        String sOffset = request.getParameter("offset");
+        String sCount = request.getParameter("count");
+
+        try {
+            if (sOffset != null) offset = Long.parseLong(sOffset);
+            if (sCount != null) count = Long.parseLong(sCount);
+        }
+        catch (NumberFormatException e) {
+            logger.log(Level.WARNING, null, e);
+            sendErrorBadRequest(response);
             return true;
         }
 
@@ -123,30 +144,16 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                // Attempt to remove the user
-                bsl.removeUser(userId);
-
-                // User deleted successfully
-                JSONObject joUser = new JSONObject();
-                joUser.put("uuid", userId.toString());
-                joUser.put("screen_name", screenName);
-
-                jaSuccess.put(joUser);
+                jaSuccess = bsl.listUserComponents(userId, offset, count); //, remoteUserId);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-
-                // Could not remove the user
-                JSONObject joError = createJSONErrorObj(String.format("Could not remove the user '%s'", screenName), e);
-                joError.put("uuid", userId.toString());
-                joError.put("screen_name", screenName);
-
-                jaErrors.put(joError);
+                jaErrors.put(createJSONErrorObj("Cannot obtain the component list for user " + userId, e));
             }
 
             JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
+            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
 
             response.setStatus(HttpServletResponse.SC_OK);
 

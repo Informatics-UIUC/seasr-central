@@ -126,6 +126,14 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="userGroupsList" class="org.seasr.central.ws.restlets.user.ListUserGroupsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -143,7 +151,7 @@
         </Set>
     </New>
 
-    <New id="userGroupCreate" class="org.seasr.central.ws.restlets.user.CreateGroupRestlet">
+    <New id="userGroupCreate" class="org.seasr.central.ws.restlets.group.CreateGroupRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -179,8 +187,8 @@
         </Set>
     </New>
 
-    <!-- User REST servlet dispatcher -->
-    <New id="userRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+    <!-- REST servlet dispatcher -->
+    <New id="red" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
         <Call name="add">
             <Arg>
                 <Ref id="userAdd"/>
@@ -203,6 +211,11 @@
         </Call>
         <Call name="add">
             <Arg>
+                <Ref id="userGroupsList"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
                 <Ref id="userComponentUpload"/>
             </Arg>
         </Call>
@@ -216,10 +229,7 @@
                 <Ref id="userGroupCreate"/>
             </Arg>
         </Call>
-    </New>
 
-    <!-- Repository REST servlet dispatcher -->
-    <New id="repositoryRED" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
         <Call name="add">
             <Arg>
                 <Ref id="repositoryRetrieveComponent"/>
@@ -246,27 +256,12 @@
             </Item>
             <Item>
                 <New id="userContext" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/services/users</Set>
+                    <Set name="contextPath">/services</Set>
                     <Call name="addServlet">
                         <Arg>
                             <New class="org.mortbay.jetty.servlet.ServletHolder">
                                 <Arg>
-                                    <Ref id="userRED"/>
-                                </Arg>
-                            </New>
-                        </Arg>
-                        <Arg>/</Arg>
-                    </Call>
-                </New>
-            </Item>
-            <Item>
-                <New id="repositoryContext" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/repository</Set>
-                    <Call name="addServlet">
-                        <Arg>
-                            <New class="org.mortbay.jetty.servlet.ServletHolder">
-                                <Arg>
-                                    <Ref id="repositoryRED"/>
+                                    <Ref id="red"/>
                                 </Arg>
                             </New>
                         </Arg>

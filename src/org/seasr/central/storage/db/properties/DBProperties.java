@@ -73,6 +73,7 @@ public abstract class DBProperties {
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
     public static final String Q_USER_GROUP_ADD = "org.seasr.central.storage.db.query.user.group.add";
+    public static final String Q_USER_GROUP_LIST = "org.seasr.central.storage.db.query.user.group.list";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
     public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
 

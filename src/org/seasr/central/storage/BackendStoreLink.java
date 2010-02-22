@@ -46,7 +46,6 @@ import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.ws.restlets.ComponentContext;
 
 import java.net.URL;
@@ -108,7 +107,7 @@ public interface BackendStoreLink {
      * @param profile The new profile
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public void updateProfile(UUID userId, JSONObject profile) throws BackendStoreException;
+    public void updateUserProfile(UUID userId, JSONObject profile) throws BackendStoreException;
 
     /**
      * Returns the id of a user given the screen name
@@ -162,7 +161,7 @@ public interface BackendStoreLink {
      * @return The number of users
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public long userCount() throws BackendStoreException;
+    public long getUserCount() throws BackendStoreException;
 
     /**
      * Lists the users stored in the backend store
@@ -173,6 +172,12 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public JSONArray listUsers(long offset, long count) throws BackendStoreException;
+
+    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
+
+    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+
+    public Model getUserComponents(UUID userId) throws BackendStoreException;
 
     public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
     public UUID getGroupId(String groupName) throws BackendStoreException;
