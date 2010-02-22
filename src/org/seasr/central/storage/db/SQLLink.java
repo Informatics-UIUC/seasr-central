@@ -520,6 +520,28 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public void requestJoinGroup(UUID userId, UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_JOINREQ_ADD).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public UUID getGroupId(String groupName) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_UUID).trim();
         Connection conn = null;

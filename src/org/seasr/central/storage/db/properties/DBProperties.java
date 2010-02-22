@@ -81,6 +81,8 @@ public abstract class DBProperties {
     public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";
     public static final String Q_GROUP_GET_CREATEDAT = "org.seasr.central.storage.db.query.group.get.createdat";
 
+    public static final String Q_GROUP_JOINREQ_ADD = "org.seasr.central.storage.db.query.group.join_req.add";
+
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
     public static final String Q_RIGHTS_ADD = "org.seasr.central.storage.db.query.rights.add";

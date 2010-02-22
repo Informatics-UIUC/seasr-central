@@ -179,6 +179,8 @@ public interface BackendStoreLink {
     public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
     public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
 
+    public void requestJoinGroup(UUID userId, UUID groupId) throws BackendStoreException;
+
 
     /**
      * Adds (or updates) a component

@@ -116,17 +116,35 @@
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_user_group
+        // sc_group_join_request
         //
-        CREATE TABLE IF NOT EXISTS sc_user_group (
-            user_uuid   DECIMAL(39) NOT NULL,
-            group_uuid  DECIMAL(39) NOT NULL,
+        CREATE  TABLE IF NOT EXISTS sc_group_join_request (
+            user_uuid     DECIMAL(39) NOT NULL,
+            group_uuid    DECIMAL(39) NOT NULL,
+            requested_at  DATETIME NOT NULL,
 
             PRIMARY KEY (user_uuid, group_uuid),
             INDEX (user_uuid) USING HASH,
             FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
             INDEX (group_uuid) USING HASH,
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_user_group
+        //
+        CREATE TABLE IF NOT EXISTS sc_user_group (
+            user_uuid   DECIMAL(39) NOT NULL,
+            group_uuid  DECIMAL(39) NOT NULL,
+            role_id     SMALLINT UNSIGNED NOT NULL,
+
+            PRIMARY KEY (user_uuid, group_uuid),
+            INDEX (user_uuid) USING HASH,
+            FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
+            INDEX (group_uuid) USING HASH,
+            FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid),
+            INDEX (role_id) USING HASH,
+            FOREIGN KEY (role_id) REFERENCES sc_role (role_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -562,6 +580,9 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.group.get.createdat">
         SELECT created_at FROM sc_group WHERE group_uuid = ? AND deleted = 0;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.join_req.add">
+        INSERT INTO sc_group_join_request (user_uuid, group_uuid, requested_at) VALUES (?, ?, NOW());
     </entry>
 
     <!-- EVENTS -->
