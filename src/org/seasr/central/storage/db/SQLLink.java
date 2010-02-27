@@ -54,11 +54,13 @@ import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.Event;
+import org.seasr.central.storage.Role;
 import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
 import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.util.SCLogFormatter;
+import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.ComponentContext;
 import org.seasr.meandre.support.generic.crypto.Crypto;
 import org.seasr.meandre.support.generic.io.ModelUtils;
@@ -176,9 +178,59 @@ public class SQLLink implements BackendStoreLink {
             for (String sql : parseSQLString(properties.getProperty(DBProperties.AUTH_SCHEMA)))
                 stmt.executeUpdate(sql);
 
+            // Populate the default roles
+            PreparedStatement ps = conn.prepareStatement("INSERT IGNORE INTO sc_role (role_id, name) VALUES (?, ?);");
+            try {
+                for (Role role : Role.values()) {
+                    ps.setInt(1, role.getRoleId());
+                    ps.setString(2, role.name());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            finally {
+                closeStatement(ps);
+                ps = null;
+            }
+
+            // Create the admin user
+            stmt.executeUpdate(String.format(
+                    "INSERT IGNORE INTO sc_user (user_uuid, screen_name, password, created_at, profile) " +
+                    "VALUES (%d, 'admin', '%s', NOW(), '{}');",
+                    UUIDUtils.toBigInteger(ADMIN_UUID), computePasswordDigest("admin")
+            ));
+
+            // Assign the 'admin' user to the 'admin' role
+            stmt.executeUpdate(String.format(
+                    "INSERT IGNORE INTO sc_user_role (user_uuid, role_id) VALUES (%d, %d);",
+                    UUIDUtils.toBigInteger(ADMIN_UUID), Role.ADMIN.getRoleId()
+            ));
+
             // Create the main SC schema
             for (String sql : parseSQLString(properties.getProperty(DBProperties.SC_SCHEMA)))
                 stmt.executeUpdate(sql);
+
+            // Create the "public" group
+            stmt.executeUpdate(String.format(
+                    "INSERT IGNORE INTO sc_group (group_uuid, name, created_at, profile) " +
+                    "VALUES (%d, 'public', NOW(), '{}');",
+                    UUIDUtils.toBigInteger(PUBLIC_GROUP)
+            ));
+
+            // Populate the default event codes
+            ps = conn.prepareStatement("INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (?, ?);");
+            try {
+                for (Event event : Event.values()) {
+                    ps.setInt(1, event.getEventCode());
+                    ps.setString(2, event.name());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            finally {
+                closeStatement(ps);
+                ps = null;
+            }
 
             conn.commit();
         }
@@ -510,34 +562,54 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listUserComponents(UUID userId, long offset, long count, boolean listAllVersions) throws BackendStoreException {
-        String sqlQuery =
-                listAllVersions ?
-                        properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL).trim() :
-                        properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_LATEST).trim();
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL).trim();
         Connection conn = null;
         PreparedStatement ps = null;
-        JSONArray joResult = new JSONArray();
+        JSONArray jaResult = new JSONArray();
 
         try {
             conn = dataSource.getConnection();
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setLong(2, offset);
+            ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
 
+            Map<String, JSONObject> map = new HashMap<String, JSONObject>();
             while (rs.next()) {
-                BigInteger compId = rs.getBigDecimal(1).toBigInteger();
-                int version = getComponentVersionCount(compId, conn);
+                UUID componentId = UUIDUtils.fromBigInteger(rs.getBigDecimal("comp_uuid").toBigInteger());
+                int version = rs.getInt("version");
+                BigDecimal gid = rs.getBigDecimal("group_uuid");
+                UUID groupId = null;
+                if (gid != null)
+                    groupId = UUIDUtils.fromBigInteger(gid.toBigInteger());
 
+                String key = componentId.toString() + version;
+                JSONObject joCompVer = map.get(key);
+                if (joCompVer == null) {
+                    joCompVer = new JSONObject();
+                    joCompVer.put("uuid", componentId.toString());
+                    joCompVer.put("version", version);
+                    joCompVer.put("groups", new JSONArray());
+                    map.put(key, joCompVer);
+                }
+
+                if (groupId != null)
+                    joCompVer.getJSONArray("groups").put(groupId.toString());
             }
-        }
-        catch (SQLException e) {
 
+            for (JSONObject jo : map.values())
+                jaResult.put(jo);
+
+            return jaResult;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
         }
         finally {
             releaseConnection(conn, ps);
         }
-
-        return joResult;
     }
 
     @Override
@@ -565,10 +637,11 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
             ps.close();
 
-            // Join the owner to the group (the first user joined is considered the "owner" of the group)
+            // Join the user to the group and set the ownership
             ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_USER_GROUP_ADD).trim());
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setBigDecimal(2, new BigDecimal(gid));
+            ps.setInt(3, Role.ADMIN.getRoleId());
             ps.executeUpdate();
 
             // Record this event

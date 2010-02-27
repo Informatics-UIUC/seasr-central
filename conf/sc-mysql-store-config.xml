@@ -81,23 +81,6 @@
             INDEX (role_id) USING HASH,
             FOREIGN KEY (role_id) REFERENCES sc_role (role_id)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // Populate default roles
-        //
-        INSERT IGNORE INTO sc_role (role_id, name) VALUES (100, "admin");
-        INSERT IGNORE INTO sc_role (role_id, name) VALUES (200, "user");
-
-        //
-        // Create the 'admin' user
-        //
-        INSERT IGNORE INTO sc_user (user_uuid, screen_name, password, created_at, profile) VALUES
-            (1, "admin", "d033e22ae348aeb5660fc2140aec35850c4da997", NOW(), "{}");
-
-        //
-        // Assign the 'admin' user to the 'admin' role
-        //
-        INSERT IGNORE INTO sc_user_role (user_uuid, role_id) VALUES (1, 100);
     </entry>
 
     <entry key="org.seasr.central.storage.db.schema">
@@ -493,32 +476,6 @@
             INDEX (flow_uuid) USING HASH,
             FOREIGN KEY (flow_uuid) REFERENCES sc_flow (flow_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
-        // Insert default event codes
-        //
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (100, "USER_CREATED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (101, "USER_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (102, "USER_RENAMED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (103, "USER_PROFILE_UPDATED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (104, "USER_JOINED_GROUP");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (105, "USER_PARTED_GROUP");
-
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (200, "GROUP_CREATED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (201, "GROUP_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (202, "GROUP_RENAMED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (203, "GROUP_JOINED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (204, "GROUP_PARTED");
-
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (300, "COMPONENT_UPLOADED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (301, "COMPONENT_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (302, "COMPONENT_SHARED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (303, "COMPONENT_UNSHARED");
-
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (400, "FLOW_UPLOADED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (401, "FLOW_DELETED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (402, "FLOW_SHARED");
-        INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (403, "FLOW_UNSHARED");
     </entry>
 
     <!-- USER -->
@@ -559,7 +516,7 @@
         SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.group.add">
-        INSERT INTO sc_user_group (user_uuid, group_uuid) VALUES (?, ?);
+        INSERT INTO sc_user_group (user_uuid, group_uuid, role_id) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.group.list">
         SELECT group_uuid, role_id FROM sc_user_group WHERE user_uuid = ? LIMIT ?, ?;
@@ -568,16 +525,16 @@
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.list.all">
-        SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at LIMIT ?, ?;
+        <![CDATA[SELECT c.comp_uuid, c.uploaded_at, COUNT(c.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) c ON uc.comp_uuid = c.comp_uuid AND uc.uploaded_at <= c.uploaded_at GROUP BY c.comp_uuid, c.uploaded_at LIMIT ?, ?;]]>
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.list.latest">
-        SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid LIMIT ?, ?;
+        <![CDATA[SELECT c.comp_uuid, MAX(c.uploaded_at) AS uploaded_at, COUNT(c.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) c ON uc.comp_uuid = c.comp_uuid AND uc.uploaded_at <= c.uploaded_at GROUP BY c.comp_uuid LIMIT ?, ?;]]>
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.all">
-        SELECT all.comp_uuid, all.uploaded_at, all.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) all LEFT JOIN sc_component_group g ON all.comp_uuid = g.comp_uuid AND all.uploaded_at = g.uploaded_at LIMIT ?, ?;
+        <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g ON c.comp_uuid = g.comp_uuid AND c.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.latest">
-        SELECT latest.comp_uuid, latest.uploaded_at, latest.version, g.group_uuid FROM (SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid) latest LEFT JOIN sc_component_group g ON latest.comp_uuid = g.comp_uuid AND latest.uploaded_at = g.uploaded_at LIMIT ?, ?;
+        <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid) c LEFT JOIN sc_component_group g ON c.comp_uuid = g.comp_uuid AND c.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);

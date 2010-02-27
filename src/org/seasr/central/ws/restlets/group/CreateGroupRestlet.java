@@ -81,7 +81,7 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(.+)/groups/?(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/groups/?(?:" + regexExtensionMatcher() + ")?$";
     }
 
     @Override

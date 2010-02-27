@@ -44,6 +44,7 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
@@ -104,6 +105,10 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
 
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser"))
+            remoteUser = request.getParameter("remoteUser");
+
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
             if (userProps != null) {
@@ -148,19 +153,46 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                jaSuccess = bsl.listUserComponents(userId, offset, count, getAllVersions);
-//                if (remoteUserId == null)
-//                    // Unauthenticated access
-//                else
-//
-//                if (remoteUserId.equals(userId))
-//                    // Authenticated access: user = self
-//                    jaSuccess = bsl.listUserComponents(userId, offset, count);
-//
-//                else {
-//                    // Authenticated access: user != self
-//
-//                }
+                JSONArray jaResult = bsl.listUserComponents(userId, offset, count, getAllVersions);
+                String PUBLIC_GROUP_UUID = BackendStoreLink.PUBLIC_GROUP.toString();
+
+                if (remoteUserId == null)
+                    // Unauthenticated access
+                    for (int i = 0; i < jaResult.length(); i++) {
+                        JSONObject joCompVer = jaResult.getJSONObject(i);
+                        String compId = joCompVer.getString("uuid");
+                        int compVersion = joCompVer.getInt("version");
+                        JSONArray jaGroups = joCompVer.getJSONArray("groups");
+                        for (int j = 0; j < jaGroups.length(); j++)
+                            if (jaGroups.getString(j).equals(PUBLIC_GROUP_UUID)) {
+                                JSONObject joResult = new JSONObject();
+                                joResult.put("uuid", compId);
+                                joResult.put("version", compVersion);
+                                joResult.put("url", getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl");
+                                jaSuccess.put(joResult);
+                                break;
+                            }
+                    }
+
+                else
+
+                if (remoteUserId.equals(userId))
+                    // Authenticated access: user = self
+                    for (int i = 0; i < jaResult.length(); i++) {
+                        JSONObject joCompVer = jaResult.getJSONObject(i);
+                        String compId = joCompVer.getString("uuid");
+                        int compVersion = joCompVer.getInt("version");
+                        JSONObject joResult = new JSONObject();
+                        joResult.put("uuid", compId);
+                        joResult.put("version", compVersion);
+                        joResult.put("url", getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl");
+                        jaSuccess.put(joResult);
+                    }
+
+                else {
+                    // Authenticated access: user != self
+                    throw new RuntimeException("Not implemented");
+                }
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);

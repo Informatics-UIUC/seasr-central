@@ -83,7 +83,7 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/(\\d+)" +
+        return "/services/components/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
                 "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
@@ -132,12 +132,8 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
         Resource resExecComp = compModel.listSubjectsWithProperty(
                 RDF.type, RepositoryVocabulary.executable_component).nextResource();
         String oldCompUri = resExecComp.getURI();
-
-        String serverBase = String.format("%s://%s:%d",
-                request.getScheme(), request.getServerName(), request.getServerPort());
-
-        String compUri = String.format("%s/repository/component/%s/%d", serverBase, componentId, version);
-        String contextBase = String.format("%s/context/", compUri);
+        String compUri = getComponentBaseAccessUrl(request, componentId.toString(), version);
+        String contextBase = String.format("%s/contexts/", compUri);
 
         if (oldCompUri.endsWith("/")) compUri += "/";
 

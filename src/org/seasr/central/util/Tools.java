@@ -562,4 +562,13 @@ public class Tools {
         }
     }
 
+    public static String getComponentBaseAccessUrl(HttpServletRequest request, String compId, int compVersion) {
+        return String.format("%s://%s:%d/services/components/%s/versions/%d",
+                request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
+    }
+
+    public static String getFlowBaseAccessUrl(HttpServletRequest request, String flowId, int flowVersion) {
+        return String.format("%s://%s:%d/services/flows/%s/versions/%d",
+                request.getScheme(), request.getServerName(), request.getServerPort(), flowId, flowVersion);
+    }
 }

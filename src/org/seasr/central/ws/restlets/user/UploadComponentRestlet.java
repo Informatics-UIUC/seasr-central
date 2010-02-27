@@ -99,7 +99,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(.+)/components/?(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/components/?(?:" + regexExtensionMatcher() + ")?$";
     }
 
     @SuppressWarnings("unchecked")
@@ -312,8 +312,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         String compId = joResult.getString("uuid");
                         int compVersion = joResult.getInt("version");
 
-                        String compUrl = String.format("%s://%s:%d/repository/component/%s/%d.ttl",
-                                request.getScheme(), request.getServerName(), request.getServerPort(), compId, compVersion);
+                        String compUrl = getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl";
 
                         JSONObject joComponent = new JSONObject();
                         joComponent.put("orig_uri", origUri);

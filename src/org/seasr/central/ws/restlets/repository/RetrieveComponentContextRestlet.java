@@ -70,8 +70,8 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/repository/component/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/(\\d+)" +
-                "/context/([a-f\\d]{32})(?:/.*)?$";
+        return "/services/components/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
+                "/contexts/([a-f\\d]{32})(?:/.*)?$";
     }
 
     @Override

@@ -61,6 +61,8 @@ import java.util.UUID;
  * @author Boris Capitanu
  */
 public interface BackendStoreLink {
+    public static final UUID PUBLIC_GROUP = new UUID(0, 0);
+    public static final UUID ADMIN_UUID = new UUID(0, 1);
 
     /**
      * Initialize the backend storage link with the given properties.

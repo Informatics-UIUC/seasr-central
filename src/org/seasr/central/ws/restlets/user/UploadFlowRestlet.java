@@ -95,7 +95,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(.+)/flows/?(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/flows/?(?:" + regexExtensionMatcher() + ")?$";
     }
 
     @SuppressWarnings("unchecked")
@@ -213,8 +213,7 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     String flowId = joResult.getString("uuid");
                     int flowVersion = joResult.getInt("version");
 
-                    String flowUrl = String.format("%s://%s:%d/repository/flow/%s/%d.ttl",
-                            request.getScheme(), request.getServerName(), request.getServerPort(), flowId, flowVersion);
+                    String flowUrl = getFlowBaseAccessUrl(request, flowId, flowVersion) + ".ttl";
 
                     JSONObject joFlow = new JSONObject();
                     joFlow.put("orig_uri", origUri);
