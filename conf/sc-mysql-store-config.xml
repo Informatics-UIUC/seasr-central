@@ -567,6 +567,18 @@
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.list.all">
+        SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.list.latest">
+        SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.all">
+        SELECT all.comp_uuid, all.uploaded_at, all.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) all LEFT JOIN sc_component_group g ON all.comp_uuid = g.comp_uuid AND all.uploaded_at = g.uploaded_at LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.latest">
+        SELECT latest.comp_uuid, latest.uploaded_at, latest.version, g.group_uuid FROM (SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid) latest LEFT JOIN sc_component_group g ON latest.comp_uuid = g.comp_uuid AND latest.uploaded_at = g.uploaded_at LIMIT ?, ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>

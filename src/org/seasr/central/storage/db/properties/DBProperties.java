@@ -75,6 +75,10 @@ public abstract class DBProperties {
     public static final String Q_USER_GROUP_ADD = "org.seasr.central.storage.db.query.user.group.add";
     public static final String Q_USER_GROUP_LIST = "org.seasr.central.storage.db.query.user.group.list";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
+    public static final String Q_USER_COMPONENT_LIST_ALL = "org.seasr.central.storage.db.query.user.component.list.all";
+    public static final String Q_USER_COMPONENT_LIST_LATEST = "org.seasr.central.storage.db.query.user.component.list.latest";
+    public static final String Q_USER_COMPONENT_SHARING_LIST_ALL = "org.seasr.central.storage.db.query.user.component.sharing.list.all";
+    public static final String Q_USER_COMPONENT_SHARING_LIST_LATEST = "org.seasr.central.storage.db.query.user.component.sharing.list.latest";
     public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
 
     public static final String Q_GROUP_ADD = "org.seasr.central.storage.db.query.group.add";

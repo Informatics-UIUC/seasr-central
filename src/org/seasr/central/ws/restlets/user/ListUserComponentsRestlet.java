@@ -139,12 +139,28 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        boolean getAllVersions = false;
+        if (request.getParameterMap().containsKey("getAllVersions"))
+            getAllVersions = Boolean.parseBoolean(request.getParameter("getAllVersions"));
+
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                jaSuccess = bsl.listUserComponents(userId, offset, count); //, remoteUserId);
+                jaSuccess = bsl.listUserComponents(userId, offset, count, getAllVersions);
+//                if (remoteUserId == null)
+//                    // Unauthenticated access
+//                else
+//
+//                if (remoteUserId.equals(userId))
+//                    // Authenticated access: user = self
+//                    jaSuccess = bsl.listUserComponents(userId, offset, count);
+//
+//                else {
+//                    // Authenticated access: user != self
+//
+//                }
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);

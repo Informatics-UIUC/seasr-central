@@ -509,8 +509,35 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        return null;
+    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean listAllVersions) throws BackendStoreException {
+        String sqlQuery =
+                listAllVersions ?
+                        properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL).trim() :
+                        properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_LATEST).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray joResult = new JSONArray();
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                BigInteger compId = rs.getBigDecimal(1).toBigInteger();
+                int version = getComponentVersionCount(compId, conn);
+
+            }
+        }
+        catch (SQLException e) {
+
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+
+        return joResult;
     }
 
     @Override
