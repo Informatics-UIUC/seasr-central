@@ -561,7 +561,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean listAllVersions) throws BackendStoreException {
+    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL).trim();
         Connection conn = null;
         PreparedStatement ps = null;

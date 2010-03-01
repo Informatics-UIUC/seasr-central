@@ -533,9 +533,6 @@
     <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.all">
         <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g ON c.comp_uuid = g.comp_uuid AND c.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
     </entry>
-    <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.latest">
-        <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, MAX(user.uploaded_at) AS uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, MAX(uploaded_at) AS uploaded_at FROM sc_user_component WHERE user_uuid = ? GROUP BY comp_uuid) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid) c LEFT JOIN sc_component_group g ON c.comp_uuid = g.comp_uuid AND c.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
-    </entry>
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>

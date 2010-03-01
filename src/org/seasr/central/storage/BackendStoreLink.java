@@ -177,7 +177,7 @@ public interface BackendStoreLink {
 
     public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
 
-    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean listAllVersions) throws BackendStoreException;
+    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
 
     public Model getUserComponents(UUID userId) throws BackendStoreException;
 

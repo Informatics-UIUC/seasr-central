@@ -84,7 +84,7 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/users(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override

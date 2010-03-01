@@ -53,10 +53,7 @@ import org.seasr.central.ws.restlets.ContentTypes;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
@@ -106,7 +103,7 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
-        if (request.getParameterMap().containsKey("remoteUser"))
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
         try {
@@ -144,54 +141,82 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        boolean getAllVersions = false;
-        if (request.getParameterMap().containsKey("getAllVersions"))
-            getAllVersions = Boolean.parseBoolean(request.getParameter("getAllVersions"));
+        boolean includeOldVersions = false;
+        if (request.getParameterMap().containsKey("includeOldVersions"))
+            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                JSONArray jaResult = bsl.listUserComponents(userId, offset, count, getAllVersions);
-                String PUBLIC_GROUP_UUID = BackendStoreLink.PUBLIC_GROUP.toString();
+                // Get the list of all the versions of all components owned by a user and
+                // the groups each version is shared with
+                JSONArray jaResult = bsl.listUserComponents(userId, offset, count);
 
-                if (remoteUserId == null)
-                    // Unauthenticated access
-                    for (int i = 0; i < jaResult.length(); i++) {
-                        JSONObject joCompVer = jaResult.getJSONObject(i);
-                        String compId = joCompVer.getString("uuid");
-                        int compVersion = joCompVer.getInt("version");
-                        JSONArray jaGroups = joCompVer.getJSONArray("groups");
-                        for (int j = 0; j < jaGroups.length(); j++)
-                            if (jaGroups.getString(j).equals(PUBLIC_GROUP_UUID)) {
-                                JSONObject joResult = new JSONObject();
-                                joResult.put("uuid", compId);
-                                joResult.put("version", compVersion);
-                                joResult.put("url", getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl");
-                                jaSuccess.put(joResult);
+                VersionComparator versionComparator = new VersionComparator();
+
+                Map<UUID, SortedMap<Integer, List<UUID>>> compMap = new HashMap<UUID, SortedMap<Integer, List<UUID>>>();
+                for (int i = 0; i < jaResult.length(); i++) {
+                    JSONObject joCompVer = jaResult.getJSONObject(i);
+                    UUID compId = UUID.fromString(joCompVer.getString("uuid"));
+                    int compVersion = joCompVer.getInt("version");
+                    JSONArray jaGroups = joCompVer.getJSONArray("groups");
+
+                    SortedMap<Integer, List<UUID>> revMap = compMap.get(compId);
+                    if (revMap == null) {
+                        revMap = new TreeMap<Integer, List<UUID>>(versionComparator);
+                        compMap.put(compId, revMap);
+                    }
+
+                    List<UUID> groups = new ArrayList<UUID>();
+                    for (int j = 0, jMax = jaGroups.length(); j < jMax; j++)
+                        groups.add(UUID.fromString(jaGroups.getString(j)));
+
+                    revMap.put(compVersion, groups);
+                }
+
+                Set<UUID> remoteUserGroups = new HashSet<UUID>();
+                remoteUserGroups.add(BackendStoreLink.PUBLIC_GROUP);
+
+                if (remoteUserId != null) {
+                    if (!remoteUserId.equals(userId)) {
+                        // Authenticated access: remoteUser != self
+                        JSONArray jaGroups = bsl.listUserGroups(remoteUserId, 0, Long.MAX_VALUE);
+                        for (int i = 0, iMax = jaGroups.length(); i < iMax; i++) {
+                            JSONObject joGroup = jaGroups.getJSONObject(i);
+                            remoteUserGroups.add(UUID.fromString(joGroup.getString("uuid")));
+                        }
+                    } else
+                        // Authenticated access: remoteUser = self
+                        remoteUserGroups = null;
+                }
+
+                for (Map.Entry<UUID, SortedMap<Integer, List<UUID>>> comp : compMap.entrySet()) {
+                    for (Map.Entry<Integer, List<UUID>> rev : comp.getValue().entrySet()) {
+                        // Check whether this component version is shared with any groups that the remote user belongs to
+                        boolean allowedAccess = false;
+                        if (remoteUserGroups == null)
+                            allowedAccess = true;
+                        else
+                            for (UUID groupId : rev.getValue())
+                                if (remoteUserGroups.contains(groupId)) {
+                                    allowedAccess = true;
+                                    break;
+                                }
+
+                        if (allowedAccess) {
+                            String compId = comp.getKey().toString();
+                            JSONObject joResult = new JSONObject();
+                            joResult.put("uuid", compId);
+                            joResult.put("version", rev.getKey());
+                            joResult.put("url", getComponentBaseAccessUrl(request, compId, rev.getKey()) + ".ttl");
+                            jaSuccess.put(joResult);
+
+                            if (!includeOldVersions)
                                 break;
-                            }
+                        }
                     }
-
-                else
-
-                if (remoteUserId.equals(userId))
-                    // Authenticated access: user = self
-                    for (int i = 0; i < jaResult.length(); i++) {
-                        JSONObject joCompVer = jaResult.getJSONObject(i);
-                        String compId = joCompVer.getString("uuid");
-                        int compVersion = joCompVer.getInt("version");
-                        JSONObject joResult = new JSONObject();
-                        joResult.put("uuid", compId);
-                        joResult.put("version", compVersion);
-                        joResult.put("url", getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl");
-                        jaSuccess.put(joResult);
-                    }
-
-                else {
-                    // Authenticated access: user != self
-                    throw new RuntimeException("Not implemented");
                 }
             }
             catch (BackendStoreException e) {
@@ -220,5 +245,12 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         }
 
         return true;
+    }
+
+    class VersionComparator implements Comparator<Integer> {
+        @Override
+        public int compare(Integer v1, Integer v2) {
+            return (-1) * v1.compareTo(v2);   // descending order
+        }
     }
 }
