@@ -612,8 +612,55 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Model getUserComponents(UUID userId) throws BackendStoreException {
-        return null;
+    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_FLOW_SHARING_LIST_ALL).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray jaResult = new JSONArray();
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setLong(2, offset);
+            ps.setLong(3, count);
+            ResultSet rs = ps.executeQuery();
+
+            Map<String, JSONObject> map = new HashMap<String, JSONObject>();
+            while (rs.next()) {
+                UUID flowId = UUIDUtils.fromBigInteger(rs.getBigDecimal("flow_uuid").toBigInteger());
+                int version = rs.getInt("version");
+                BigDecimal gid = rs.getBigDecimal("group_uuid");
+                UUID groupId = null;
+                if (gid != null)
+                    groupId = UUIDUtils.fromBigInteger(gid.toBigInteger());
+
+                String key = flowId.toString() + version;
+                JSONObject joFlowVer = map.get(key);
+                if (joFlowVer == null) {
+                    joFlowVer = new JSONObject();
+                    joFlowVer.put("uuid", flowId.toString());
+                    joFlowVer.put("version", version);
+                    joFlowVer.put("groups", new JSONArray());
+                    map.put(key, joFlowVer);
+                }
+
+                if (groupId != null)
+                    joFlowVer.getJSONArray("groups").put(groupId.toString());
+            }
+
+            for (JSONObject jo : map.values())
+                jaResult.put(jo);
+
+            return jaResult;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
     }
 
     @Override

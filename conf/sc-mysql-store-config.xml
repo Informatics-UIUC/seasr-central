@@ -536,6 +536,9 @@
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.flow.sharing.list.all">
+        <![CDATA[SELECT f.flow_uuid, f.uploaded_at, f.version, g.group_uuid FROM (SELECT user.flow_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_flow uf INNER JOIN (SELECT flow_uuid, uploaded_at FROM sc_user_flow WHERE user_uuid = ?) user ON uf.flow_uuid = user.flow_uuid AND uf.uploaded_at <= user.uploaded_at GROUP BY user.flow_uuid, user.uploaded_at) f LEFT JOIN sc_flow_group g ON f.flow_uuid = g.flow_uuid AND f.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
+    </entry>
 
     <!-- GROUP -->
     <entry key="org.seasr.central.storage.db.query.group.add">

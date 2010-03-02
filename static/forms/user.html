@@ -223,6 +223,31 @@
     </table>
 </form>
 
+<h3>List components owned by user</h3>
+
+<form name="listComponentsForUser" method="GET" paramAction="/services/users/[screen_name]/components.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Include old versions?</td>
+            <td><input type="checkbox" name="includeOldVersions" value="true" checked="true"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listComponentsForUser);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>Upload flow</h3>
 
 <form name="uploadFlow" method="POST" enctype="multipart/form-data"
@@ -249,9 +274,9 @@
     </table>
 </form>
 
-<h3>List components owned by user</h3>
+<h3>List flows owned by user</h3>
 
-<form name="listComponentsForUser" method="GET" paramAction="/services/users/[screen_name]/components.txt">
+<form name="listFlowsForUser" method="GET" paramAction="/services/users/[screen_name]/flows.txt">
     <table>
         <tr>
             <td>Log in as:</td>
@@ -267,7 +292,7 @@
         </tr>
         <tr>
             <td colspan="2">
-                <input type="submit" onClick="return actionBuilder(document.listComponentsForUser);">
+                <input type="submit" onClick="return actionBuilder(document.listFlowsForUser);">
                 <input type="reset">
             </td>
         </tr>

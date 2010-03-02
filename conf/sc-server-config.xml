@@ -166,6 +166,22 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="userFlowList" class="org.seasr.central.ws.restlets.user.ListUserFlowsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="userFlowRetrieve" class="org.seasr.central.ws.restlets.user.RetrieveUserFlowsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
 
     <New id="userGroupCreate" class="org.seasr.central.ws.restlets.group.CreateGroupRestlet">
         <Set name="logger">
@@ -258,6 +274,16 @@
         <Call name="add">
             <Arg>
                 <Ref id="userFlowUpload"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userFlowList"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userFlowRetrieve"/>
             </Arg>
         </Call>
         <Call name="add">

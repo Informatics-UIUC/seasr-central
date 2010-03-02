@@ -41,38 +41,48 @@
 package org.seasr.central.ws.restlets.user;
 
 import com.google.gdata.util.ContentType;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.util.IdVersionPair;
+import org.seasr.central.util.Tools;
+import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component descriptors of accessible components owned by a user
+ * Restlet for obtaining the list of flows uploaded by a user
  *
  * @author Boris Capitanu
  */
-public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
+public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
     static {
-        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
-        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
-        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
+        supportedResponseTypes.put("json", ContentType.JSON);
+        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
+        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
+        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
+        supportedResponseTypes.put("sgwt", ContentTypes.SmartGWT);
     }
 
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
         return supportedResponseTypes;
+    }
+
+    @Override
+    public String getRestContextPathRegexp() {
+        return "/services/users/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -108,53 +118,79 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             }
 
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+        }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
 
-            boolean includeOldVersions = false;
-            if (request.getParameterMap().containsKey("includeOldVersions"))
-                includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+        long offset = 0;
+        long count = Long.MAX_VALUE;
 
-            // Get the list of all the versions of all components owned by a user and
-            // the groups each version is shared with
-            JSONArray jaResult = bsl.listUserComponents(userId, 0, Long.MAX_VALUE);
+        String sOffset = request.getParameter("offset");
+        String sCount = request.getParameter("count");
 
-            // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
-            Map<UUID, SortedMap<Integer, List<UUID>>> compMap = buildVersionSharingMap(jaResult);
+        try {
+            if (sOffset != null) offset = Long.parseLong(sOffset);
+            if (sCount != null) count = Long.parseLong(sCount);
+        }
+        catch (NumberFormatException e) {
+            logger.log(Level.WARNING, null, e);
+            sendErrorBadRequest(response);
+            return true;
+        }
 
-            // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
-            Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
+        boolean includeOldVersions = false;
+        if (request.getParameterMap().containsKey("includeOldVersions"))
+            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            // Compute the list of accessible components based on the group participation status
-            List<IdVersionPair> accessibleComponents = getAccessibleCompsOrFlows(compMap, remoteUserGroups, includeOldVersions);
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
 
-            // Create the accumulator model
-            Model model = ModelFactory.createDefaultModel();
+        try {
+            try {
+                // Get the list of all the versions of all components owned by a user and
+                // the groups each version is shared with
+                JSONArray jaResult = bsl.listUserFlows(userId, offset, count);
 
-            // ...and add all the accessible components to it
-            for (IdVersionPair comp : accessibleComponents) {
-                Model compModel = bsl.getComponent(comp.getId(), comp.getVersion());
-                if (compModel == null)
-                    throw new BackendStoreException(
-                            String.format("Could not retrieve component %s version %d", comp.getId(), comp.getVersion()));
+                // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
+                Map<UUID, SortedMap<Integer, List<UUID>>> flowMap = buildVersionSharingMap(jaResult);
 
-                rewriteComponentModel(compModel, comp.getId(), comp.getVersion(), request);
+                // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
+                Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
 
-                model.add(compModel);
+                // Compute the list of accessible components based on the group participation status
+                List<IdVersionPair> accessibleFlows = getAccessibleCompsOrFlows(flowMap, remoteUserGroups, includeOldVersions);
+                for (IdVersionPair flow : accessibleFlows) {
+                    String flowId = flow.getId().toString();
+                    JSONObject joResult = new JSONObject();
+                    joResult.put("uuid", flowId);
+                    joResult.put("version", flow.getVersion());
+                    joResult.put("url", getFlowBaseAccessUrl(request, flowId, flow.getVersion()) + ".ttl");
+                    jaSuccess.put(joResult);
+                }
+            }
+            catch (BackendStoreException e) {
+                logger.log(Level.SEVERE, null, e);
+                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for user " + userId, e));
             }
 
-            // Send the response
-            response.setContentType(ct.toString());
+            JSONObject joContent = new JSONObject();
+            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
+
             response.setStatus(HttpServletResponse.SC_OK);
 
-            if (ct.equals(ContentTypes.RDFXML))
-                model.write(response.getOutputStream(), "RDF/XML");
-
-            else if (ct.equals(ContentTypes.RDFNT))
-                model.write(response.getOutputStream(), "N-TRIPLE");
-
-            else if (ct.equals(ContentTypes.RDFTTL))
-                model.write(response.getOutputStream(), "TURTLE");
+            try {
+                sendContent(response, joContent, ct);
+            }
+            catch (IOException e) {
+                logger.log(Level.WARNING, null, e);
+            }
         }
-        catch (Exception e) {
+        catch (JSONException e) {
+            // Should not happen
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;

@@ -179,8 +179,8 @@ public interface BackendStoreLink {
 
     public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
 
-    public Model getUserComponents(UUID userId) throws BackendStoreException;
-
+    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException;
+    
     public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
     public UUID getGroupId(String groupName) throws BackendStoreException;
     public String getGroupName(UUID groupId) throws BackendStoreException;

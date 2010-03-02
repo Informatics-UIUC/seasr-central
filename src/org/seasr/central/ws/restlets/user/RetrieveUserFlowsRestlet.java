@@ -56,11 +56,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component descriptors of accessible components owned by a user
+ * Restlet for retrieving flow descriptors of accessible flows owned by a user
  *
  * @author Boris Capitanu
  */
-public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
+public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -113,32 +113,32 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             if (request.getParameterMap().containsKey("includeOldVersions"))
                 includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            // Get the list of all the versions of all components owned by a user and
+            // Get the list of all the versions of all flows owned by a user and
             // the groups each version is shared with
-            JSONArray jaResult = bsl.listUserComponents(userId, 0, Long.MAX_VALUE);
+            JSONArray jaResult = bsl.listUserFlows(userId, 0, Long.MAX_VALUE);
 
-            // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
-            Map<UUID, SortedMap<Integer, List<UUID>>> compMap = buildVersionSharingMap(jaResult);
+            // Build a data structure that sorts the versions of each flow in decreasing order (highest->lowest)
+            Map<UUID, SortedMap<Integer, List<UUID>>> flowMap = buildVersionSharingMap(jaResult);
 
             // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
             Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
 
-            // Compute the list of accessible components based on the group participation status
-            List<IdVersionPair> accessibleComponents = getAccessibleCompsOrFlows(compMap, remoteUserGroups, includeOldVersions);
+            // Compute the list of accessible flows based on the group participation status
+            List<IdVersionPair> accessibleFlows = getAccessibleCompsOrFlows(flowMap, remoteUserGroups, includeOldVersions);
 
             // Create the accumulator model
             Model model = ModelFactory.createDefaultModel();
 
-            // ...and add all the accessible components to it
-            for (IdVersionPair comp : accessibleComponents) {
-                Model compModel = bsl.getComponent(comp.getId(), comp.getVersion());
-                if (compModel == null)
+            // ...and add all the accessible flows to it
+            for (IdVersionPair flow : accessibleFlows) {
+                Model flowModel = bsl.getFlow(flow.getId(), flow.getVersion());
+                if (flowModel == null)
                     throw new BackendStoreException(
-                            String.format("Could not retrieve component %s version %d", comp.getId(), comp.getVersion()));
+                            String.format("Could not retrieve flow %s version %d", flow.getId(), flow.getVersion()));
 
-                rewriteComponentModel(compModel, comp.getId(), comp.getVersion(), request);
+                rewriteFlowModel(flowModel, flow.getId(), flow.getVersion(), request);
 
-                model.add(compModel);
+                model.add(flowModel);
             }
 
             // Send the response
