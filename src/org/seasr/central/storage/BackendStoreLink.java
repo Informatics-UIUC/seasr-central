@@ -175,19 +175,14 @@ public interface BackendStoreLink {
      */
     public JSONArray listUsers(long offset, long count) throws BackendStoreException;
 
-    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
-
-    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
-
-    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException;
     
     public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
     public UUID getGroupId(String groupName) throws BackendStoreException;
     public String getGroupName(UUID groupId) throws BackendStoreException;
     public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
     public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
-
     public void requestJoinGroup(UUID userId, UUID groupId) throws BackendStoreException;
+    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
 
 
     /**
@@ -242,6 +237,8 @@ public interface BackendStoreLink {
      */
     public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
 
+    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+
     /**
      * Adds (or updates) a flow
      *
@@ -270,5 +267,8 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
+
+    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException;
+
 
 }
