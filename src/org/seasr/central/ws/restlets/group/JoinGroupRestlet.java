@@ -51,10 +51,7 @@ import org.seasr.central.ws.restlets.ContentTypes;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
@@ -81,8 +78,7 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/(.+)/groups/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/?" +
-                "(?:" + regexExtensionMatcher() + ")?$";
+        return "/services/groups/([^/\\s]+)/members/pending(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -96,15 +92,15 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID userId;
+        UUID groupId;
         @SuppressWarnings("unused")
-        String screenName = null;
+        String groupName = null;
 
         try {
-            Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
+            Properties groupProps = getGroupNameAndId(values[0]);
+            if (groupProps != null) {
+                groupId = UUID.fromString(groupProps.getProperty("uuid"));
+                groupName = groupProps.getProperty("name");
             } else {
                 sendErrorNotFound(response);
                 return true;
@@ -116,12 +112,15 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID groupId;
-        try {
-            groupId = UUID.fromString(values[1]);
+        List<String> users = new ArrayList<String>();
+        for (String user : request.getParameterValues("user")) {
+            user = user.trim();
+            if (user.length() > 0)
+                users.add(user);
         }
-        catch (IllegalArgumentException e) {
-            sendErrorBadRequest(response);
+
+        if (users.size() == 0) {
+            sendErrorExpectationFail(response);
             return true;
         }
 
@@ -130,10 +129,28 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                bsl.requestJoinGroup(userId, groupId);
+                for (String user : users) {
+                    Properties userProps = getUserScreenNameAndId(user);
+                    if (userProps != null) {
+                        UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+                        // TODO: Should we check whether the user is already on the pending list?
+                        bsl.requestJoinGroup(userId, groupId);
+                        JSONObject jo = new JSONObject();
+                        jo.put("uuid", userProps.getProperty("uuid"));
+                        jo.put("screen_name", userProps.getProperty("screen_name"));
+                        jaSuccess.put(jo);
+                    } else {
+                        // User unknown
+                        JSONObject joError = createJSONErrorObj("Unknown user: " + user, (String)null);
+                        joError.put("user", user);
+                        jaErrors.put(joError);
+                    }
+                }
             }
             catch (BackendStoreException e) {
-
+                logger.log(Level.SEVERE, null, e);
+                sendErrorInternalServerError(response);
+                return true;
             }
 
             JSONObject joContent = new JSONObject();
