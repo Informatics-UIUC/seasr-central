@@ -42,13 +42,17 @@ package org.seasr.central.util;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.vocabulary.RDF;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
 import org.meandre.core.repository.*;
+import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.main.SCServer;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.crypto.Crypto;
+import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -65,6 +69,7 @@ import java.math.BigInteger;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * @author Boris Capitanu
@@ -100,10 +105,10 @@ public class Tools {
     }
 
     /**
-     * Sets the servlet response content type to html.
+     * Sends a response
      *
      * @param response The response object
-     * @throws IOException A problem thrown while writing the content
+     * @param content The content being sent
      */
     public static void sendRawContent(HttpServletResponse response, Object content) {
         try {
@@ -570,5 +575,62 @@ public class Tools {
     public static String getFlowBaseAccessUrl(HttpServletRequest request, String flowId, int flowVersion) {
         return String.format("%s://%s:%d/services/flows/%s/versions/%d",
                 request.getScheme(), request.getServerName(), request.getServerPort(), flowId, flowVersion);
+    }
+
+    /**
+     * Rewrites the component model to align the URIs with SC
+     *
+     * @param compModel The component model to rewrite
+     * @param componentId The SC component id
+     * @param version The SC component version
+     * @param request The HTTP request
+     * @throws IOException
+     */
+    public static void rewriteComponentModel(Model compModel, UUID componentId, int version, HttpServletRequest request)
+            throws IOException {
+
+        Resource resExecComp = compModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.executable_component).nextResource();
+        String oldCompUri = resExecComp.getURI();
+        String compUri = getComponentBaseAccessUrl(request, componentId.toString(), version);
+        String contextBase = String.format("%s/contexts/", compUri);
+
+        if (oldCompUri.endsWith("/")) compUri += "/";
+
+        // TODO: Find a better method to do this (one that relies on direct Model manipulation)
+        String sModel = ModelUtils.modelToDialect(compModel, "TURTLE");
+        sModel = sModel.replaceAll(Pattern.quote(oldCompUri), compUri);  // Update the component URI
+        sModel = sModel.replaceAll("context://localhost/", contextBase); // Update the component context(s) URIs
+
+        compModel.removeAll();
+        ModelUtils.readModelFromString(compModel, sModel);
+    }
+
+    /**
+     * Rewrites the flow model to align the URIs with SC
+     *
+     * @param flowModel The flow model to rewrite
+     * @param flowId The SC flow id
+     * @param version The SC flow version
+     * @param request The HTTP request
+     * @throws IOException
+     */
+    public static void rewriteFlowModel(Model flowModel, UUID flowId, int version, HttpServletRequest request)
+            throws IOException {
+
+        Resource resFlow = flowModel.listSubjectsWithProperty(
+                RDF.type, RepositoryVocabulary.flow_component).nextResource();
+        String oldFlowUri = resFlow.getURI();
+        String flowUri = getFlowBaseAccessUrl(request, flowId.toString(), version);
+
+        if (oldFlowUri.endsWith("/")) flowUri += "/";
+
+        // Update the flow URI
+        // TODO: Find a better method to do this (one that relies on direct Model manipulation)
+        String sModel = ModelUtils.modelToDialect(flowModel, "TURTLE");
+        sModel = sModel.replaceAll(Pattern.quote(oldFlowUri), flowUri);  // Update the flow URI
+
+        flowModel.removeAll();
+        ModelUtils.readModelFromString(flowModel, sModel);
     }
 }

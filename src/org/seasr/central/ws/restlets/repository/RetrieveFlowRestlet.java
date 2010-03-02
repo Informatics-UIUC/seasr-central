@@ -42,27 +42,15 @@ package org.seasr.central.ws.restlets.repository;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.vocabulary.RDF;
-import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
-import org.seasr.central.main.SC;
-import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
-import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 import static org.seasr.central.util.Tools.*;
 
@@ -117,39 +105,17 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        Model flowModel;
-
         try {
             // Attempt to retrieve the flow from the backend store
-            flowModel = bsl.getFlow(flowId, version);
+            Model flowModel = bsl.getFlow(flowId, version);
 
             if (flowModel == null) {
                 sendErrorNotFound(response);
                 return true;
             }
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
-        }
 
-        Resource resFlow = flowModel.listSubjectsWithProperty(
-                RDF.type, RepositoryVocabulary.flow_component).nextResource();
-        String oldFlowUri = resFlow.getURI();
-        String flowUri = getFlowBaseAccessUrl(request, flowId.toString(), version);
-
-        if (oldFlowUri.endsWith("/")) flowUri += "/";
-
-        // Update the flow URI
-        // TODO: Find a better method to do this (one that relies on direct Model manipulation)
-        String sModel = ModelUtils.modelToDialect(flowModel, "TURTLE");
-        sModel = sModel.replaceAll(Pattern.quote(oldFlowUri), flowUri);  // Update the flow URI
-
-        flowModel.removeAll();
-
-        try {
-            ModelUtils.readModelFromString(flowModel, sModel);
+            // Rewrite the flow model to align the URIs
+            rewriteFlowModel(flowModel, flowId, version, request);
 
             // Send the response
             response.setContentType(ct.toString());
@@ -168,7 +134,7 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             if (ct.equals(ContentTypes.RDFTTL))
                 flowModel.write(response.getOutputStream(), "TURTLE");
         }
-        catch (IOException e) {
+        catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;

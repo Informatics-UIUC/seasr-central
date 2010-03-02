@@ -150,6 +150,14 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="userComponentRetrieve" class="org.seasr.central.ws.restlets.user.RetrieveUserComponentsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="userFlowUpload" class="org.seasr.central.ws.restlets.user.UploadFlowRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -230,6 +238,11 @@
         <Call name="add">
             <Arg>
                 <Ref id="userComponentList"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="userComponentRetrieve"/>
             </Arg>
         </Call>
         <Call name="add">
