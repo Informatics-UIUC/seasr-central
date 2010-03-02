@@ -60,7 +60,6 @@ import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
 import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.util.SCLogFormatter;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.ComponentContext;
 import org.seasr.meandre.support.generic.crypto.Crypto;
 import org.seasr.meandre.support.generic.io.ModelUtils;
@@ -696,6 +695,29 @@ public class SQLLink implements BackendStoreLink {
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger()) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public String getGroupName(UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_NAME).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getString(1) : null;
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);

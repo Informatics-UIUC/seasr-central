@@ -87,6 +87,23 @@
 <h3>List users</h3>
 <a href="/services/users.txt">Show users</a>
 
+<h3>Get user info</h3>
+
+<form name="userInfo" method="GET" paramAction="/services/users/[screen_name].txt">
+    <table>
+        <tr>
+            <td>Screen name or id:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.userInfo);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>Create group</h3>
 
 <form name="createGroup" method="POST" paramAction="/services/users/[screen_name]/groups.txt">
@@ -106,6 +123,23 @@
         <tr>
             <td colspan="2">
                 <input type="submit" onClick="return actionBuilder(document.createGroup);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>Get group info</h3>
+
+<form name="groupInfo" method="GET" paramAction="/services/groups/[group_name].txt">
+    <table>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.groupInfo);">
                 <input type="reset">
             </td>
         </tr>

@@ -544,6 +544,9 @@
     <entry key="org.seasr.central.storage.db.query.group.get.uuid">
         SELECT group_uuid FROM sc_group WHERE name = ? AND deleted = 0;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.group.get.name">
+        SELECT name FROM sc_group WHERE group_uuid = ? AND deleted = 0;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.group.get.profile">
         SELECT profile FROM sc_group WHERE group_uuid = ? AND deleted = 0;
     </entry>

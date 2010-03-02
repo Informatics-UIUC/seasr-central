@@ -176,6 +176,16 @@
         </Set>
     </New>
 
+    <!-- Group -->
+    <New id="groupInfo" class="org.seasr.central.ws.restlets.group.GroupInfoRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+
     <!-- Repository -->
     <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
         <Set name="logger">
@@ -255,6 +265,13 @@
                 <Ref id="userGroupCreate"/>
             </Arg>
         </Call>
+
+        <Call name="add">
+            <Arg>
+                <Ref id="groupInfo"/>
+            </Arg>
+        </Call>
+
 
         <Call name="add">
             <Arg>

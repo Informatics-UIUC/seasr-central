@@ -159,4 +159,34 @@ public abstract class AbstractBaseRestlet implements RestServlet {
 
         return result;
     }
+
+    /**
+     * Interprets a string representing either a group name or a group id
+     *
+     * @param groupNameOrId The string representing a group name or a group id
+     * @return A property map keyed on "uuid" and "name", or null if either could not be determined
+     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     */
+    public Properties getGroupNameAndId(String groupNameOrId) throws BackendStoreException {
+        String groupName;
+        UUID groupId;
+
+        try {
+            groupId = UUID.fromString(groupNameOrId);
+            groupName = bsl.getGroupName(groupId);
+        }
+        catch (IllegalArgumentException e) {
+            groupName = groupNameOrId;
+            groupId = bsl.getGroupId(groupName);
+        }
+
+        if (groupId == null || groupName == null)
+            return null;
+
+        Properties result = new Properties();
+        result.put("uuid", groupId.toString());
+        result.put("name", groupName);
+
+        return result;
+    }
 }
