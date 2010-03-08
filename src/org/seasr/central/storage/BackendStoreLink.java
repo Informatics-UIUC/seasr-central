@@ -74,6 +74,9 @@ public interface BackendStoreLink {
 
     //-------------------------------------------------------------------------------------
 
+    public JSONArray listRoles(long offset, long count) throws BackendStoreException;
+    public boolean hasRole(String roleName) throws BackendStoreException;
+
     /**
      * Adds a user to the back end storage facility
      *
@@ -181,7 +184,10 @@ public interface BackendStoreLink {
     public String getGroupName(UUID groupId) throws BackendStoreException;
     public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
     public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
-    public void requestJoinGroup(UUID userId, UUID groupId) throws BackendStoreException;
+    public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
+    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
+    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException;
+    public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
 
 
@@ -237,7 +243,16 @@ public interface BackendStoreLink {
      */
     public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
 
-    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+    public void shareComponent(UUID componentId, int version, UUID groupId) throws BackendStoreException;
+
+    public JSONArray listAllUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+    public JSONArray listLatestUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+
+    public JSONArray listAllPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+    public JSONArray listLatestPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+
+    public JSONArray listAllAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count) throws BackendStoreException;
+    public JSONArray listLatestAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count) throws BackendStoreException;
 
     /**
      * Adds (or updates) a flow

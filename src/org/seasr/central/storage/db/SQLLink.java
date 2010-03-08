@@ -244,6 +244,60 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public JSONArray listRoles(long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_ROLE_LIST).trim();
+        JSONArray jaRoles = new JSONArray();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, offset);
+            ps.setLong(2, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joRole = new JSONObject();
+                joRole.put("role", rs.getString("role_name"));
+                jaRoles.put(joRole);
+            }
+
+            return jaRoles;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public boolean hasRole(String roleName) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_ROLE_EXISTS).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, roleName);
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next();
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public UUID addUser(String userName, String password, JSONObject profile) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_ADD).trim();
         Connection conn = null;
@@ -337,16 +391,24 @@ public class SQLLink implements BackendStoreLink {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PROFILE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
             ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, profile.toString());
-            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(2, new BigDecimal(uid));
             ps.executeUpdate();
+
+            // Record the event
+            addEvent(Event.USER_PROFILE_UPDATED, uid, null, null, null, profile, conn);
+
+            conn.commit();
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
             throw new BackendStoreException(e);
         }
         finally {
@@ -547,7 +609,7 @@ public class SQLLink implements BackendStoreLink {
             ps.close();
 
             // Join the user to the group and set the ownership
-            ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_USER_GROUP_ADD).trim());
+            ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_GROUP_MEMBERS_ADD).trim());
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setBigDecimal(2, new BigDecimal(gid));
             ps.setInt(3, Role.ADMIN.getRoleId());
@@ -663,8 +725,8 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void requestJoinGroup(UUID userId, UUID groupId) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_JOINREQ_ADD).trim();
+    public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_PENDING_ADD).trim();
         Connection conn = null;
         PreparedStatement ps = null;
 
@@ -676,6 +738,104 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
         }
         catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_PENDING_LIST).trim();
+        JSONArray jaUsers = new JSONArray();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setLong(2, offset);
+            ps.setLong(3, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joUser = new JSONObject();
+                joUser.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()).toString());
+                joUser.put("requested_at", SQL_DATE_PARSER.parse(rs.getString("requested_at")));
+                jaUsers.put(joUser);
+            }
+
+            return jaUsers;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_MEMBERS_ADD).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
+
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setBigDecimal(2, new BigDecimal(gid));
+            ps.setInt(3, getRoleId(roleName, conn));
+            ps.executeUpdate();
+
+            // Record the event
+            addEvent(Event.USER_JOINED_GROUP, uid, gid, null, null, null, conn);
+
+            conn.commit();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_MEMBERS_LIST).trim();
+        JSONArray jaUsers = new JSONArray();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setLong(2, offset);
+            ps.setLong(3, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joUser = new JSONObject();
+                joUser.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()).toString());
+                joUser.put("role", rs.getString("role_name"));
+                jaUsers.put(joUser);
+            }
+
+            return jaUsers;
+        }
+        catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             throw new BackendStoreException(e);
         }
@@ -702,7 +862,7 @@ public class SQLLink implements BackendStoreLink {
             while (rs.next()) {
                 JSONObject joGroup = new JSONObject();
                 joGroup.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("group_uuid").toBigInteger()).toString());
-                joGroup.put("role_id", rs.getInt("role_id"));
+                joGroup.put("role", rs.getString("role_name"));
                 jaGroups.put(joGroup);
             }
 
@@ -901,7 +1061,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public Integer getComponentVersionCount(UUID compId) throws BackendStoreException {
-        Connection conn = null;
+        Connection conn;
 
         try {
             conn = dataSource.getConnection();
@@ -914,18 +1074,82 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL).trim();
+    public void shareComponent(UUID componentId, int version, UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_SHARE).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        BigInteger compId = UUIDUtils.toBigInteger(componentId);
+
+        try {
+            conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setTimestamp(2, new Timestamp(getComponentVersionId(compId, version, conn)));
+            ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.executeUpdate();
+
+            // TODO: what to do about "who" shared the component
+            // this brings back the question
+            // about whether events need to be an application-specific concept (which it started out as)
+            // or not.  I could find the userId of the user who owns the component and assume that, but...
+
+            // Record the event
+            addEvent(Event.COMPONENT_SHARED, null, UUIDUtils.toBigInteger(groupId), compId, null, null, conn);
+
+            conn.commit();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listAllUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
+        return listAllAccessibleUserComponentsAsUser(userId, userId, offset, count);
+    }
+
+    @Override
+    public JSONArray listLatestUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
+        return listLatestAccessibleUserComponentsAsUser(userId, userId, offset, count);
+    }
+
+    @Override
+    public JSONArray listAllPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
+        return listAllAccessibleUserComponentsAsUser(userId, null, offset, count);
+    }
+
+    @Override
+    public JSONArray listLatestPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
+        return listLatestAccessibleUserComponentsAsUser(userId, null, offset, count);
+    }
+
+    @Override
+    public JSONArray listAllAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
+        BigDecimal uid = new BigDecimal(UUIDUtils.toBigInteger(userId));
+        BigDecimal ruid = remoteUserId != null ? new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)) : null;
 
         try {
             conn = dataSource.getConnection();
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setLong(2, offset);
-            ps.setLong(3, count);
+            ps.setBigDecimal(1, uid);
+            ps.setBigDecimal(2, ruid);
+            ps.setBigDecimal(3, uid);
+            ps.setBigDecimal(4, ruid);
+            ps.setLong(5, offset);
+            ps.setLong(6, count);
             ResultSet rs = ps.executeQuery();
 
             Map<String, JSONObject> map = new HashMap<String, JSONObject>();
@@ -947,8 +1171,69 @@ public class SQLLink implements BackendStoreLink {
                     map.put(key, joCompVer);
                 }
 
-                if (groupId != null)
-                    joCompVer.getJSONArray("groups").put(groupId.toString());
+                joCompVer.getJSONArray("groups").put(groupId != null ? groupId.toString() : JSONObject.NULL);
+            }
+
+            for (JSONObject jo : map.values())
+                jaResult.put(jo);
+
+            return jaResult;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listLatestAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_LATEST_ASUSER).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray jaResult = new JSONArray();
+        BigDecimal uid = new BigDecimal(UUIDUtils.toBigInteger(userId));
+        BigDecimal ruid = remoteUserId != null ? new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)) : null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, uid);
+            ps.setBigDecimal(2, ruid);
+            ps.setBigDecimal(3, uid);
+            ps.setBigDecimal(4, ruid);
+            ps.setBigDecimal(5, uid);
+            ps.setBigDecimal(6, ruid);
+            ps.setBigDecimal(7, uid);
+            ps.setBigDecimal(8, ruid);
+            ps.setLong(9, offset);
+            ps.setLong(10, count);
+            ResultSet rs = ps.executeQuery();
+
+            Map<String, JSONObject> map = new HashMap<String, JSONObject>();
+            while (rs.next()) {
+                UUID componentId = UUIDUtils.fromBigInteger(rs.getBigDecimal("comp_uuid").toBigInteger());
+                int version = rs.getInt("version");
+                BigDecimal gid = rs.getBigDecimal("group_uuid");
+                UUID groupId = null;
+                if (gid != null)
+                    groupId = UUIDUtils.fromBigInteger(gid.toBigInteger());
+
+                String key = componentId.toString() + version;
+                JSONObject joCompVer = map.get(key);
+                if (joCompVer == null) {
+                    joCompVer = new JSONObject();
+                    joCompVer.put("uuid", componentId.toString());
+                    joCompVer.put("version", version);
+                    joCompVer.put("groups", new JSONArray());
+                    map.put(key, joCompVer);
+                }
+
+                joCompVer.getJSONArray("groups").put(groupId != null ? groupId.toString() : JSONObject.NULL);
             }
 
             for (JSONObject jo : map.values())
@@ -2163,6 +2448,30 @@ public class SQLLink implements BackendStoreLink {
                 ps.setNull(6, Types.VARCHAR);
 
             ps.executeUpdate();
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Get the role id for a role name
+     *
+     * @param roleName The role name
+     * @param conn The DB connection to use
+     * @return The role id, or null if the role name is not known
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Integer getRoleId(String roleName, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_ROLE_GET_ID).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, roleName);
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getInt(1) : null;
         }
         finally {
             closeStatement(ps);

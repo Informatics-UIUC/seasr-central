@@ -93,6 +93,16 @@
 
     <!-- The REST servlet definitions -->
 
+    <!-- Role -->
+    <New id="roleList" class="org.seasr.central.ws.restlets.role.ListRolesRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+
     <!-- User -->
     <New id="userAdd" class="org.seasr.central.ws.restlets.user.AddUserRestlet">
         <Set name="logger">
@@ -201,7 +211,31 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="groupJoinRequest" class="org.seasr.central.ws.restlets.group.JoinGroupRestlet">
+    <New id="groupAddPendingMember" class="org.seasr.central.ws.restlets.group.AddPendingGroupMemberRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="groupListPendingMembers" class="org.seasr.central.ws.restlets.group.ListPendingGroupMembersRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="groupAddMember" class="org.seasr.central.ws.restlets.group.AddGroupMemberRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="groupListMembers" class="org.seasr.central.ws.restlets.group.ListGroupMembersRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -219,8 +253,15 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="repositoryRetrieveComponentContext"
-         class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
+    <New id="repositoryRetrieveComponentContext" class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="repositoryComponentShare" class="org.seasr.central.ws.restlets.component.ShareComponentRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -239,6 +280,12 @@
 
     <!-- REST servlet dispatcher -->
     <New id="red" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+        <Call name="add">
+            <Arg>
+                <Ref id="roleList"/>
+            </Arg>
+        </Call>
+
         <Call name="add">
             <Arg>
                 <Ref id="userAdd"/>
@@ -307,7 +354,22 @@
         </Call>
         <Call name="add">
             <Arg>
-                <Ref id="groupJoinRequest"/>
+                <Ref id="groupAddPendingMember"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupListPendingMembers"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupAddMember"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupListMembers"/>
             </Arg>
         </Call>
 
@@ -320,6 +382,11 @@
         <Call name="add">
             <Arg>
                 <Ref id="repositoryRetrieveComponentContext"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="repositoryComponentShare"/>
             </Arg>
         </Call>
         <Call name="add">

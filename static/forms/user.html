@@ -22,25 +22,87 @@
             form.action = str;
         }
 
-        function actionHandler(evt) {
-            if (evt.target.readyState == 4 && evt.target.status == 200) {
-                alert("Request successful");
-            } else
-                alert("There was a problem while processing your request!");
-        }
-
         if (form.method.toUpperCase() != "GET" && form.method.toUpperCase() != "POST") {
             var req = new XMLHttpRequest();
-            req.onload = actionHandler;
-            req.open(form.method, form.action, false);
-            req.send("");
+            req.open(form.method, form.action, true);
+            req.onreadystatechange = function() {
+                if (req.readyState == 4) {
+                    if (req.status == 200) {
+                        alert("Request successful");
+                    } else
+                        alert("There was a problem while processing your request!" + "\n" + req.statusText);
+                }
+            };
+            req.send(null);
 
             return false;
         }
 
         return true;
     }
+
+    function showSelection(data, attrs) {
+        var win = window.open(null, null, "menubar=0,resizable=1,width=450,height=250");
+        win.title = "Make a selection";
+        var windoc = win.document;
+
+        var fields = [];
+        for (var i in attrs)
+            for (var j in attrs[i]) {
+                fields.push(j);
+            }
+
+        windoc.data = data;
+        windoc.attrs = attrs;
+
+        windoc.write("<form name='selections'><table>");
+        for (var i in data) {
+            windoc.write("<tr>");
+            windoc.write("<td><input type='radio' name='selection' value='" + i + "'/>");
+            for (var j in fields)
+                windoc.write(fields[j] + ": " + data[i][fields[j]] + "&nbsp;&nbsp;&nbsp;");
+            windoc.write("</td>");
+            windoc.write("</tr>");
+        }
+        windoc.write("</table></form>");
+        windoc.write("<button onclick='self.opener.applySelection(document.selections.selection, document.data, document.attrs); window.close();'>Select</button>");
+    }
+
+    function applySelection(selections, data, attrs) {
+        for (var i in selections)
+            if (selections[i] instanceof HTMLInputElement && selections[i].checked) {
+                for (var j in attrs)
+                    for (var k in attrs[j])
+                        attrs[j][k].value = data[i][k];
+                break;
+            }
+    }
+
+    function pickComponent(user, comp, version) {
+        var req = new XMLHttpRequest();
+        req.open("GET", "/services/users/" + user + "/components.json?includeOldVersions=true&remoteUser=" + user, true);
+        req.onreadystatechange = function() {
+            if (req.readyState == 4) {
+                if (req.status == 200) {
+                    var json = JSON.parse(req.responseText);
+                    if (json.FAILURE.length > 0) {
+                        alert("Request contains failed elements");
+                    }
+                    var components = json.SUCCESS;
+                    showSelection(components, [{"uuid": comp}, {"version":version}]);
+                }
+                else
+                    alert("Could not obtain the list of components for user: " + user + "\n" + req.statusText);
+            }
+        };
+        req.send(null);
+
+        return false;
+    }
 </script>
+
+<h3>List available roles</h3>
+<a href="/services/roles.txt">Show roles</a>
 
 <h3>Add a user</h3>
 <form name="addUser" method="POST" action="/services/users.txt">
@@ -70,7 +132,7 @@
 <form name="removeUser" method="DELETE" paramAction="/services/users/[screen_name].txt">
     <table>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
@@ -142,7 +204,7 @@
 </form>
 
 <h3>Request join group</h3>
-<form name="groupJoinRequest" method="POST" paramAction="/services/groups/[group_name]/members/pending.txt">
+<form name="groupAddPendingMember" method="POST" paramAction="/services/groups/[group_name]/members/pending.txt">
     <table>
         <tr>
             <td>Group name or id:</td>
@@ -158,7 +220,72 @@
         </tr>
         <tr>
             <td colspan="2">
-                <input type="submit" onClick="return actionBuilder(document.groupJoinRequest);">
+                <input type="submit" onClick="return actionBuilder(document.groupAddPendingMember);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>List pending group members</h3>
+<form name="groupListPendingMembers" method="GET" paramAction="/services/groups/[group_name]/members/pending.txt">
+    <table>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.groupListPendingMembers);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>Approve join request</h3>
+<form name="groupAddMember" method="POST" paramAction="/services/groups/[group_name]/members.txt">
+    <table>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td>User name or id:</td>
+            <td><input type="text" name="user"></td>
+        </tr>
+        <tr>
+            <td>Role name:</td>
+            <td><input type="text" name="role"></td>
+        </tr>
+        <tr>
+            <td>User name or id:</td>
+            <td><input type="text" name="user"></td>
+        </tr>
+        <tr>
+            <td>Role name:</td>
+            <td><input type="text" name="role"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.groupAddMember);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+
+<h3>List group members</h3>
+<form name="groupListMembers" method="GET" paramAction="/services/groups/[group_name]/members.txt">
+    <table>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.groupListMembers);">
                 <input type="reset">
             </td>
         </tr>
@@ -169,7 +296,7 @@
 <form name="listGroupsForUser" method="GET" paramAction="/services/users/[screen_name]/groups.txt">
     <table>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
@@ -186,7 +313,7 @@
       paramAction="/services/users/[screen_name]/components.txt">
     <table>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
@@ -248,7 +375,7 @@
             <td><input type="text" name="remoteUser"></td>
         </tr>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
@@ -264,12 +391,50 @@
     </table>
 </form>
 
+<h3>Share a component with a group</h3>
+<form name="shareComponent" method="POST" paramAction="/services/groups/[group_name]/components.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Component id:</td>
+            <td><input type="text" name="component"></td>
+            <td><button onclick="return pickComponent(document.shareComponent.remoteUser.value, document.shareComponent.component[0], document.shareComponent.version[0])">Pick</button></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td>Component id:</td>
+            <td><input type="text" name="component"></td>
+            <td><button onclick="return pickComponent(document.shareComponent.remoteUser.value, document.shareComponent.component[1], document.shareComponent.version[1])">Pick</button></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.shareComponent);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>Upload flow</h3>
 <form name="uploadFlow" method="POST" enctype="multipart/form-data"
       paramAction="/services/users/[screen_name]/flows.txt">
     <table>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>
@@ -297,7 +462,7 @@
             <td><input type="text" name="remoteUser"></td>
         </tr>
         <tr>
-            <td>Screen name:</td>
+            <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
         <tr>

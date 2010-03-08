@@ -38,13 +38,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.group;
+package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -57,9 +58,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
+ * Restlet for sharing a component with a group
+ *
  * @author Boris Capitanu
  */
-public class JoinGroupRestlet extends AbstractBaseRestlet {
+public class ShareComponentRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -78,12 +81,12 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/groups/([^/\\s]+)/members/pending(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/groups/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // check for POST
+        // Check for POST
         if (!method.equalsIgnoreCase("POST")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
@@ -112,15 +115,26 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        List<String> users = new ArrayList<String>();
-        for (String user : request.getParameterValues("user")) {
-            user = user.trim();
-            if (user.length() > 0)
-                users.add(user);
+        List<String> compIds = getSanitizedRequestParameterValues("component", request);
+        List<String> compVersions = getSanitizedRequestParameterValues("version", request);
+
+        // Check for proper request
+        if (!(compIds != null && compVersions != null && compIds.size() == compVersions.size())) {
+            sendErrorExpectationFail(response);
+            return true;
         }
 
-        if (users.size() == 0) {
-            sendErrorExpectationFail(response);
+        Set<IdVersionPair> components = new HashSet<IdVersionPair>(compIds.size());
+        try {
+            for (int i = 0, iMax = compIds.size(); i < iMax; i++) {
+                UUID compId = UUID.fromString(compIds.get(i));
+                int version = Integer.parseInt(compVersions.get(i));
+
+                components.add(new IdVersionPair(compId, version));
+            }
+        }
+        catch (IllegalArgumentException e) {
+            sendErrorBadRequest(response);
             return true;
         }
 
@@ -128,29 +142,21 @@ public class JoinGroupRestlet extends AbstractBaseRestlet {
         JSONArray jaErrors = new JSONArray();
 
         try {
-            try {
-                for (String user : users) {
-                    Properties userProps = getUserScreenNameAndId(user);
-                    if (userProps != null) {
-                        UUID userId = UUID.fromString(userProps.getProperty("uuid"));
-                        // TODO: Should we check whether the user is already on the pending list?
-                        bsl.requestJoinGroup(userId, groupId);
-                        JSONObject jo = new JSONObject();
-                        jo.put("uuid", userProps.getProperty("uuid"));
-                        jo.put("screen_name", userProps.getProperty("screen_name"));
-                        jaSuccess.put(jo);
-                    } else {
-                        // User unknown
-                        JSONObject joError = createJSONErrorObj("Unknown user: " + user, (String)null);
-                        joError.put("user", user);
-                        jaErrors.put(joError);
-                    }
+            for (IdVersionPair component : components) {
+                try {
+                    bsl.shareComponent(component.getId(), component.getVersion(), groupId);
+
+                    JSONObject joComponent = new JSONObject();
+                    joComponent.put("uuid", component.getId());
+                    joComponent.put("version", component.getVersion());
+                    jaSuccess.put(joComponent);
                 }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                sendErrorInternalServerError(response);
-                return true;
+                catch (BackendStoreException e) {
+                    JSONObject joError = createJSONErrorObj("Cannot share component", e);
+                    joError.put("uuid", component.getId());
+                    joError.put("version", component.getVersion());
+                    jaErrors.put(joError);
+                }
             }
 
             JSONObject joContent = new JSONObject();

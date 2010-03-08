@@ -38,7 +38,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
@@ -51,20 +51,17 @@ import org.seasr.central.ws.restlets.ContentTypes;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for adding users
+ * Restlet for joining a user to a group
  *
- * @author Xavier Llora
  * @author Boris Capitanu
  */
-public class AddUserRestlet extends AbstractBaseRestlet {
+public class AddGroupMemberRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -83,7 +80,7 @@ public class AddUserRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/groups/([^/\\s]+)/members(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -97,71 +94,75 @@ public class AddUserRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        Map<String, String[]> params = extractRequestParameters(request);
+        UUID groupId;
+        @SuppressWarnings("unused")
+        String groupName = null;
 
-        // Check for proper request
-        if (!(params.containsKey("screen_name") && params.containsKey("password") && params.containsKey("profile")
-                && params.get("screen_name").length == params.get("password").length
-                && params.get("password").length == params.get("profile").length)) {
-
-            sendErrorExpectationFail(response);
+        try {
+            Properties groupProps = getGroupNameAndId(values[0]);
+            if (groupProps != null) {
+                groupId = UUID.fromString(groupProps.getProperty("uuid"));
+                groupName = groupProps.getProperty("name");
+            } else {
+                sendErrorNotFound(response);
+                return true;
+            }
+        }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
             return true;
         }
 
-        String[] screenNames = params.get("screen_name");
-        String[] passwords = params.get("password");
-        String[] profiles = params.get("profile");
+        List<String> users = getSanitizedRequestParameterValues("user", request);
+        List<String> roles = getSanitizedRequestParameterValues("role", request);
 
-        UUID userId;
+        // Check for proper request
+        if (!(users != null && roles != null && users.size() == roles.size())) {
+            sendErrorExpectationFail(response);
+            return true;
+        }
 
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
-            for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
-                try {
-                    // Check if another user with the same screen name exists
-                    userId = bsl.getUserId(screenNames[i]);
-                    if (userId != null) {
-                        JSONObject joError = createJSONErrorObj(
-                                String.format("Unable to add user '%s'", screenNames[i]),
-                                String.format("Screen name '%s' already exists", screenNames[i]));
-                        joError.put("uuid", userId);
-                        joError.put("created_at", bsl.getUserCreationTime(userId));
-                        joError.put("profile", bsl.getUserProfile(userId));
+            try {
+                for (int i = 0, iMax = users.size(); i < iMax; i++) {
+                    String user = users.get(i);
+                    String role = roles.get(i);
 
+                    // Try to obtain the user id
+                    Properties userProps = getUserScreenNameAndId(user);
+                    if (userProps != null) {
+                        UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+
+                        // Check whether the role exists
+                        if (bsl.hasRole(role)) {
+                            bsl.addGroupMember(userId, groupId, role);
+
+                            JSONObject jo = new JSONObject();
+                            jo.put("uuid", userProps.getProperty("uuid"));
+                            jo.put("role", role);
+                            jaSuccess.put(jo);
+                        } else {
+                            // Role unknown
+                            JSONObject joError = createJSONErrorObj("Unknown role: " + role, (String) null);
+                            joError.put("role", role);
+                            jaErrors.put(joError);
+                        }
+                    } else {
+                        // User unknown
+                        JSONObject joError = createJSONErrorObj("Unknown user: " + user, (String)null);
+                        joError.put("user", user);
                         jaErrors.put(joError);
-                        continue;
                     }
-
-                    JSONObject joProfile;
-                    try {
-                        joProfile = new JSONObject(profiles[i]);
-                    }
-                    catch (JSONException e) {
-                        // Could not decode the user profile
-                        logger.log(Level.WARNING, "Could not decode the user profile", e);
-                        sendErrorBadRequest(response);
-                        return true;
-                    }
-
-                    // Add the user to the backend store
-                    userId = bsl.addUser(screenNames[i], passwords[i], joProfile);
-
-                    // User added successfully
-                    JSONObject joUser = new JSONObject();
-                    joUser.put("uuid", userId.toString());
-                    joUser.put("screen_name", screenNames[i]);
-                    joUser.put("created_at", bsl.getUserCreationTime(userId));
-                    joUser.put("profile", joProfile);
-
-                    jaSuccess.put(joUser);
                 }
-                catch (BackendStoreException e) {
-                    logger.log(Level.SEVERE, null, e);
-
-                    jaErrors.put(createJSONErrorObj(String.format("Unable to add user '%s'", screenNames[i]), e));
-                }
+            }
+            catch (BackendStoreException e) {
+                logger.log(Level.SEVERE, null, e);
+                sendErrorInternalServerError(response);
+                return true;
             }
 
             JSONObject joContent = new JSONObject();

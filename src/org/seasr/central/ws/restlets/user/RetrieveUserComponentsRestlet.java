@@ -115,7 +115,7 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
 
             // Get the list of all the versions of all components owned by a user and
             // the groups each version is shared with
-            JSONArray jaResult = bsl.listUserComponents(userId, 0, Long.MAX_VALUE);
+            JSONArray jaResult = bsl.listAllUserComponents(userId, 0, Long.MAX_VALUE);
 
             // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
             Map<UUID, SortedMap<Integer, List<UUID>>> compMap = buildVersionSharingMap(jaResult);

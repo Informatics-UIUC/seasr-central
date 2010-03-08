@@ -99,21 +99,6 @@
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
-        // sc_group_join_request
-        //
-        CREATE  TABLE IF NOT EXISTS sc_group_join_request (
-            user_uuid     DECIMAL(39) NOT NULL,
-            group_uuid    DECIMAL(39) NOT NULL,
-            requested_at  DATETIME NOT NULL,
-
-            PRIMARY KEY (user_uuid, group_uuid),
-            INDEX (user_uuid) USING HASH,
-            FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
-            INDEX (group_uuid) USING HASH,
-            FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
-        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
-
-        //
         // sc_user_group
         //
         CREATE TABLE IF NOT EXISTS sc_user_group (
@@ -128,6 +113,21 @@
             FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid),
             INDEX (role_id) USING HASH,
             FOREIGN KEY (role_id) REFERENCES sc_role (role_id)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_user_group_pending
+        //
+        CREATE  TABLE IF NOT EXISTS sc_user_group_pending (
+            user_uuid     DECIMAL(39) NOT NULL,
+            group_uuid    DECIMAL(39) NOT NULL,
+            requested_at  DATETIME NOT NULL,
+
+            PRIMARY KEY (user_uuid, group_uuid),
+            INDEX (user_uuid) USING HASH,
+            FOREIGN KEY (user_uuid) REFERENCES sc_user (user_uuid),
+            INDEX (group_uuid) USING HASH,
+            FOREIGN KEY (group_uuid) REFERENCES sc_group (group_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
 
         //
@@ -478,6 +478,17 @@
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
     </entry>
 
+    <!-- ROLE -->
+    <entry key="org.seasr.central.storage.db.query.role.get.id">
+        SELECT role_id FROM sc_role WHERE name = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.role.list">
+        SELECT name AS role_name FROM sc_role LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.role.exists">
+        SELECT 1 FROM sc_role WHERE name = ?;
+    </entry>
+
     <!-- USER -->
     <entry key="org.seasr.central.storage.db.query.user.add">
         INSERT INTO sc_user (user_uuid, screen_name, password, created_at, profile) VALUES (?, ?, ?, NOW(), ?);
@@ -515,11 +526,8 @@
     <entry key="org.seasr.central.storage.db.query.user.list">
         SELECT user_uuid, screen_name, profile FROM sc_user WHERE deleted = 0 LIMIT ?, ?;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.user.group.add">
-        INSERT INTO sc_user_group (user_uuid, group_uuid, role_id) VALUES (?, ?, ?);
-    </entry>
     <entry key="org.seasr.central.storage.db.query.user.group.list">
-        SELECT group_uuid, role_id FROM sc_user_group WHERE user_uuid = ? LIMIT ?, ?;
+        SELECT ug.group_uuid, r.name AS role_name FROM (SELECT group_uuid, role_id FROM sc_user_group WHERE user_uuid = ?) ug INNER JOIN sc_role r ON ug.role_id = r.role_id LIMIT ?, ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
@@ -532,6 +540,12 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.all">
         <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g ON c.comp_uuid = g.comp_uuid AND c.uploaded_at = g.uploaded_at LIMIT ?, ?;]]>
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.all.as_user">
+        <![CDATA[SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g USING(comp_uuid,uploaded_at) WHERE g.group_uuid IN (SELECT group_uuid FROM sc_user_group WHERE user_uuid = ? UNION SELECT 0 AS group_uuid) UNION (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version, NULL AS group_uuid FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc1 INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc2 USING (comp_uuid, uploaded_at)) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) LIMIT ?, ?;]]>
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.user.component.sharing.list.latest.as_user">
+        <![CDATA[SELECT y.comp_uuid, y.uploaded_at, y.version, z.group_uuid FROM (SELECT x.comp_uuid, MAX(x.uploaded_at) AS uploaded_at, MAX(x.version) AS version FROM (SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g USING(comp_uuid,uploaded_at) WHERE g.group_uuid IN (SELECT group_uuid FROM sc_user_group WHERE user_uuid = ? UNION SELECT 0 AS group_uuid) UNION (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version, NULL AS group_uuid FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc1 INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc2 USING (comp_uuid, uploaded_at)) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at)) x GROUP BY x.comp_uuid) y INNER JOIN (SELECT c.comp_uuid, c.uploaded_at, c.version, g.group_uuid FROM (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at) c LEFT JOIN sc_component_group g USING(comp_uuid,uploaded_at) WHERE g.group_uuid IN (SELECT group_uuid FROM sc_user_group WHERE user_uuid = ? UNION SELECT 0 AS group_uuid) UNION (SELECT user.comp_uuid, user.uploaded_at, COUNT(user.uploaded_at) AS version, NULL AS group_uuid FROM sc_user_component uc INNER JOIN (SELECT comp_uuid, uploaded_at FROM (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc1 INNER JOIN (SELECT comp_uuid, uploaded_at FROM sc_user_component WHERE user_uuid = ?) uc2 USING (comp_uuid, uploaded_at)) user ON uc.comp_uuid = user.comp_uuid AND uc.uploaded_at <= user.uploaded_at GROUP BY user.comp_uuid, user.uploaded_at)) z USING (comp_uuid, uploaded_at) LIMIT ?, ?;]]>
     </entry>
     <entry key="org.seasr.central.storage.db.query.user.flow.add">
         INSERT INTO sc_user_flow (user_uuid, flow_uuid, uploaded_at) VALUES (?, ?, ?);
@@ -556,8 +570,17 @@
     <entry key="org.seasr.central.storage.db.query.group.get.createdat">
         SELECT created_at FROM sc_group WHERE group_uuid = ? AND deleted = 0;
     </entry>
-    <entry key="org.seasr.central.storage.db.query.group.join_req.add">
-        INSERT INTO sc_group_join_request (user_uuid, group_uuid, requested_at) VALUES (?, ?, NOW());
+    <entry key="org.seasr.central.storage.db.query.group.pending.add">
+        INSERT IGNORE INTO sc_user_group_pending (user_uuid, group_uuid, requested_at) VALUES (?, ?, NOW());
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.pending.list">
+        SELECT user_uuid, requested_at FROM sc_user_group_pending WHERE group_uuid = ? LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.members.add">
+        INSERT IGNORE INTO sc_user_group (user_uuid, group_uuid, role_id) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.members.list">
+        SELECT ug.user_uuid, r.name AS role_name FROM (SELECT user_uuid, role_id FROM sc_user_group WHERE group_uuid = ?) ug INNER JOIN sc_role r ON ug.role_id = r.role_id LIMIT ?, ?;
     </entry>
 
     <!-- EVENTS -->
@@ -612,6 +635,9 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_count">
         SELECT COUNT(1) FROM sc_component WHERE comp_uuid = ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.component.share">
+        INSERT IGNORE INTO sc_component_group (comp_uuid, uploaded_at, group_uuid) VALUES (?, ?, ?);
     </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_id">
         SELECT uploaded_at FROM sc_component WHERE comp_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;

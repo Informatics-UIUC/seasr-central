@@ -336,7 +336,7 @@ public class Tools {
      * @return The request parameter map
      */
     @SuppressWarnings("unchecked")
-    public static Map<String, String[]> extractTextPayloads(HttpServletRequest request) {
+    public static Map<String, String[]> extractRequestParameters(HttpServletRequest request) {
         Map<String, String[]> map = new HashMap<String, String[]>();
 
         Enumeration it = request.getParameterNames();
@@ -347,6 +347,28 @@ public class Tools {
         }
 
         return map;
+    }
+
+    /**
+     * Returns a list of non-empty parameter values for the specified request parameter
+     *
+     * @param parameter The HTTP request parameter
+     * @param request The HTTP request object
+     * @return The list of non-empty parameter values for this parameter, or null if none found
+     */
+    public static List<String> getSanitizedRequestParameterValues(String parameter, HttpServletRequest request) {
+        List<String> result = new ArrayList<String>();
+
+        String[] values = request.getParameterValues(parameter);
+        if (values != null) {
+            for (String value : values) {
+                value = value.trim();
+                if (value.length() > 0)
+                    result.add(value);
+            }
+        }
+
+        return result.size() > 0 ? result : null;
     }
 
     /**

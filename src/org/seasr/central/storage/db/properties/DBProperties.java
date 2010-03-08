@@ -60,6 +60,10 @@ public abstract class DBProperties {
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
 
+    public static final String Q_ROLE_GET_ID = "org.seasr.central.storage.db.query.role.get.id";
+    public static final String Q_ROLE_LIST = "org.seasr.central.storage.db.query.role.list";
+    public static final String Q_ROLE_EXISTS = "org.seasr.central.storage.db.query.role.exists";
+
     public static final String Q_USER_ADD = "org.seasr.central.storage.db.query.user.add";
     public static final String Q_USER_REMOVE = "org.seasr.central.storage.db.query.user.remove";
     public static final String Q_USER_UPDATE_PASSWORD = "org.seasr.central.storage.db.query.user.update.password";
@@ -72,23 +76,27 @@ public abstract class DBProperties {
     public static final String Q_USER_PASSWORDVALID = "org.seasr.central.storage.db.query.user.password.valid";
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
-    public static final String Q_USER_GROUP_ADD = "org.seasr.central.storage.db.query.user.group.add";
     public static final String Q_USER_GROUP_LIST = "org.seasr.central.storage.db.query.user.group.list";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
     public static final String Q_USER_COMPONENT_LIST_ALL = "org.seasr.central.storage.db.query.user.component.list.all";
     public static final String Q_USER_COMPONENT_LIST_LATEST = "org.seasr.central.storage.db.query.user.component.list.latest";
     public static final String Q_USER_COMPONENT_SHARING_LIST_ALL = "org.seasr.central.storage.db.query.user.component.sharing.list.all";
-
+    public static final String Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER = "org.seasr.central.storage.db.query.user.component.sharing.list.all.as_user";
+    public static final String Q_USER_COMPONENT_SHARING_LIST_LATEST_ASUSER = "org.seasr.central.storage.db.query.user.component.sharing.list.latest.as_user";
+    
     public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
     public static final String Q_USER_FLOW_SHARING_LIST_ALL = "org.seasr.central.storage.db.query.user.flow.sharing.list.all";
-    
+
     public static final String Q_GROUP_ADD = "org.seasr.central.storage.db.query.group.add";
     public static final String Q_GROUP_GET_UUID = "org.seasr.central.storage.db.query.group.get.uuid";
     public static final String Q_GROUP_GET_NAME = "org.seasr.central.storage.db.query.group.get.name";
     public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";
     public static final String Q_GROUP_GET_CREATEDAT = "org.seasr.central.storage.db.query.group.get.createdat";
 
-    public static final String Q_GROUP_JOINREQ_ADD = "org.seasr.central.storage.db.query.group.join_req.add";
+    public static final String Q_GROUP_PENDING_ADD = "org.seasr.central.storage.db.query.group.pending.add";
+    public static final String Q_GROUP_PENDING_LIST = "org.seasr.central.storage.db.query.group.pending.list";
+    public static final String Q_GROUP_MEMBERS_ADD = "org.seasr.central.storage.db.query.group.members.add";
+    public static final String Q_GROUP_MEMBERS_LIST = "org.seasr.central.storage.db.query.group.members.list";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
@@ -110,6 +118,7 @@ public abstract class DBProperties {
     public static final String Q_COMP_GET_COREHASH = "org.seasr.central.storage.db.query.component.get.core_hash";
     public static final String Q_COMP_GET_LASTINSERT = "org.seasr.central.storage.db.query.component.get.last_insert";
     public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";
+    public static final String Q_COMP_SHARE = "org.seasr.central.storage.db.query.component.share";
     public static final String Q_COMP_GET_VERID = "org.seasr.central.storage.db.query.component.get.ver_id";
 
     public static final String Q_COMP_CORE_EXISTS = "org.seasr.central.storage.db.query.component.core.exists";

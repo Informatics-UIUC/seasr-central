@@ -95,7 +95,7 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        Map<String, String[]> map = extractTextPayloads(request);
+        Map<String, String[]> map = extractRequestParameters(request);
 
         // check for proper request
         if (!(map.containsKey("name") && map.containsKey("profile")
