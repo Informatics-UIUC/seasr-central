@@ -152,9 +152,7 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                JSONArray jaResult = includeOldVersions ?
-                        bsl.listAllAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count) :
-                        bsl.listLatestAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count);
+                JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
 
                 for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
                     JSONObject joCompVer = jaResult.getJSONObject(i);

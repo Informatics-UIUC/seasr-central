@@ -245,14 +245,11 @@ public interface BackendStoreLink {
 
     public void shareComponent(UUID componentId, int version, UUID groupId) throws BackendStoreException;
 
-    public JSONArray listAllUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
-    public JSONArray listLatestUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
-    public JSONArray listAllPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
-    public JSONArray listLatestPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException;
+    public JSONArray listPublicUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
-    public JSONArray listAllAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count) throws BackendStoreException;
-    public JSONArray listLatestAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count) throws BackendStoreException;
+    public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     /**
      * Adds (or updates) a flow

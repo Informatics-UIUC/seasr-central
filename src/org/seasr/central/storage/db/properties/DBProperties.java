@@ -83,7 +83,7 @@ public abstract class DBProperties {
     public static final String Q_USER_COMPONENT_SHARING_LIST_ALL = "org.seasr.central.storage.db.query.user.component.sharing.list.all";
     public static final String Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER = "org.seasr.central.storage.db.query.user.component.sharing.list.all.as_user";
     public static final String Q_USER_COMPONENT_SHARING_LIST_LATEST_ASUSER = "org.seasr.central.storage.db.query.user.component.sharing.list.latest.as_user";
-    
+
     public static final String Q_USER_FLOW_ADD = "org.seasr.central.storage.db.query.user.flow.add";
     public static final String Q_USER_FLOW_SHARING_LIST_ALL = "org.seasr.central.storage.db.query.user.flow.sharing.list.all";
 
@@ -95,6 +95,7 @@ public abstract class DBProperties {
 
     public static final String Q_GROUP_PENDING_ADD = "org.seasr.central.storage.db.query.group.pending.add";
     public static final String Q_GROUP_PENDING_LIST = "org.seasr.central.storage.db.query.group.pending.list";
+    public static final String Q_GROUP_PENDING_DELETE = "org.seasr.central.storage.db.query.group.pending.delete";
     public static final String Q_GROUP_MEMBERS_ADD = "org.seasr.central.storage.db.query.group.members.add";
     public static final String Q_GROUP_MEMBERS_LIST = "org.seasr.central.storage.db.query.group.members.list";
 

@@ -65,17 +65,26 @@
             windoc.write("</tr>");
         }
         windoc.write("</table></form>");
-        windoc.write("<button onclick='self.opener.applySelection(document.selections.selection, document.data, document.attrs); window.close();'>Select</button>");
+        windoc.write("<button onclick='self.opener.applySelection(self.document.selections.selection, self.document.data, self.document.attrs); window.close();'>Select</button>");
     }
 
     function applySelection(selections, data, attrs) {
-        for (var i in selections)
-            if (selections[i] instanceof HTMLInputElement && selections[i].checked) {
-                for (var j in attrs)
-                    for (var k in attrs[j])
-                        attrs[j][k].value = data[i][k];
-                break;
+        var selection = selections;
+        var index = 0;
+
+        if (selection instanceof NodeList) {
+            for (var i = 0; i < selections.length; i++) {
+                if (selections[i].checked) {
+                    selection = selections[i];
+                    index = i;
+                    break;
+                }
             }
+        }
+
+        for (var j in attrs)
+            for (var k in attrs[j])
+                attrs[j][k].value = data[index][k];
     }
 
     function pickComponent(user, comp, version) {
@@ -89,10 +98,32 @@
                         alert("Request contains failed elements");
                     }
                     var components = json.SUCCESS;
-                    showSelection(components, [{"uuid": comp}, {"version":version}]);
+                    showSelection(components, [{"uuid": comp}, {"version": version}]);
                 }
                 else
                     alert("Could not obtain the list of components for user: " + user + "\n" + req.statusText);
+            }
+        };
+        req.send(null);
+
+        return false;
+    }
+
+    function pickPendingGroupMember(group, user) {
+        var req = new XMLHttpRequest();
+        req.open("GET", "/services/groups/" + group + "/members/pending.json", true);
+        req.onreadystatechange = function() {
+            if (req.readyState == 4) {
+                if (req.status == 200) {
+                    var json = JSON.parse(req.responseText);
+                    if (json.FAILURE.length > 0) {
+                        alert("Request contains failed elements");
+                    }
+                    var users = json.SUCCESS;
+                    showSelection(users, [{"uuid": user}]);
+                }
+                else
+                    alert("Could not obtain the list of pending members for group: " + group + "\n" + req.statusText);
             }
         };
         req.send(null);
@@ -253,6 +284,7 @@
         <tr>
             <td>User name or id:</td>
             <td><input type="text" name="user"></td>
+            <td><button onclick="return pickPendingGroupMember(document.groupAddMember.group_name.value, document.groupAddMember.user[0])">Pick</button></td>
         </tr>
         <tr>
             <td>Role name:</td>
@@ -261,6 +293,7 @@
         <tr>
             <td>User name or id:</td>
             <td><input type="text" name="user"></td>
+            <td><button onclick="return pickPendingGroupMember(document.groupAddMember.group_name.value, document.groupAddMember.user[1])">Pick</button></td>
         </tr>
         <tr>
             <td>Role name:</td>

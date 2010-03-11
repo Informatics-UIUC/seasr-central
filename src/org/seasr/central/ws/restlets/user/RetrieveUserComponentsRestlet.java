@@ -44,13 +44,16 @@ import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
@@ -113,30 +116,23 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             if (request.getParameterMap().containsKey("includeOldVersions"))
                 includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            // Get the list of all the versions of all components owned by a user and
-            // the groups each version is shared with
-            JSONArray jaResult = bsl.listAllUserComponents(userId, 0, Long.MAX_VALUE);
-
-            // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
-            Map<UUID, SortedMap<Integer, List<UUID>>> compMap = buildVersionSharingMap(jaResult);
-
-            // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
-            Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
-
-            // Compute the list of accessible components based on the group participation status
-            List<IdVersionPair> accessibleComponents = getAccessibleCompsOrFlows(compMap, remoteUserGroups, includeOldVersions);
+            JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, 0, Long.MAX_VALUE, includeOldVersions);
 
             // Create the accumulator model
             Model model = ModelFactory.createDefaultModel();
 
             // ...and add all the accessible components to it
-            for (IdVersionPair comp : accessibleComponents) {
-                Model compModel = bsl.getComponent(comp.getId(), comp.getVersion());
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joCompVer = jaResult.getJSONObject(i);
+                UUID compId = UUID.fromString(joCompVer.getString("uuid"));
+                int compVersion = joCompVer.getInt("version");
+
+                Model compModel = bsl.getComponent(compId, compVersion);
                 if (compModel == null)
                     throw new BackendStoreException(
-                            String.format("Could not retrieve component %s version %d", comp.getId(), comp.getVersion()));
+                            String.format("Could not retrieve component %s version %d", compId, compVersion));
 
-                rewriteComponentModel(compModel, comp.getId(), comp.getVersion(), request);
+                rewriteComponentModel(compModel, compId, compVersion, request);
 
                 model.add(compModel);
             }

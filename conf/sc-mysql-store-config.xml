@@ -576,6 +576,9 @@
     <entry key="org.seasr.central.storage.db.query.group.pending.list">
         SELECT user_uuid, requested_at FROM sc_user_group_pending WHERE group_uuid = ? LIMIT ?, ?;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.group.pending.delete">
+        DELETE FROM sc_user_group_pending WHERE group_uuid = ? AND user_uuid = ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.group.members.add">
         INSERT IGNORE INTO sc_user_group (user_uuid, group_uuid, role_id) VALUES (?, ?, ?);
     </entry>

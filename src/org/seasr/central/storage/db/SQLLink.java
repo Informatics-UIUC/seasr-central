@@ -790,6 +790,11 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+
+            // Delete the user from the pending members list for this group (if exists)
+            deletePendingMember(gid, uid, conn);
+
+            // Add the user to the group
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setBigDecimal(2, new BigDecimal(gid));
@@ -1111,30 +1116,20 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listAllUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        return listAllAccessibleUserComponentsAsUser(userId, userId, offset, count);
+    public JSONArray listUserComponents(UUID userId, long offset, long count,
+                                        boolean includeOldVersions) throws BackendStoreException {
+        return listAccessibleUserComponentsAsUser(userId, userId, offset, count, includeOldVersions);
     }
 
     @Override
-    public JSONArray listLatestUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        return listLatestAccessibleUserComponentsAsUser(userId, userId, offset, count);
+    public JSONArray listPublicUserComponents(UUID userId, long offset, long count,
+                                              boolean includeOldVersions) throws BackendStoreException {
+        return listAccessibleUserComponentsAsUser(userId, null, offset, count, includeOldVersions);
     }
 
     @Override
-    public JSONArray listAllPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        return listAllAccessibleUserComponentsAsUser(userId, null, offset, count);
-    }
-
-    @Override
-    public JSONArray listLatestPublicUserComponents(UUID userId, long offset, long count) throws BackendStoreException {
-        return listLatestAccessibleUserComponentsAsUser(userId, null, offset, count);
-    }
-
-    @Override
-    public JSONArray listAllAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException {
-
-        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER).trim();
+    public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count,
+                                                        boolean includeOldVersions) throws BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
@@ -1143,75 +1138,29 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
-            ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, uid);
-            ps.setBigDecimal(2, ruid);
-            ps.setBigDecimal(3, uid);
-            ps.setBigDecimal(4, ruid);
-            ps.setLong(5, offset);
-            ps.setLong(6, count);
-            ResultSet rs = ps.executeQuery();
-
-            Map<String, JSONObject> map = new HashMap<String, JSONObject>();
-            while (rs.next()) {
-                UUID componentId = UUIDUtils.fromBigInteger(rs.getBigDecimal("comp_uuid").toBigInteger());
-                int version = rs.getInt("version");
-                BigDecimal gid = rs.getBigDecimal("group_uuid");
-                UUID groupId = null;
-                if (gid != null)
-                    groupId = UUIDUtils.fromBigInteger(gid.toBigInteger());
-
-                String key = componentId.toString() + version;
-                JSONObject joCompVer = map.get(key);
-                if (joCompVer == null) {
-                    joCompVer = new JSONObject();
-                    joCompVer.put("uuid", componentId.toString());
-                    joCompVer.put("version", version);
-                    joCompVer.put("groups", new JSONArray());
-                    map.put(key, joCompVer);
-                }
-
-                joCompVer.getJSONArray("groups").put(groupId != null ? groupId.toString() : JSONObject.NULL);
+            if (includeOldVersions) {
+                ps = conn.prepareStatement(properties.getProperty(
+                        DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER).trim());
+                ps.setBigDecimal(1, uid);
+                ps.setBigDecimal(2, ruid);
+                ps.setBigDecimal(3, uid);
+                ps.setBigDecimal(4, ruid);
+                ps.setLong(5, offset);
+                ps.setLong(6, count);
+            } else {
+                ps = conn.prepareStatement(properties.getProperty(
+                        DBProperties.Q_USER_COMPONENT_SHARING_LIST_LATEST_ASUSER).trim());
+                ps.setBigDecimal(1, uid);
+                ps.setBigDecimal(2, ruid);
+                ps.setBigDecimal(3, uid);
+                ps.setBigDecimal(4, ruid);
+                ps.setBigDecimal(5, uid);
+                ps.setBigDecimal(6, ruid);
+                ps.setBigDecimal(7, uid);
+                ps.setBigDecimal(8, ruid);
+                ps.setLong(9, offset);
+                ps.setLong(10, count);
             }
-
-            for (JSONObject jo : map.values())
-                jaResult.put(jo);
-
-            return jaResult;
-        }
-        catch (Exception e) {
-            logger.log(Level.SEVERE, null, e);
-            throw new BackendStoreException(e);
-        }
-        finally {
-            releaseConnection(conn, ps);
-        }
-    }
-
-    @Override
-    public JSONArray listLatestAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException {
-
-        String sqlQuery = properties.getProperty(DBProperties.Q_USER_COMPONENT_SHARING_LIST_LATEST_ASUSER).trim();
-        Connection conn = null;
-        PreparedStatement ps = null;
-        JSONArray jaResult = new JSONArray();
-        BigDecimal uid = new BigDecimal(UUIDUtils.toBigInteger(userId));
-        BigDecimal ruid = remoteUserId != null ? new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)) : null;
-
-        try {
-            conn = dataSource.getConnection();
-            ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, uid);
-            ps.setBigDecimal(2, ruid);
-            ps.setBigDecimal(3, uid);
-            ps.setBigDecimal(4, ruid);
-            ps.setBigDecimal(5, uid);
-            ps.setBigDecimal(6, ruid);
-            ps.setBigDecimal(7, uid);
-            ps.setBigDecimal(8, ruid);
-            ps.setLong(9, offset);
-            ps.setLong(10, count);
             ResultSet rs = ps.executeQuery();
 
             Map<String, JSONObject> map = new HashMap<String, JSONObject>();
@@ -2472,6 +2421,31 @@ public class SQLLink implements BackendStoreLink {
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? rs.getInt(1) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Removes a user from the pending members list of a group
+     *
+     * @param gid The group id
+     * @param uid The user id
+     * @param conn The DB connection to use
+     * @return True if the user was on the list of pending group members, False otherwise
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected boolean deletePendingMember(BigInteger gid, BigInteger uid, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_PENDING_DELETE).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(gid));
+            ps.setBigDecimal(2, new BigDecimal(uid));
+
+            return ps.executeUpdate() == 1;
         }
         finally {
             closeStatement(ps);
