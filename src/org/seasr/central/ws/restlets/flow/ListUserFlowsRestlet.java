@@ -38,13 +38,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -52,20 +53,17 @@ import org.seasr.central.ws.restlets.ContentTypes;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of groups a user has joined
+ * Restlet for obtaining the list of flows uploaded by a user
  *
  * @author Boris Capitanu
  */
-public class ListUserGroupsRestlet extends AbstractBaseRestlet {
+public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -84,7 +82,7 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/([^/\\s]+)/groups(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -101,6 +99,13 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
         UUID userId;
         String screenName;
 
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
             if (userProps != null) {
@@ -111,6 +116,8 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
                 sendErrorNotFound(response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
@@ -134,16 +141,39 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        boolean includeOldVersions = false;
+        if (request.getParameterMap().containsKey("includeOldVersions"))
+            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                jaSuccess = bsl.listUserGroups(userId, offset, count);
+                // Get the list of all the versions of all components owned by a user and
+                // the groups each version is shared with
+                JSONArray jaResult = bsl.listUserFlows(userId, offset, count);
+
+                // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
+                Map<UUID, SortedMap<Integer, List<UUID>>> flowMap = buildVersionSharingMap(jaResult);
+
+                // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
+                Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
+
+                // Compute the list of accessible components based on the group participation status
+                List<IdVersionPair> accessibleFlows = getAccessibleCompsOrFlows(flowMap, remoteUserGroups, includeOldVersions);
+                for (IdVersionPair flow : accessibleFlows) {
+                    String flowId = flow.getId().toString();
+                    JSONObject joResult = new JSONObject();
+                    joResult.put("uuid", flowId);
+                    joResult.put("version", flow.getVersion());
+                    joResult.put("url", getFlowBaseAccessUrl(request, flowId, flow.getVersion()) + ".ttl");
+                    jaSuccess.put(joResult);
+                }
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the group membership information for user " + userId, e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for user " + userId, e));
             }
 
             JSONObject joContent = new JSONObject();

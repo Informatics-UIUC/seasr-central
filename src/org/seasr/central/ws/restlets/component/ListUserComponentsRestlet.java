@@ -38,14 +38,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -53,17 +52,20 @@ import org.seasr.central.ws.restlets.ContentTypes;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of flows uploaded by a user
+ * Restlet for obtaining the list of components uploaded by a user
  *
  * @author Boris Capitanu
  */
-public class ListUserFlowsRestlet extends AbstractBaseRestlet {
+public class ListUserComponentsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -82,7 +84,7 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -150,30 +152,22 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                // Get the list of all the versions of all components owned by a user and
-                // the groups each version is shared with
-                JSONArray jaResult = bsl.listUserFlows(userId, offset, count);
+                JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
 
-                // Build a data structure that sorts the versions of each component in decreasing order (highest->lowest)
-                Map<UUID, SortedMap<Integer, List<UUID>>> flowMap = buildVersionSharingMap(jaResult);
-
-                // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
-                Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
-
-                // Compute the list of accessible components based on the group participation status
-                List<IdVersionPair> accessibleFlows = getAccessibleCompsOrFlows(flowMap, remoteUserGroups, includeOldVersions);
-                for (IdVersionPair flow : accessibleFlows) {
-                    String flowId = flow.getId().toString();
+                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                    JSONObject joCompVer = jaResult.getJSONObject(i);
+                    String  sCompId = joCompVer.getString("uuid");
+                    int compVersion = joCompVer.getInt("version");
                     JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", flowId);
-                    joResult.put("version", flow.getVersion());
-                    joResult.put("url", getFlowBaseAccessUrl(request, flowId, flow.getVersion()) + ".ttl");
+                    joResult.put("uuid", joCompVer.get("uuid"));
+                    joResult.put("version", joCompVer.get("version"));
+                    joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
                     jaSuccess.put(joResult);
                 }
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for user " + userId, e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the component list for user " + userId, e));
             }
 
             JSONObject joContent = new JSONObject();

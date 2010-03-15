@@ -38,16 +38,18 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.repository;
+package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
-import com.hp.hpl.jena.rdf.model.Model;
+import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
-import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.central.ws.restlets.ComponentContext;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -55,41 +57,27 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component descriptors
+ * Restlet for retrieving component contexts
  *
  * @author Boris Capitanu
  */
-public class RetrieveComponentRestlet extends AbstractBaseRestlet {
-
-    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
-
-    static {
-        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
-        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
-        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
-    }
+public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
-        return supportedResponseTypes;
+        return null;
     }
 
     @Override
     public String getRestContextPathRegexp() {
         return "/services/components/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
-                "(?:/|" + regexExtensionMatcher() + ")?$";
+                "/contexts/([a-f\\d]{32})(?:/.*)?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
         // Check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
-
-        ContentType ct = getDesiredResponseContentType(request);
-        if (ct == null) {
-            sendErrorNotAcceptable(response);
-            return true;
-        }
 
         UUID componentId;
         int version;
@@ -105,35 +93,45 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        try {
-            // Attempt to retrieve the component from the backend store
-            Model compModel = bsl.getComponent(componentId, version);
+        String contextId = values[2];
 
-            if (compModel == null) {
+        try {
+            // Check whether this is a special request for the MD5 value of a resource
+            if (request.getRequestURI().endsWith(".md5")) {
+                if (bsl.hasComponentContext(contextId)) {
+                    response.setContentType("text/plain");
+                    response.getWriter().print(contextId);
+                } else {
+                    sendErrorNotFound(response);
+                }
+
+                return true;
+            }
+
+            ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
+            if (context == null) {
                 sendErrorNotFound(response);
                 return true;
             }
 
-            rewriteComponentModel(compModel, componentId, version, request);
+            InputStream contextStream = context.getDataStream();
+            OutputStream responseStream = response.getOutputStream();
 
-            // Send the response
-            response.setContentType(ct.toString());
             response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType(context.getContentType());
 
-            if (ct.equals(ContentTypes.RDFXML))
-                compModel.write(response.getOutputStream(), "RDF/XML");
+            byte[] buffer = new byte[8192];
+            int nRead;
 
-            else
-
-            if (ct.equals(ContentTypes.RDFNT))
-                compModel.write(response.getOutputStream(), "N-TRIPLE");
-
-            else
-
-            if (ct.equals(ContentTypes.RDFTTL))
-                compModel.write(response.getOutputStream(), "TURTLE");
+            while ((nRead = contextStream.read(buffer)) > 0)
+                responseStream.write(buffer, 0, nRead);
         }
-        catch (Exception e) {
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
+        }
+        catch (IOException e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;

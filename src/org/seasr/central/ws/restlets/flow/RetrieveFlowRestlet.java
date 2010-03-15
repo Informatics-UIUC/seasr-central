@@ -38,18 +38,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.repository;
+package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
-import org.seasr.central.storage.exceptions.BackendStoreException;
+import com.hp.hpl.jena.rdf.model.Model;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
-import org.seasr.central.ws.restlets.ComponentContext;
+import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -57,21 +55,29 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component contexts
+ * Restlet for retrieving flow descriptors
  *
  * @author Boris Capitanu
  */
-public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
+public class RetrieveFlowRestlet extends AbstractBaseRestlet {
+
+    private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
+
+    static {
+        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
+        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
+        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
+    }
 
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
-        return null;
+        return supportedResponseTypes;
     }
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/components/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
-                "/contexts/([a-f\\d]{32})(?:/.*)?$";
+        return "/services/flows/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
+                "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -79,11 +85,17 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
         // Check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
-        UUID componentId;
+        ContentType ct = getDesiredResponseContentType(request);
+        if (ct == null) {
+            sendErrorNotAcceptable(response);
+            return true;
+        }
+
+        UUID flowId;
         int version;
 
         try {
-            componentId = UUID.fromString(values[0]);
+            flowId = UUID.fromString(values[0]);
             version = Integer.parseInt(values[1]);
             if (version < 1)
                 throw new IllegalArgumentException("The version number cannot be less than 1");
@@ -93,45 +105,36 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        String contextId = values[2];
-
         try {
-            // Check whether this is a special request for the MD5 value of a resource
-            if (request.getRequestURI().endsWith(".md5")) {
-                if (bsl.hasComponentContext(contextId)) {
-                    response.setContentType("text/plain");
-                    response.getWriter().print(contextId);
-                } else {
-                    sendErrorNotFound(response);
-                }
+            // Attempt to retrieve the flow from the backend store
+            Model flowModel = bsl.getFlow(flowId, version);
 
-                return true;
-            }
-
-            ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
-            if (context == null) {
+            if (flowModel == null) {
                 sendErrorNotFound(response);
                 return true;
             }
 
-            InputStream contextStream = context.getDataStream();
-            OutputStream responseStream = response.getOutputStream();
+            // Rewrite the flow model to align the URIs
+            rewriteFlowModel(flowModel, flowId, version, request);
 
+            // Send the response
+            response.setContentType(ct.toString());
             response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType(context.getContentType());
 
-            byte[] buffer = new byte[8192];
-            int nRead;
+            if (ct.equals(ContentTypes.RDFXML))
+                flowModel.write(response.getOutputStream(), "RDF/XML");
 
-            while ((nRead = contextStream.read(buffer)) > 0)
-                responseStream.write(buffer, 0, nRead);
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
+                flowModel.write(response.getOutputStream(), "N-TRIPLE");
+
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
+                flowModel.write(response.getOutputStream(), "TURTLE");
         }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
-        }
-        catch (IOException e) {
+        catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;

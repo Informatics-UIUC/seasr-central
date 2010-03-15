@@ -136,73 +136,16 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="userGroupsList" class="org.seasr.central.ws.restlets.user.ListUserGroupsRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userComponentUpload" class="org.seasr.central.ws.restlets.user.UploadComponentRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userComponentList" class="org.seasr.central.ws.restlets.user.ListUserComponentsRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userComponentRetrieve" class="org.seasr.central.ws.restlets.user.RetrieveUserComponentsRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userFlowUpload" class="org.seasr.central.ws.restlets.user.UploadFlowRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userFlowList" class="org.seasr.central.ws.restlets.user.ListUserFlowsRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-    <New id="userFlowRetrieve" class="org.seasr.central.ws.restlets.user.RetrieveUserFlowsRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
-
-    <New id="userGroupCreate" class="org.seasr.central.ws.restlets.group.CreateGroupRestlet">
-        <Set name="logger">
-            <Ref id="logger"/>
-        </Set>
-        <Set name="backendStoreLink">
-            <Ref id="bsl"/>
-        </Set>
-    </New>
 
     <!-- Group -->
+    <New id="groupCreate" class="org.seasr.central.ws.restlets.group.CreateGroupRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="groupInfo" class="org.seasr.central.ws.restlets.group.GroupInfoRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -243,9 +186,17 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="groupListUserGroups" class="org.seasr.central.ws.restlets.group.ListUserGroupsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
 
-    <!-- Repository -->
-    <New id="repositoryRetrieveComponent" class="org.seasr.central.ws.restlets.repository.RetrieveComponentRestlet">
+    <!-- Component -->
+    <New id="componentUpload" class="org.seasr.central.ws.restlets.component.UploadComponentRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -253,7 +204,7 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="repositoryRetrieveComponentContext" class="org.seasr.central.ws.restlets.repository.RetrieveComponentContextRestlet">
+    <New id="componentRetrieveDescriptor" class="org.seasr.central.ws.restlets.component.RetrieveComponentRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -261,7 +212,7 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="repositoryComponentShare" class="org.seasr.central.ws.restlets.component.ShareComponentRestlet">
+    <New id="componentRetrieveContext" class="org.seasr.central.ws.restlets.component.RetrieveComponentContextRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -269,7 +220,57 @@
             <Ref id="bsl"/>
         </Set>
     </New>
-    <New id="repositoryRetrieveFlow" class="org.seasr.central.ws.restlets.repository.RetrieveFlowRestlet">
+    <New id="componentShare" class="org.seasr.central.ws.restlets.component.ShareComponentRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="componentListUserComponents" class="org.seasr.central.ws.restlets.component.ListUserComponentsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="componentRetrieveUserComponents" class="org.seasr.central.ws.restlets.component.RetrieveUserComponentsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+
+    <!-- Flow -->
+    <New id="flowUpload" class="org.seasr.central.ws.restlets.flow.UploadFlowRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="flowRetrieve" class="org.seasr.central.ws.restlets.flow.RetrieveFlowRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="flowListUserFlows" class="org.seasr.central.ws.restlets.flow.ListUserFlowsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="flowRetrieveUserFlows" class="org.seasr.central.ws.restlets.flow.RetrieveUserFlowsRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -280,12 +281,14 @@
 
     <!-- REST servlet dispatcher -->
     <New id="red" class="org.seasr.central.ws.restlets.RestfulExtensibleDispatcher">
+        <!-- Role -->
         <Call name="add">
             <Arg>
                 <Ref id="roleList"/>
             </Arg>
         </Call>
 
+        <!-- User -->
         <Call name="add">
             <Arg>
                 <Ref id="userAdd"/>
@@ -306,47 +309,13 @@
                 <Ref id="userInfo"/>
             </Arg>
         </Call>
+        
+        <!-- Group -->
         <Call name="add">
             <Arg>
-                <Ref id="userGroupsList"/>
+                <Ref id="groupCreate"/>
             </Arg>
         </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userComponentUpload"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userComponentList"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userComponentRetrieve"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userFlowUpload"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userFlowList"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userFlowRetrieve"/>
-            </Arg>
-        </Call>
-        <Call name="add">
-            <Arg>
-                <Ref id="userGroupCreate"/>
-            </Arg>
-        </Call>
-
         <Call name="add">
             <Arg>
                 <Ref id="groupInfo"/>
@@ -372,26 +341,63 @@
                 <Ref id="groupListMembers"/>
             </Arg>
         </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupListUserGroups"/>
+            </Arg>
+        </Call>
 
+        <!-- Component -->
+        <Call name="add">
+            <Arg>
+                <Ref id="componentUpload"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentRetrieveDescriptor"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentRetrieveContext"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentShare"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentListUserComponents"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentRetrieveUserComponents"/>
+            </Arg>
+        </Call>
 
+        <!-- Flow -->
         <Call name="add">
             <Arg>
-                <Ref id="repositoryRetrieveComponent"/>
+                <Ref id="flowUpload"/>
             </Arg>
         </Call>
         <Call name="add">
             <Arg>
-                <Ref id="repositoryRetrieveComponentContext"/>
+                <Ref id="flowRetrieve"/>
             </Arg>
         </Call>
         <Call name="add">
             <Arg>
-                <Ref id="repositoryComponentShare"/>
+                <Ref id="flowListUserFlows"/>
             </Arg>
         </Call>
         <Call name="add">
             <Arg>
-                <Ref id="repositoryRetrieveFlow"/>
+                <Ref id="flowRetrieveUserFlows"/>
             </Arg>
         </Call>
     </New>

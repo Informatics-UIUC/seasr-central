@@ -38,7 +38,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
@@ -61,11 +61,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of components uploaded by a user
+ * Restlet for obtaining the list of groups a user has joined
  *
  * @author Boris Capitanu
  */
-public class ListUserComponentsRestlet extends AbstractBaseRestlet {
+public class ListUserGroupsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -84,7 +84,7 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/users/([^/\\s]+)/groups(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -101,13 +101,6 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         UUID userId;
         String screenName;
 
-        UUID remoteUserId;
-        String remoteUser = request.getRemoteUser();
-
-        //TODO: for test purposes
-        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
-            remoteUser = request.getParameter("remoteUser");
-
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
             if (userProps != null) {
@@ -118,8 +111,6 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
                 sendErrorNotFound(response);
                 return true;
             }
-
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
@@ -143,31 +134,16 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        boolean includeOldVersions = false;
-        if (request.getParameterMap().containsKey("includeOldVersions"))
-            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
-
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
-
-                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joCompVer = jaResult.getJSONObject(i);
-                    String  sCompId = joCompVer.getString("uuid");
-                    int compVersion = joCompVer.getInt("version");
-                    JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joCompVer.get("uuid"));
-                    joResult.put("version", joCompVer.get("version"));
-                    joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
-                    jaSuccess.put(joResult);
-                }
+                jaSuccess = bsl.listUserGroups(userId, offset, count);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the component list for user " + userId, e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the group membership information for user " + userId, e));
             }
 
             JSONObject joContent = new JSONObject();

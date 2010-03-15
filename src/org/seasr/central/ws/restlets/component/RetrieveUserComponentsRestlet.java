@@ -38,28 +38,32 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.repository;
+package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
-import org.seasr.central.ws.restlets.AbstractBaseRestlet;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving flow descriptors
+ * Restlet for retrieving component descriptors of accessible components owned by a user
  *
  * @author Boris Capitanu
  */
-public class RetrieveFlowRestlet extends AbstractBaseRestlet {
+public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -75,14 +79,8 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
     }
 
     @Override
-    public String getRestContextPathRegexp() {
-        return "/services/flows/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
-                "(?:/|" + regexExtensionMatcher() + ")?$";
-    }
-
-    @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // Check for GET
+        // check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
@@ -91,48 +89,66 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID flowId;
-        int version;
+        UUID userId;
+        String screenName;
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
-            flowId = UUID.fromString(values[0]);
-            version = Integer.parseInt(values[1]);
-            if (version < 1)
-                throw new IllegalArgumentException("The version number cannot be less than 1");
-        }
-        catch (IllegalArgumentException e) {
-            sendErrorBadRequest(response);
-            return true;
-        }
-
-        try {
-            // Attempt to retrieve the flow from the backend store
-            Model flowModel = bsl.getFlow(flowId, version);
-
-            if (flowModel == null) {
+            Properties userProps = getUserScreenNameAndId(values[0]);
+            if (userProps != null) {
+                userId = UUID.fromString(userProps.getProperty("uuid"));
+                screenName = userProps.getProperty("screen_name");
+            } else {
+                // Specified user does not exist
                 sendErrorNotFound(response);
                 return true;
             }
 
-            // Rewrite the flow model to align the URIs
-            rewriteFlowModel(flowModel, flowId, version, request);
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+
+            boolean includeOldVersions = false;
+            if (request.getParameterMap().containsKey("includeOldVersions"))
+                includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+
+            JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, 0, Long.MAX_VALUE, includeOldVersions);
+
+            // Create the accumulator model
+            Model model = ModelFactory.createDefaultModel();
+
+            // ...and add all the accessible components to it
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joCompVer = jaResult.getJSONObject(i);
+                UUID compId = UUID.fromString(joCompVer.getString("uuid"));
+                int compVersion = joCompVer.getInt("version");
+
+                Model compModel = bsl.getComponent(compId, compVersion);
+                if (compModel == null)
+                    throw new BackendStoreException(
+                            String.format("Could not retrieve component %s version %d", compId, compVersion));
+
+                rewriteComponentModel(compModel, compId, compVersion, request);
+
+                model.add(compModel);
+            }
 
             // Send the response
             response.setContentType(ct.toString());
             response.setStatus(HttpServletResponse.SC_OK);
 
             if (ct.equals(ContentTypes.RDFXML))
-                flowModel.write(response.getOutputStream(), "RDF/XML");
+                model.write(response.getOutputStream(), "RDF/XML");
 
-            else
+            else if (ct.equals(ContentTypes.RDFNT))
+                model.write(response.getOutputStream(), "N-TRIPLE");
 
-            if (ct.equals(ContentTypes.RDFNT))
-                flowModel.write(response.getOutputStream(), "N-TRIPLE");
-
-            else
-
-            if (ct.equals(ContentTypes.RDFTTL))
-                flowModel.write(response.getOutputStream(), "TURTLE");
+            else if (ct.equals(ContentTypes.RDFTTL))
+                model.write(response.getOutputStream(), "TURTLE");
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
