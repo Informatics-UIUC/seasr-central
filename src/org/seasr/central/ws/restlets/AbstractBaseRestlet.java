@@ -41,15 +41,14 @@
 package org.seasr.central.ws.restlets;
 
 import com.google.gdata.util.ContentType;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.IdVersionPair;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -102,7 +101,7 @@ public abstract class AbstractBaseRestlet implements RestServlet {
     public String regexExtensionMatcher() {
         StringBuffer sb = new StringBuffer();
         for (String ext : getSupportedResponseTypes().keySet())
-            sb.append("|\\." + ext);
+            sb.append("|\\.").append(ext);
 
         return sb.toString().substring(1);
     }
@@ -189,113 +188,5 @@ public abstract class AbstractBaseRestlet implements RestServlet {
         result.put("name", groupName);
 
         return result;
-    }
-
-    /**
-     * Retrieves the set of groups that a user belongs to (and makes sure the list includes the "public" group)
-     *
-     * @param userId The user id (or null if unauthenticated access)
-     * @return The set of group ids to which the user belongs
-     * @throws org.json.JSONException
-     * @throws BackendStoreException
-     */
-    protected Set<UUID> getAdjustedGroupsForUser(UUID userId) throws JSONException, BackendStoreException {
-        Set<UUID> groups = new HashSet<UUID>();
-
-        if (userId != null) {
-            JSONArray jaGroups = bsl.listUserGroups(userId, 0, Long.MAX_VALUE);
-            for (int i = 0, iMax = jaGroups.length(); i < iMax; i++) {
-                JSONObject joGroup = jaGroups.getJSONObject(i);
-                groups.add(UUID.fromString(joGroup.getString("uuid")));
-            }
-        }
-
-        // Make sure everyone belongs to the "public" group
-        groups.add(BackendStoreLink.PUBLIC_GROUP);
-
-        return groups;
-    }
-
-    /**
-     * Builds a data structure that contains the versions of each component or flow and the groups each version is shared with.
-     * The versions of components or flows are sorted in decreasing order (highest->lowest)
-     *
-     * @param jaCompOrFlows The components, versions, and groups with which each version is shared
-     * @return The Map
-     * @throws JSONException
-     */
-    protected Map<UUID, SortedMap<Integer, List<UUID>>> buildVersionSharingMap(JSONArray jaCompOrFlows)
-            throws JSONException {
-
-        VersionComparator versionComparator = new VersionComparator();
-
-        Map<UUID, SortedMap<Integer, List<UUID>>> map = new HashMap<UUID, SortedMap<Integer, List<UUID>>>();
-        for (int i = 0; i < jaCompOrFlows.length(); i++) {
-            JSONObject joCompOrFlow = jaCompOrFlows.getJSONObject(i);
-            UUID id = UUID.fromString(joCompOrFlow.getString("uuid"));
-            int version = joCompOrFlow.getInt("version");
-            JSONArray jaGroups = joCompOrFlow.getJSONArray("groups");
-
-            SortedMap<Integer, List<UUID>> revMap = map.get(id);
-            if (revMap == null) {
-                revMap = new TreeMap<Integer, List<UUID>>(versionComparator);
-                map.put(id, revMap);
-            }
-
-            List<UUID> groups = new ArrayList<UUID>();
-            for (int j = 0, jMax = jaGroups.length(); j < jMax; j++)
-                groups.add(UUID.fromString(jaGroups.getString(j)));
-
-            revMap.put(version, groups);
-        }
-        return map;
-    }
-
-    /**
-     * Comparator that sorts version numbers in descending order
-     */
-    class VersionComparator implements Comparator<Integer> {
-        @Override
-        public int compare(Integer v1, Integer v2) {
-            return (-1) * v1.compareTo(v2);   // descending order
-        }
-    }
-
-    /**
-     * Computes the list of accessible components or flows based on the group participation status
-     *
-     * @param compOrFlowMap The component or flow sharing map
-     * @param remoteUserGroups The groups the remote user belongs to (or null if remote user = user queried)
-     * @param includeOldVersions True to include old versions, false otherwise
-     * @return The list of accessible components or flows
-     */
-    protected List<IdVersionPair> getAccessibleCompsOrFlows(Map<UUID, SortedMap<Integer, List<UUID>>> compOrFlowMap,
-                                               Set<UUID> remoteUserGroups, boolean includeOldVersions) {
-
-        List<IdVersionPair> accessibleCompsOrFlows = new ArrayList<IdVersionPair>();
-
-        for (Map.Entry<UUID, SortedMap<Integer, List<UUID>>> compOrFlow : compOrFlowMap.entrySet()) {
-            for (Map.Entry<Integer, List<UUID>> rev : compOrFlow.getValue().entrySet()) {
-                // Check whether this component version is shared with any groups that the remote user belongs to
-                boolean allowedAccess = false;
-                if (remoteUserGroups == null)
-                    // By default allow access if the user making the request is the same as the one queried
-                    allowedAccess = true;
-                else
-                    for (UUID groupId : rev.getValue())
-                        if (remoteUserGroups.contains(groupId)) {
-                            allowedAccess = true;
-                            break;
-                        }
-
-                if (allowedAccess) {
-                    accessibleCompsOrFlows.add(new IdVersionPair(compOrFlow.getKey(), rev.getKey()));
-                    if (!includeOldVersions)
-                        break;
-                }
-            }
-        }
-
-        return accessibleCompsOrFlows;
     }
 }
