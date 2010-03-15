@@ -1396,18 +1396,88 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_USER_FLOW_SHARING_LIST_ALL).trim();
+    public void shareFlow(UUID flowId, int version, UUID groupId) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
-        JSONArray jaResult = new JSONArray();
+        BigInteger fId = UUIDUtils.toBigInteger(flowId);
 
         try {
             conn = dataSource.getConnection();
+            conn.setAutoCommit(false);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setLong(2, offset);
-            ps.setLong(3, count);
+            ps.setBigDecimal(1, new BigDecimal(fId));
+            ps.setTimestamp(2, new Timestamp(getFlowVersionId(fId, version, conn)));
+            ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.executeUpdate();
+
+            // TODO: what to do about "who" shared the flow
+            // this brings back the question
+            // about whether events need to be an application-specific concept (which it started out as)
+            // or not.  I could find the userId of the user who owns the flow and assume that, but...
+
+            // Record the event
+            addEvent(Event.FLOW_SHARED, null, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
+
+            conn.commit();
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            rollbackTransaction(conn);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listUserFlows(UUID userId, long offset, long count,
+                                   boolean includeOldVersions) throws BackendStoreException {
+        return listAccessibleUserFlowsAsUser(userId, userId, offset, count, includeOldVersions);
+    }
+
+    @Override
+    public JSONArray listPublicUserFlows(UUID userId, long offset, long count,
+                                         boolean includeOldVersions) throws BackendStoreException {
+        return listAccessibleUserFlowsAsUser(userId, null, offset, count, includeOldVersions);
+    }
+
+    @Override
+    public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count,
+                                                        boolean includeOldVersions) throws BackendStoreException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray jaResult = new JSONArray();
+        BigDecimal uid = new BigDecimal(UUIDUtils.toBigInteger(userId));
+        BigDecimal ruid = remoteUserId != null ? new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)) : null;
+
+        try {
+            conn = dataSource.getConnection();
+            if (includeOldVersions) {
+                ps = conn.prepareStatement(properties.getProperty(
+                        DBProperties.Q_USER_FLOW_SHARING_LIST_ALL_ASUSER).trim());
+                ps.setBigDecimal(1, uid);
+                ps.setBigDecimal(2, ruid);
+                ps.setBigDecimal(3, uid);
+                ps.setBigDecimal(4, ruid);
+                ps.setLong(5, offset);
+                ps.setLong(6, count);
+            } else {
+                ps = conn.prepareStatement(properties.getProperty(
+                        DBProperties.Q_USER_FLOW_SHARING_LIST_LATEST_ASUSER).trim());
+                ps.setBigDecimal(1, uid);
+                ps.setBigDecimal(2, ruid);
+                ps.setBigDecimal(3, uid);
+                ps.setBigDecimal(4, ruid);
+                ps.setBigDecimal(5, uid);
+                ps.setBigDecimal(6, ruid);
+                ps.setBigDecimal(7, uid);
+                ps.setBigDecimal(8, ruid);
+                ps.setLong(9, offset);
+                ps.setLong(10, count);
+            }
             ResultSet rs = ps.executeQuery();
 
             Map<String, JSONObject> map = new HashMap<String, JSONObject>();
@@ -1429,8 +1499,7 @@ public class SQLLink implements BackendStoreLink {
                     map.put(key, joFlowVer);
                 }
 
-                if (groupId != null)
-                    joFlowVer.getJSONArray("groups").put(groupId.toString());
+                joFlowVer.getJSONArray("groups").put(groupId != null ? groupId.toString() : JSONObject.NULL);
             }
 
             for (JSONObject jo : map.values())
@@ -1446,6 +1515,8 @@ public class SQLLink implements BackendStoreLink {
             releaseConnection(conn, ps);
         }
     }
+
+
 
     /**
      * Parses a multiline SQL string with comments into individual SQL statement strings

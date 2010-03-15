@@ -280,7 +280,13 @@ public interface BackendStoreLink {
      */
     public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
 
-    public JSONArray listUserFlows(UUID userId, long offset, long count) throws BackendStoreException;
+    public void shareFlow(UUID componentId, int version, UUID groupId) throws BackendStoreException;
+    
+    public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+
+    public JSONArray listPublicUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+
+    public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
 
 }

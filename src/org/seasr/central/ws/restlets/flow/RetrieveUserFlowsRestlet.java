@@ -44,13 +44,16 @@ import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
@@ -113,30 +116,23 @@ public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
             if (request.getParameterMap().containsKey("includeOldVersions"))
                 includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            // Get the list of all the versions of all flows owned by a user and
-            // the groups each version is shared with
-            JSONArray jaResult = bsl.listUserFlows(userId, 0, Long.MAX_VALUE);
-
-            // Build a data structure that sorts the versions of each flow in decreasing order (highest->lowest)
-            Map<UUID, SortedMap<Integer, List<UUID>>> flowMap = buildVersionSharingMap(jaResult);
-
-            // Get the set of groups that the remote user belongs to (or null if the remote user is the same as the user queried)
-            Set<UUID> remoteUserGroups = (userId.equals(remoteUserId)) ? null : getAdjustedGroupsForUser(remoteUserId);
-
-            // Compute the list of accessible flows based on the group participation status
-            List<IdVersionPair> accessibleFlows = getAccessibleCompsOrFlows(flowMap, remoteUserGroups, includeOldVersions);
+            JSONArray jaResult = bsl.listAccessibleUserFlowsAsUser(userId, remoteUserId, 0, Long.MAX_VALUE, includeOldVersions);
 
             // Create the accumulator model
             Model model = ModelFactory.createDefaultModel();
 
             // ...and add all the accessible flows to it
-            for (IdVersionPair flow : accessibleFlows) {
-                Model flowModel = bsl.getFlow(flow.getId(), flow.getVersion());
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joFlowVer = jaResult.getJSONObject(i);
+                UUID flowId = UUID.fromString(joFlowVer.getString("uuid"));
+                int flowVersion = joFlowVer.getInt("version");
+
+                Model flowModel = bsl.getFlow(flowId, flowVersion);
                 if (flowModel == null)
                     throw new BackendStoreException(
-                            String.format("Could not retrieve flow %s version %d", flow.getId(), flow.getVersion()));
+                            String.format("Could not retrieve flow %s version %d", flowId, flowVersion));
 
-                rewriteFlowModel(flowModel, flow.getId(), flow.getVersion(), request);
+                rewriteFlowModel(flowModel, flowId, flowVersion, request);
 
                 model.add(flowModel);
             }

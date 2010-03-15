@@ -45,27 +45,24 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
+import org.seasr.central.util.IdVersionPair;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of flows uploaded by a user
+ * Restlet for sharing a flow with a group
  *
  * @author Boris Capitanu
  */
-public class ListUserFlowsRestlet extends AbstractBaseRestlet {
+public class ShareFlowRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -84,13 +81,13 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/groups/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // check for GET
-        if (!method.equalsIgnoreCase("GET")) return false;
+        // Check for POST
+        if (!method.equalsIgnoreCase("POST")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
@@ -98,28 +95,19 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID userId;
-        String screenName;
-
-        UUID remoteUserId;
-        String remoteUser = request.getRemoteUser();
-
-        //TODO: for test purposes
-        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
-            remoteUser = request.getParameter("remoteUser");
+        UUID groupId;
+        @SuppressWarnings("unused")
+        String groupName = null;
 
         try {
-            Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
+            Properties groupProps = getGroupNameAndId(values[0]);
+            if (groupProps != null) {
+                groupId = UUID.fromString(groupProps.getProperty("uuid"));
+                groupName = groupProps.getProperty("name");
             } else {
-                // Specified user does not exist
                 sendErrorNotFound(response);
                 return true;
             }
-
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
@@ -127,54 +115,58 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        long offset = 0;
-        long count = Long.MAX_VALUE;
+        List<String> flowIds = getSanitizedRequestParameterValues("flow", request);
+        List<String> flowVersions = getSanitizedRequestParameterValues("version", request);
 
-        String sOffset = request.getParameter("offset");
-        String sCount = request.getParameter("count");
-
-        try {
-            if (sOffset != null) offset = Long.parseLong(sOffset);
-            if (sCount != null) count = Long.parseLong(sCount);
-        }
-        catch (NumberFormatException e) {
-            logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
+        // Check for proper request
+        if (!(flowIds != null && flowVersions != null && flowIds.size() == flowVersions.size())) {
+            sendErrorExpectationFail(response);
             return true;
         }
 
-        boolean includeOldVersions = false;
-        if (request.getParameterMap().containsKey("includeOldVersions"))
-            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+        Set<IdVersionPair> flows = new HashSet<IdVersionPair>(flowIds.size());
+        try {
+            for (int i = 0, iMax = flowIds.size(); i < iMax; i++) {
+                UUID flowId = UUID.fromString(flowIds.get(i));
+                int version = Integer.parseInt(flowVersions.get(i));
+
+                flows.add(new IdVersionPair(flowId, version));
+            }
+        }
+        catch (IllegalArgumentException e) {
+            sendErrorBadRequest(response);
+            return true;
+        }
 
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
-            try {
-                JSONArray jaResult = bsl.listAccessibleUserFlowsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
+            for (IdVersionPair flow : flows) {
+                try {
+                    bsl.shareFlow(flow.getId(), flow.getVersion(), groupId);
 
-                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joFlowVer = jaResult.getJSONObject(i);
-                    String  sFlowId = joFlowVer.getString("uuid");
-                    int flowVersion = joFlowVer.getInt("version");
-                    JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joFlowVer.get("uuid"));
-                    joResult.put("version", joFlowVer.get("version"));
-                    joResult.put("url", getFlowBaseAccessUrl(request, sFlowId, flowVersion) + ".ttl");
-                    jaSuccess.put(joResult);
+                    JSONObject joFlow = new JSONObject();
+                    joFlow.put("uuid", flow.getId());
+                    joFlow.put("version", flow.getVersion());
+                    jaSuccess.put(joFlow);
                 }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for user " + userId, e));
+                catch (BackendStoreException e) {
+                    JSONObject joError = createJSONErrorObj("Cannot share flow", e);
+                    joError.put("uuid", flow.getId());
+                    joError.put("version", flow.getVersion());
+                    jaErrors.put(joError);
+                }
             }
 
             JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
+            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(OperationResult.FAILURE.name(), jaErrors);
 
-            response.setStatus(HttpServletResponse.SC_OK);
+            if (jaErrors.length() == 0)
+                response.setStatus(HttpServletResponse.SC_CREATED);
+            else
+                response.setStatus(HttpServletResponse.SC_OK);
 
             try {
                 sendContent(response, joContent, ct);

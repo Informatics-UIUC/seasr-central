@@ -109,6 +109,28 @@
         return false;
     }
 
+    function pickFlow(user, flow, version) {
+        var req = new XMLHttpRequest();
+        req.open("GET", "/services/users/" + user + "/flows.json?includeOldVersions=true&remoteUser=" + user, true);
+        req.onreadystatechange = function() {
+            if (req.readyState == 4) {
+                if (req.status == 200) {
+                    var json = JSON.parse(req.responseText);
+                    if (json.FAILURE.length > 0) {
+                        alert("Request contains failed elements");
+                    }
+                    var flows = json.SUCCESS;
+                    showSelection(flows, [{"uuid": flow}, {"version": version}]);
+                }
+                else
+                    alert("Could not obtain the list of flows for user: " + user + "\n" + req.statusText);
+            }
+        };
+        req.send(null);
+
+        return false;
+    }
+
     function pickPendingGroupMember(group, user) {
         var req = new XMLHttpRequest();
         req.open("GET", "/services/groups/" + group + "/members/pending.json", true);
@@ -510,5 +532,44 @@
         </tr>
     </table>
 </form>
+
+<h3>Share a flow with a group</h3>
+<form name="shareFlow" method="POST" paramAction="/services/groups/[group_name]/flows.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Flow id:</td>
+            <td><input type="text" name="flow"></td>
+            <td><button onclick="return pickFlow(document.shareFlow.remoteUser.value, document.shareFlow.flow[0], document.shareFlow.version[0])">Pick</button></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td>Flow id:</td>
+            <td><input type="text" name="flow"></td>
+            <td><button onclick="return pickFlow(document.shareFlow.remoteUser.value, document.shareFlow.flow[1], document.shareFlow.version[1])">Pick</button></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.shareFlow);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 </body>
 </html>
