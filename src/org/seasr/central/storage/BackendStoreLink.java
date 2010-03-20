@@ -251,6 +251,8 @@ public interface BackendStoreLink {
 
     public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
+    public JSONArray listAccessibleGroupComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+
     /**
      * Adds (or updates) a flow
      *
@@ -281,7 +283,7 @@ public interface BackendStoreLink {
     public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
 
     public void shareFlow(UUID componentId, int version, UUID groupId) throws BackendStoreException;
-    
+
     public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     public JSONArray listPublicUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;

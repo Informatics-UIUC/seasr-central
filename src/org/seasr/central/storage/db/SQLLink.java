@@ -1200,6 +1200,79 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public JSONArray listAccessibleGroupComponentsAsUser(UUID groupId, UUID remoteUserId, long offset, long count,
+                                                        boolean includeOldVersions) throws BackendStoreException {
+        return null;
+//        Connection conn = null;
+//        PreparedStatement ps = null;
+//        JSONArray jaResult = new JSONArray();
+//        BigDecimal gid = new BigDecimal(UUIDUtils.toBigInteger(groupId));
+//        BigDecimal ruid = remoteUserId != null ? new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)) : null;
+//
+//        try {
+//            conn = dataSource.getConnection();
+//            if (includeOldVersions) {
+//                ps = conn.prepareStatement(properties.getProperty(
+//                        DBProperties.Q_GROUP_COMPONENT_SHARING_LIST_ALL_ASUSER).trim());
+//                ps.setBigDecimal(1, gid);
+//                ps.setBigDecimal(2, ruid);
+//                ps.setBigDecimal(3, gid);
+//                ps.setBigDecimal(4, ruid);
+//                ps.setLong(5, offset);
+//                ps.setLong(6, count);
+//            } else {
+//                ps = conn.prepareStatement(properties.getProperty(
+//                        DBProperties.Q_GROUP_COMPONENT_SHARING_LIST_LATEST_ASUSER).trim());
+//                ps.setBigDecimal(1, gid);
+//                ps.setBigDecimal(2, ruid);
+//                ps.setBigDecimal(3, gid);
+//                ps.setBigDecimal(4, ruid);
+//                ps.setBigDecimal(5, gid);
+//                ps.setBigDecimal(6, ruid);
+//                ps.setBigDecimal(7, gid);
+//                ps.setBigDecimal(8, ruid);
+//                ps.setLong(9, offset);
+//                ps.setLong(10, count);
+//            }
+//            ResultSet rs = ps.executeQuery();
+//
+//            Map<String, JSONObject> map = new HashMap<String, JSONObject>();
+//            while (rs.next()) {
+//                UUID componentId = UUIDUtils.fromBigInteger(rs.getBigDecimal("comp_uuid").toBigInteger());
+//                int version = rs.getInt("version");
+//                BigDecimal gid = rs.getBigDecimal("group_uuid");
+//                UUID groupId = null;
+//                if (gid != null)
+//                    groupId = UUIDUtils.fromBigInteger(gid.toBigInteger());
+//
+//                String key = componentId.toString() + version;
+//                JSONObject joCompVer = map.get(key);
+//                if (joCompVer == null) {
+//                    joCompVer = new JSONObject();
+//                    joCompVer.put("uuid", componentId.toString());
+//                    joCompVer.put("version", version);
+//                    joCompVer.put("groups", new JSONArray());
+//                    map.put(key, joCompVer);
+//                }
+//
+//                joCompVer.getJSONArray("groups").put(groupId != null ? groupId.toString() : JSONObject.NULL);
+//            }
+//
+//            for (JSONObject jo : map.values())
+//                jaResult.put(jo);
+//
+//            return jaResult;
+//        }
+//        catch (Exception e) {
+//            logger.log(Level.SEVERE, null, e);
+//            throw new BackendStoreException(e);
+//        }
+//        finally {
+//            releaseConnection(conn, ps);
+//        }
+    }
+
+    @Override
     public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStoreException {
         JSONObject joResult = new JSONObject();
         BigInteger uid = UUIDUtils.toBigInteger(userId);
