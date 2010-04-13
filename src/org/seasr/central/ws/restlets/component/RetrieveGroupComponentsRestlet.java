@@ -111,11 +111,18 @@ public class RetrieveGroupComponentsRestlet extends ListUserComponentsRestlet {
 
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
 
+            // Check whether the remote user is a member of the group in question
+            // and return an error if not
+            if (!bsl.isGroupMember(remoteUserId, groupId)) {
+                sendErrorUnauthorized(response);
+                return true;
+            }
+
             boolean includeOldVersions = false;
             if (request.getParameterMap().containsKey("includeOldVersions"))
                 includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            JSONArray jaResult = bsl.listAccessibleGroupComponentsAsUser(groupId, remoteUserId, 0, Long.MAX_VALUE, includeOldVersions);
+            JSONArray jaResult = bsl.listGroupComponents(groupId, 0, Long.MAX_VALUE, includeOldVersions);
 
             // Create the accumulator model
             Model model = ModelFactory.createDefaultModel();

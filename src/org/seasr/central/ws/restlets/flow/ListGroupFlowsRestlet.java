@@ -38,7 +38,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.component;
+package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
@@ -61,11 +61,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of components shared with a group
+ * Restlet for obtaining the list of flows shared with a group
  *
  * @author Boris Capitanu
  */
-public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
+public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -84,7 +84,7 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/groups/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/groups/([^/\\s]+)/flows(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -158,22 +158,22 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                JSONArray jaResult = bsl.listGroupComponents(groupId, offset, count, includeOldVersions);
+                JSONArray jaResult = bsl.listGroupFlows(groupId, offset, count, includeOldVersions);
 
                 for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joCompVer = jaResult.getJSONObject(i);
-                    String  sCompId = joCompVer.getString("uuid");
-                    int compVersion = joCompVer.getInt("version");
+                    JSONObject joFlowVer = jaResult.getJSONObject(i);
+                    String  sFlowId = joFlowVer.getString("uuid");
+                    int flowVersion = joFlowVer.getInt("version");
                     JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joCompVer.get("uuid"));
-                    joResult.put("version", joCompVer.get("version"));
-                    joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
+                    joResult.put("uuid", joFlowVer.get("uuid"));
+                    joResult.put("version", joFlowVer.get("version"));
+                    joResult.put("url", getFlowBaseAccessUrl(request, sFlowId, flowVersion) + ".ttl");
                     jaSuccess.put(joResult);
                 }
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the component list for group " + groupId, e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for group " + groupId, e));
             }
 
             JSONObject joContent = new JSONObject();

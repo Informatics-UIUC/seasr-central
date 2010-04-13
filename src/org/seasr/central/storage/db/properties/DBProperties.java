@@ -77,6 +77,7 @@ public abstract class DBProperties {
     public static final String Q_USER_COUNT = "org.seasr.central.storage.db.query.user.count";
     public static final String Q_USER_LIST = "org.seasr.central.storage.db.query.user.list";
     public static final String Q_USER_GROUP_LIST = "org.seasr.central.storage.db.query.user.group.list";
+    public static final String Q_USER_GROUP_ISMEMBER = "org.seasr.central.storage.db.query.user.group.is_member";
     public static final String Q_USER_COMPONENT_ADD = "org.seasr.central.storage.db.query.user.component.add";
     public static final String Q_USER_COMPONENT_LIST_ALL = "org.seasr.central.storage.db.query.user.component.list.all";
     public static final String Q_USER_COMPONENT_LIST_LATEST = "org.seasr.central.storage.db.query.user.component.list.latest";
@@ -102,6 +103,10 @@ public abstract class DBProperties {
     public static final String Q_GROUP_PENDING_DELETE = "org.seasr.central.storage.db.query.group.pending.delete";
     public static final String Q_GROUP_MEMBERS_ADD = "org.seasr.central.storage.db.query.group.members.add";
     public static final String Q_GROUP_MEMBERS_LIST = "org.seasr.central.storage.db.query.group.members.list";
+    public static final String Q_GROUP_COMPONENTS_LIST_ALL = "org.seasr.central.storage.db.query.group.components.list.all";
+    public static final String Q_GROUP_COMPONENTS_LIST_LATEST = "org.seasr.central.storage.db.query.group.components.list.latest";
+    public static final String Q_GROUP_FLOWS_LIST_ALL = "org.seasr.central.storage.db.query.group.flows.list.all";
+    public static final String Q_GROUP_FLOWS_LIST_LATEST = "org.seasr.central.storage.db.query.group.flows.list.latest";
 
     public static final String Q_EVENT_ADD = "org.seasr.central.storage.db.query.event.add";
 
@@ -140,7 +145,7 @@ public abstract class DBProperties {
     public static final String Q_FLOW_GET_ID = "org.seasr.central.storage.db.query.flow.get.id";
     public static final String Q_FLOW_GET_LASTINSERT = "org.seasr.central.storage.db.query.flow.get.last_insert";
     public static final String Q_FLOW_GET_VERCOUNT = "org.seasr.central.storage.db.query.flow.get.ver_count";
-    public static final String Q_FLOW_SHARE = "org.seasr.central.storage.db.query.flow.share";    
+    public static final String Q_FLOW_SHARE = "org.seasr.central.storage.db.query.flow.share";
     public static final String Q_FLOW_GET_VERID = "org.seasr.central.storage.db.query.flow.get.ver_id";
 
     public static final String Q_FLOW_COMPONENT_ADD = "org.seasr.central.storage.db.query.flow.component.add";

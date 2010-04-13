@@ -187,6 +187,7 @@ public interface BackendStoreLink {
     public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
     public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException;
+    public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
     public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
 
@@ -251,7 +252,9 @@ public interface BackendStoreLink {
 
     public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
-    public JSONArray listAccessibleGroupComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+
+    public JSONArray listGroupComponents(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     /**
      * Adds (or updates) a flow
@@ -290,5 +293,8 @@ public interface BackendStoreLink {
 
     public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
+    public JSONArray listPublicFlows(long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+
+    public JSONArray listGroupFlows(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
 }

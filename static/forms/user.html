@@ -484,6 +484,30 @@
     </table>
 </form>
 
+<h3>List components shared with group</h3>
+<form name="listComponentsForGroup" method="GET" paramAction="/services/groups/[group_name]/components.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td>Include old versions?</td>
+            <td><input type="checkbox" name="includeOldVersions" value="true" checked="true"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listComponentsForGroup);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>Upload flow</h3>
 <form name="uploadFlow" method="POST" enctype="multipart/form-data"
       paramAction="/services/users/[screen_name]/flows.txt">
@@ -565,6 +589,30 @@
         <tr>
             <td colspan="2">
                 <input type="submit" onClick="return actionBuilder(document.shareFlow);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>List flows shared with group</h3>
+<form name="listFlowsForGroup" method="GET" paramAction="/services/groups/[group_name]/flows.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Group name or id:</td>
+            <td><input type="text" name="group_name"></td>
+        </tr>
+        <tr>
+            <td>Include old versions?</td>
+            <td><input type="checkbox" name="includeOldVersions" value="true" checked="true"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listFlowsForGroup);">
                 <input type="reset">
             </td>
         </tr>

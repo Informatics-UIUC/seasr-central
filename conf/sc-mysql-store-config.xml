@@ -529,6 +529,9 @@
     <entry key="org.seasr.central.storage.db.query.user.group.list">
         SELECT ug.group_uuid, r.name AS role_name FROM (SELECT group_uuid, role_id FROM sc_user_group WHERE user_uuid = ?) ug INNER JOIN sc_role r ON ug.role_id = r.role_id LIMIT ?, ?;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.group.is_member">
+        SELECT 1 FROM sc_user_group WHERE user_uuid = ? AND group_uuid = ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.component.add">
         INSERT INTO sc_user_component (user_uuid, comp_uuid, uploaded_at) VALUES (?, ?, ?);
     </entry>
@@ -596,6 +599,18 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.group.members.list">
         SELECT ug.user_uuid, r.name AS role_name FROM (SELECT user_uuid, role_id FROM sc_user_group WHERE group_uuid = ?) ug INNER JOIN sc_role r ON ug.role_id = r.role_id LIMIT ?, ?;
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.components.list.all">
+        <![CDATA[SELECT cg.comp_uuid, cg.uploaded_at, COUNT(cg.uploaded_at) AS version FROM (SELECT comp_uuid, uploaded_at FROM sc_component_group WHERE group_uuid = ?) cg INNER JOIN sc_component c ON c.comp_uuid = cg.comp_uuid AND c.uploaded_at <= cg.uploaded_at GROUP BY cg.comp_uuid, cg.uploaded_at LIMIT ?, ?;]]>
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.components.list.latest">
+        <![CDATA[SELECT x.comp_uuid, MAX(x.uploaded_at) AS uploaded_at, MAX(x.version) AS version FROM (SELECT cg.comp_uuid, cg.uploaded_at, COUNT(cg.uploaded_at) AS version FROM (SELECT comp_uuid, uploaded_at FROM sc_component_group WHERE group_uuid = ?) cg INNER JOIN sc_component c ON c.comp_uuid = cg.comp_uuid AND c.uploaded_at <= cg.uploaded_at GROUP BY cg.comp_uuid, cg.uploaded_at) x GROUP BY x.comp_uuid LIMIT ?, ?;]]>
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.flows.list.all">
+        <![CDATA[SELECT fg.flow_uuid, fg.uploaded_at, COUNT(fg.uploaded_at) AS version FROM (SELECT flow_uuid, uploaded_at FROM sc_flow_group WHERE group_uuid = ?) fg INNER JOIN sc_flow f ON f.flow_uuid = fg.flow_uuid AND f.uploaded_at <= fg.uploaded_at GROUP BY fg.flow_uuid, fg.uploaded_at LIMIT ?, ?;]]>
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.group.flows.list.latest">
+        <![CDATA[SELECT x.flow_uuid, MAX(x.uploaded_at) AS uploaded_at, MAX(x.version) AS version FROM (SELECT fg.flow_uuid, fg.uploaded_at, COUNT(fg.uploaded_at) AS version FROM (SELECT flow_uuid, uploaded_at FROM sc_flow_group WHERE group_uuid = ?) fg INNER JOIN sc_flow f ON f.flow_uuid = fg.flow_uuid AND f.uploaded_at <= fg.uploaded_at GROUP BY fg.flow_uuid, fg.uploaded_at) x GROUP BY x.flow_uuid LIMIT ?, ?;]]>
     </entry>
 
     <!-- EVENTS -->

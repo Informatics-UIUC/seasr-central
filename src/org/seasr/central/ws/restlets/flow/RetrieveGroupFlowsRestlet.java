@@ -38,20 +38,19 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.component;
+package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
-import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
+import org.seasr.central.ws.restlets.component.ListUserComponentsRestlet;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -61,30 +60,23 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of components shared with a group
+ * Restlet for retrieving descriptors of flows shared with a group
  *
  * @author Boris Capitanu
  */
-public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
+public class RetrieveGroupFlowsRestlet extends ListUserComponentsRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
     static {
-        supportedResponseTypes.put("json", ContentType.JSON);
-        supportedResponseTypes.put("xml", ContentType.APPLICATION_XML);
-        supportedResponseTypes.put("html", ContentType.TEXT_HTML);
-        supportedResponseTypes.put("txt", ContentType.TEXT_PLAIN);
-        supportedResponseTypes.put("sgwt", ContentTypes.SmartGWT);
+        supportedResponseTypes.put("rdf", ContentTypes.RDFXML);
+        supportedResponseTypes.put("ttl", ContentTypes.RDFTTL);
+        supportedResponseTypes.put("nt", ContentTypes.RDFNT);
     }
 
     @Override
     public Map<String, ContentType> getSupportedResponseTypes() {
         return supportedResponseTypes;
-    }
-
-    @Override
-    public String getRestContextPathRegexp() {
-        return "/services/groups/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -126,71 +118,46 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
                 sendErrorUnauthorized(response);
                 return true;
             }
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
-        }
 
-        long offset = 0;
-        long count = Long.MAX_VALUE;
+            boolean includeOldVersions = false;
+            if (request.getParameterMap().containsKey("includeOldVersions"))
+                includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-        String sOffset = request.getParameter("offset");
-        String sCount = request.getParameter("count");
+            JSONArray jaResult = bsl.listGroupFlows(groupId, 0, Long.MAX_VALUE, includeOldVersions);
 
-        try {
-            if (sOffset != null) offset = Long.parseLong(sOffset);
-            if (sCount != null) count = Long.parseLong(sCount);
-        }
-        catch (NumberFormatException e) {
-            logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
-            return true;
-        }
+            // Create the accumulator model
+            Model model = ModelFactory.createDefaultModel();
 
-        boolean includeOldVersions = false;
-        if (request.getParameterMap().containsKey("includeOldVersions"))
-            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+            // ...and add all the accessible flows to it
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joFlowVer = jaResult.getJSONObject(i);
+                UUID flowId = UUID.fromString(joFlowVer.getString("uuid"));
+                int flowVersion = joFlowVer.getInt("version");
 
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
+                Model flowModel = bsl.getFlow(flowId, flowVersion);
+                if (flowModel == null)
+                    throw new BackendStoreException(
+                            String.format("Could not retrieve flow %s version %d", flowId, flowVersion));
 
-        try {
-            try {
-                JSONArray jaResult = bsl.listGroupComponents(groupId, offset, count, includeOldVersions);
+                rewriteFlowModel(flowModel, flowId, flowVersion, request);
 
-                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joCompVer = jaResult.getJSONObject(i);
-                    String  sCompId = joCompVer.getString("uuid");
-                    int compVersion = joCompVer.getInt("version");
-                    JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joCompVer.get("uuid"));
-                    joResult.put("version", joCompVer.get("version"));
-                    joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
-                    jaSuccess.put(joResult);
-                }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the component list for group " + groupId, e));
+                model.add(flowModel);
             }
 
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
+            // Send the response
+            response.setContentType(ct.toString());
             response.setStatus(HttpServletResponse.SC_OK);
 
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
-            }
+            if (ct.equals(ContentTypes.RDFXML))
+                model.write(response.getOutputStream(), "RDF/XML");
+
+            else if (ct.equals(ContentTypes.RDFNT))
+                model.write(response.getOutputStream(), "N-TRIPLE");
+
+            else if (ct.equals(ContentTypes.RDFTTL))
+                model.write(response.getOutputStream(), "TURTLE");
         }
-        catch (JSONException e) {
-            // Should not happen
+        catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;

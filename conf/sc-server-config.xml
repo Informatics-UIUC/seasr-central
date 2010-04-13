@@ -244,6 +244,22 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="componentListGroupComponents" class="org.seasr.central.ws.restlets.component.ListGroupComponentsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="componentRetrieveGroupComponents" class="org.seasr.central.ws.restlets.component.RetrieveGroupComponentsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
 
     <!-- Flow -->
     <New id="flowUpload" class="org.seasr.central.ws.restlets.flow.UploadFlowRestlet">
@@ -271,6 +287,22 @@
         </Set>
     </New>
     <New id="flowRetrieveUserFlows" class="org.seasr.central.ws.restlets.flow.RetrieveUserFlowsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="flowListGroupFlows" class="org.seasr.central.ws.restlets.flow.ListGroupFlowsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="flowRetrieveGroupFlows" class="org.seasr.central.ws.restlets.flow.RetrieveGroupFlowsRestlet">
         <Set name="logger">
             <Ref id="logger"/>
         </Set>
@@ -309,7 +341,7 @@
                 <Ref id="userInfo"/>
             </Arg>
         </Call>
-        
+
         <!-- Group -->
         <Call name="add">
             <Arg>
@@ -378,6 +410,16 @@
                 <Ref id="componentRetrieveUserComponents"/>
             </Arg>
         </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentListGroupComponents"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentRetrieveGroupComponents"/>
+            </Arg>
+        </Call>
 
         <!-- Flow -->
         <Call name="add">
@@ -398,6 +440,16 @@
         <Call name="add">
             <Arg>
                 <Ref id="flowRetrieveUserFlows"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="flowListGroupFlows"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="flowRetrieveGroupFlows"/>
             </Arg>
         </Call>
     </New>
