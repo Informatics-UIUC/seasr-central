@@ -573,6 +573,9 @@
     <entry key="org.seasr.central.storage.db.query.group.add">
         INSERT INTO sc_group (group_uuid, name, created_at, profile) VALUES (?, ?, NOW(), ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.group.list">
+        SELECT group_uuid, name, profile FROM sc_group WHERE deleted = 0 LIMIT ?, ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.group.get.uuid">
         SELECT group_uuid FROM sc_group WHERE name = ? AND deleted = 0;
     </entry>

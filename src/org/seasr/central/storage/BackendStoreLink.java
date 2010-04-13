@@ -180,6 +180,7 @@ public interface BackendStoreLink {
 
 
     public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
+    public JSONArray listGroups(long offset, long count) throws BackendStoreException;
     public UUID getGroupId(String groupName) throws BackendStoreException;
     public String getGroupName(UUID groupId) throws BackendStoreException;
     public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;

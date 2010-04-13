@@ -93,6 +93,7 @@ public abstract class DBProperties {
     public static final String Q_USER_FLOW_SHARING_LIST_LATEST_ASUSER = "org.seasr.central.storage.db.query.user.flow.sharing.list.latest.as_user";
 
     public static final String Q_GROUP_ADD = "org.seasr.central.storage.db.query.group.add";
+    public static final String Q_GROUP_LIST = "org.seasr.central.storage.db.query.group.list";
     public static final String Q_GROUP_GET_UUID = "org.seasr.central.storage.db.query.group.get.uuid";
     public static final String Q_GROUP_GET_NAME = "org.seasr.central.storage.db.query.group.get.name";
     public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";

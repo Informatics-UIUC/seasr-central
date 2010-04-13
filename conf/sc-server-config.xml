@@ -146,6 +146,14 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="groupList" class="org.seasr.central.ws.restlets.group.ListGroupsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="groupInfo" class="org.seasr.central.ws.restlets.group.GroupInfoRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -346,6 +354,11 @@
         <Call name="add">
             <Arg>
                 <Ref id="groupCreate"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupList"/>
             </Arg>
         </Call>
         <Call name="add">

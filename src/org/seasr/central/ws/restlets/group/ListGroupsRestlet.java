@@ -38,13 +38,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.user;
+package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -58,12 +59,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving the list of users
+ * Restlet for retrieving the list of groups
  *
- * @author Xavier Llora
  * @author Boris Capitanu
  */
-public class ListUsersRestlet extends AbstractBaseRestlet {
+public class ListGroupsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -82,7 +82,7 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/users(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/groups(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
@@ -117,16 +117,16 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
 
         try {
             try {
-                jaSuccess = bsl.listUsers(offset, count);
+                jaSuccess = bsl.listGroups(offset, count);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the user list", e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the group list", e));
             }
 
             JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
+            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
 
             response.setStatus(HttpServletResponse.SC_OK);
 

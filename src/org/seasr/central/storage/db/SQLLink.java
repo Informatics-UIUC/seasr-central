@@ -633,6 +633,39 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public JSONArray listGroups(long offset, long count) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_LIST).trim();
+        JSONArray jaGroups = new JSONArray();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setLong(1, offset);
+            ps.setLong(2, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joGroup = new JSONObject();
+                joGroup.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("group_uuid").toBigInteger()).toString());
+                joGroup.put("name", rs.getString("name"));
+                joGroup.put("profile", new JSONObject(rs.getString("profile")));
+                jaGroups.put(joGroup);
+            }
+
+            return jaGroups;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public UUID getGroupId(String groupName) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_UUID).trim();
         Connection conn = null;
