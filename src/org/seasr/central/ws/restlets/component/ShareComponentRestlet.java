@@ -95,6 +95,13 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         UUID groupId;
         @SuppressWarnings("unused")
         String groupName = null;
@@ -106,6 +113,14 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                 groupName = groupProps.getProperty("name");
             } else {
                 sendErrorNotFound(response);
+                return true;
+            }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+
+            // Check whether the user making the request is a member of the group
+            if (!bsl.isGroupMember(remoteUserId, groupId)) {
+                sendErrorUnauthorized(response);
                 return true;
             }
         }
@@ -124,8 +139,6 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        // TODO: don't let a user share a component with a group unless that user is part of the group
-        
         Set<IdVersionPair> components = new HashSet<IdVersionPair>(compIds.size());
         try {
             for (int i = 0, iMax = compIds.size(); i < iMax; i++) {
@@ -146,12 +159,30 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
         try {
             for (IdVersionPair component : components) {
                 try {
-                    bsl.shareComponent(component.getId(), component.getVersion(), groupId);
+                    // Check whether the user making the request is the owner of the component(s)
+                    UUID ownerId = bsl.getComponentOwner(component.getId(), component.getVersion());
+                    if (ownerId != null) {
+                        if (ownerId.equals(remoteUserId)) {
+                            bsl.shareComponent(component.getId(), component.getVersion(), groupId, remoteUserId);
 
-                    JSONObject joComponent = new JSONObject();
-                    joComponent.put("uuid", component.getId());
-                    joComponent.put("version", component.getVersion());
-                    jaSuccess.put(joComponent);
+                            JSONObject joComponent = new JSONObject();
+                            joComponent.put("uuid", component.getId());
+                            joComponent.put("version", component.getVersion());
+                            jaSuccess.put(joComponent);
+                        } else {
+                            // Not the owner of this component version
+                            JSONObject joError = createJSONErrorObj("Cannot share component", "Unauthorized");
+                            joError.put("uuid", component.getId());
+                            joError.put("version", component.getVersion());
+                            jaErrors.put(joError);
+                        }
+                    } else {
+                        // Component version not found
+                        JSONObject joError = createJSONErrorObj("Cannot share component", "Unknown component version");
+                        joError.put("uuid", component.getId());
+                        joError.put("version", component.getVersion());
+                        jaErrors.put(joError);
+                    }
                 }
                 catch (BackendStoreException e) {
                     JSONObject joError = createJSONErrorObj("Cannot share component", e);

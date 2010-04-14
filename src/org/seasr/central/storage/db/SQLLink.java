@@ -1217,6 +1217,32 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public UUID getComponentOwner(UUID componentId, int version) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_OWNER).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        BigInteger compId = UUIDUtils.toBigInteger(componentId);
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setTimestamp(2, new Timestamp(getComponentVersionId(compId, version, conn)));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public Integer getComponentVersionCount(UUID compId) throws BackendStoreException {
         Connection conn;
 
@@ -1231,11 +1257,12 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void shareComponent(UUID componentId, int version, UUID groupId) throws BackendStoreException {
+    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_COMP_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         BigInteger compId = UUIDUtils.toBigInteger(componentId);
+        BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
 
         try {
             conn = dataSource.getConnection();
@@ -1247,13 +1274,8 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             ps.executeUpdate();
 
-            // TODO: what to do about "who" shared the component
-            // this brings back the question
-            // about whether events need to be an application-specific concept (which it started out as)
-            // or not.  I could find the userId of the user who owns the component and assume that, but...
-
             // Record the event
-            addEvent(Event.COMPONENT_SHARED, null, UUIDUtils.toBigInteger(groupId), compId, null, null, conn);
+            addEvent(Event.COMPONENT_SHARED, ruid, UUIDUtils.toBigInteger(groupId), compId, null, null, conn);
 
             conn.commit();
         }

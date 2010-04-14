@@ -690,6 +690,9 @@
     <entry key="org.seasr.central.storage.db.query.context.add">
         INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.get.owner">
+        SELECT user_uuid FROM sc_user_component WHERE comp_uuid = ? AND uploaded_at = ?;
+    </entry>
 
 
     <!-- FLOWS -->

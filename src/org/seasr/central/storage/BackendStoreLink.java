@@ -239,6 +239,8 @@ public interface BackendStoreLink {
      */
     public boolean hasComponentContext(String contextId) throws BackendStoreException;
 
+    public UUID getComponentOwner(UUID componentId, int version) throws BackendStoreException;
+
     /**
      * Returns the version count for a component
      *
@@ -248,7 +250,7 @@ public interface BackendStoreLink {
      */
     public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
 
-    public void shareComponent(UUID componentId, int version, UUID groupId) throws BackendStoreException;
+    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException;
 
     public JSONArray listUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 

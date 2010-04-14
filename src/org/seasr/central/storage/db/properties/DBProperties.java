@@ -138,6 +138,8 @@ public abstract class DBProperties {
 
     public static final String Q_CONTEXT_EXISTS = "org.seasr.central.storage.db.query.context.exists";
     public static final String Q_CONTEXT_ADD = "org.seasr.central.storage.db.query.context.add";
+    
+    public static final String Q_COMP_GET_OWNER = "org.seasr.central.storage.db.query.component.get.owner";
 
     public static final String Q_FLOW_ADD = "org.seasr.central.storage.db.query.flow.add";
     public static final String Q_FLOW_ADD_DESCRIPTION = "org.seasr.central.storage.db.query.flow.add.description";
