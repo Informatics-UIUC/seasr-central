@@ -47,7 +47,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.ContentTypes;
-import org.seasr.central.ws.restlets.component.ListUserComponentsRestlet;
+import org.seasr.central.ws.restlets.component.ListGroupComponentsRestlet;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -64,7 +64,7 @@ import static org.seasr.central.util.Tools.*;
  *
  * @author Boris Capitanu
  */
-public class RetrieveGroupFlowsRestlet extends ListUserComponentsRestlet {
+public class RetrieveGroupFlowsRestlet extends ListGroupComponentsRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
