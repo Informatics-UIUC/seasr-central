@@ -38,31 +38,33 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.component;
+package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.IdVersionPair;
+import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for sharing a component with a group
+ * Restlet for obtaining the list of groups a flow is shared with
  *
  * @author Boris Capitanu
  */
-public class ShareComponentRestlet extends AbstractBaseRestlet {
+public class ListFlowGroupsRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -81,13 +83,14 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/groups/([^/\\s]+)/components(?:/|" + regexExtensionMatcher() + ")?$";
+        return "/services/flows/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
+                "/groups(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // Check for POST
-        if (!method.equalsIgnoreCase("POST")) return false;
+        // check for GET
+        if (!method.equalsIgnoreCase("GET")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
@@ -95,19 +98,18 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
+        UUID flowId = UUID.fromString(values[0]);
+        int flowVersion = Integer.parseInt(values[1]);
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
-            Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                sendErrorNotFound(response);
-                return true;
-            }
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
@@ -115,27 +117,18 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        List<String> compIds = getSanitizedRequestParameterValues("component", request);
-        List<String> compVersions = getSanitizedRequestParameterValues("version", request);
+        long offset = 0;
+        long count = Long.MAX_VALUE;
 
-        // Check for proper request
-        if (!(compIds != null && compVersions != null && compIds.size() == compVersions.size())) {
-            sendErrorExpectationFail(response);
-            return true;
-        }
+        String sOffset = request.getParameter("offset");
+        String sCount = request.getParameter("count");
 
-        // TODO: don't let a user share a component with a group unless that user is part of the group
-        
-        Set<IdVersionPair> components = new HashSet<IdVersionPair>(compIds.size());
         try {
-            for (int i = 0, iMax = compIds.size(); i < iMax; i++) {
-                UUID compId = UUID.fromString(compIds.get(i));
-                int version = Integer.parseInt(compVersions.get(i));
-
-                components.add(new IdVersionPair(compId, version));
-            }
+            if (sOffset != null) offset = Long.parseLong(sOffset);
+            if (sCount != null) count = Long.parseLong(sCount);
         }
-        catch (IllegalArgumentException e) {
+        catch (NumberFormatException e) {
+            logger.log(Level.WARNING, null, e);
             sendErrorBadRequest(response);
             return true;
         }
@@ -144,31 +137,33 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
         JSONArray jaErrors = new JSONArray();
 
         try {
-            for (IdVersionPair component : components) {
-                try {
-                    bsl.shareComponent(component.getId(), component.getVersion(), groupId);
+            try {
+                JSONArray jaResult = bsl.listFlowGroupsAsUser(flowId, flowVersion, remoteUserId, offset, count);
 
-                    JSONObject joComponent = new JSONObject();
-                    joComponent.put("uuid", component.getId());
-                    joComponent.put("version", component.getVersion());
-                    jaSuccess.put(joComponent);
+                if (jaResult == null) {
+                    // No flow was found to match the flowId and version specified
+                    sendErrorNotFound(response);
+                    return true;
                 }
-                catch (BackendStoreException e) {
-                    JSONObject joError = createJSONErrorObj("Cannot share component", e);
-                    joError.put("uuid", component.getId());
-                    joError.put("version", component.getVersion());
-                    jaErrors.put(joError);
+
+                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                    JSONObject joGroup = jaResult.getJSONObject(i);
+                    JSONObject joResult = new JSONObject();
+                    joResult.put("uuid", joGroup.getString("uuid"));
+                    jaSuccess.put(joResult);
                 }
+            }
+            catch (BackendStoreException e) {
+                logger.log(Level.SEVERE, null, e);
+                jaErrors.put(createJSONErrorObj("Cannot obtain the list of groups for flow " +
+                        flowId + " version " + flowVersion, e));
             }
 
             JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
+            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
 
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
+            response.setStatus(HttpServletResponse.SC_OK);
 
             try {
                 sendContent(response, joContent, ct);

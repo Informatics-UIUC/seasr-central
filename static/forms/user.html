@@ -487,6 +487,30 @@
     </table>
 </form>
 
+<h3>List the groups a component is shared with</h3>
+<form name="listGroupsForComponent" method="GET" paramAction="/services/components/[component]/versions/[version]/groups.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Component id:</td>
+            <td><input type="text" name="component"></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listGroupsForComponent);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>List components shared with group</h3>
 <form name="listComponentsForGroup" method="GET" paramAction="/services/groups/[group_name]/components.txt">
     <table>
@@ -592,6 +616,30 @@
         <tr>
             <td colspan="2">
                 <input type="submit" onClick="return actionBuilder(document.shareFlow);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h3>List the groups a flow is shared with</h3>
+<form name="listGroupsForFlow" method="GET" paramAction="/services/flows/[flow]/versions/[version]/groups.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Flow id:</td>
+            <td><input type="text" name="flow"></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listGroupsForFlow);">
                 <input type="reset">
             </td>
         </tr>

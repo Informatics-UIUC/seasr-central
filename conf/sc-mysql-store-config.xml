@@ -672,6 +672,9 @@
     <entry key="org.seasr.central.storage.db.query.component.share">
         INSERT IGNORE INTO sc_component_group (comp_uuid, uploaded_at, group_uuid) VALUES (?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.component.group.list">
+        SELECT group_uuid FROM sc_component_group WHERE comp_uuid = ? AND uploaded_at = ? AND group_uuid IN (SELECT group_uuid FROM sc_user_group WHERE user_uuid = ? UNION SELECT 0 AS group_uuid) LIMIT ?, ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.component.get.ver_id">
         SELECT uploaded_at FROM sc_component WHERE comp_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;
     </entry>
@@ -687,6 +690,7 @@
     <entry key="org.seasr.central.storage.db.query.context.add">
         INSERT INTO sc_context (context_hash, data) VALUES (?, ?);
     </entry>
+
 
     <!-- FLOWS -->
     <entry key="org.seasr.central.storage.db.query.flow.add">
@@ -718,6 +722,9 @@
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.share">
         INSERT IGNORE INTO sc_flow_group (flow_uuid, uploaded_at, group_uuid) VALUES (?, ?, ?);
+    </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.group.list">
+        SELECT group_uuid FROM sc_flow_group WHERE flow_uuid = ? AND uploaded_at = ? AND group_uuid IN (SELECT group_uuid FROM sc_user_group WHERE user_uuid = ? UNION SELECT 0 AS group_uuid) LIMIT ?, ?;
     </entry>
     <entry key="org.seasr.central.storage.db.query.flow.get.ver_id">
         SELECT uploaded_at FROM sc_flow WHERE flow_uuid = ? ORDER BY uploaded_at ASC LIMIT 1 OFFSET ?;

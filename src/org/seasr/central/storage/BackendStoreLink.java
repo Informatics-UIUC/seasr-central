@@ -191,7 +191,10 @@ public interface BackendStoreLink {
     public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
     public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
-
+    public JSONArray listComponentGroupsAsUser(UUID componentId, int version, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException;
+    public JSONArray listFlowGroupsAsUser(UUID flowId, int version, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException;
 
     /**
      * Adds (or updates) a component

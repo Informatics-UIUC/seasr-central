@@ -130,6 +130,7 @@ public abstract class DBProperties {
     public static final String Q_COMP_GET_LASTINSERT = "org.seasr.central.storage.db.query.component.get.last_insert";
     public static final String Q_COMP_GET_VERCOUNT = "org.seasr.central.storage.db.query.component.get.ver_count";
     public static final String Q_COMP_SHARE = "org.seasr.central.storage.db.query.component.share";
+    public static final String Q_COMP_GROUP_LIST = "org.seasr.central.storage.db.query.component.group.list";
     public static final String Q_COMP_GET_VERID = "org.seasr.central.storage.db.query.component.get.ver_id";
 
     public static final String Q_COMP_CORE_EXISTS = "org.seasr.central.storage.db.query.component.core.exists";
@@ -147,6 +148,7 @@ public abstract class DBProperties {
     public static final String Q_FLOW_GET_LASTINSERT = "org.seasr.central.storage.db.query.flow.get.last_insert";
     public static final String Q_FLOW_GET_VERCOUNT = "org.seasr.central.storage.db.query.flow.get.ver_count";
     public static final String Q_FLOW_SHARE = "org.seasr.central.storage.db.query.flow.share";
+    public static final String Q_FLOW_GROUP_LIST = "org.seasr.central.storage.db.query.flow.group.list";
     public static final String Q_FLOW_GET_VERID = "org.seasr.central.storage.db.query.flow.get.ver_id";
 
     public static final String Q_FLOW_COMPONENT_ADD = "org.seasr.central.storage.db.query.flow.component.add";

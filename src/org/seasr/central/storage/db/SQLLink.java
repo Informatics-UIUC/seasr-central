@@ -947,6 +947,94 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public JSONArray listComponentGroupsAsUser(UUID componentId, int version, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GROUP_LIST).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray jaGroups = new JSONArray();
+
+        BigInteger compId = UUIDUtils.toBigInteger(componentId);
+
+        try {
+            conn = dataSource.getConnection();
+            Long versionId = getComponentVersionId(compId, version, conn);
+            if (versionId == null) return null;
+
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(compId));
+            ps.setTimestamp(2, new Timestamp(versionId));
+            if (remoteUserId == null)
+                ps.setNull(3, Types.DECIMAL);
+            else
+                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)));
+            ps.setLong(4, offset);
+            ps.setLong(5, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joGroup = new JSONObject();
+                joGroup.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("group_uuid").toBigInteger()).toString());
+                jaGroups.put(joGroup);
+            }
+
+            return jaGroups;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public JSONArray listFlowGroupsAsUser(UUID flowId, int version, UUID remoteUserId, long offset, long count)
+            throws BackendStoreException {
+
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GROUP_LIST).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+        JSONArray jaGroups = new JSONArray();
+
+        BigInteger fId = UUIDUtils.toBigInteger(flowId);
+
+        try {
+            conn = dataSource.getConnection();
+            Long versionId = getFlowVersionId(fId, version, conn);
+            if (versionId == null) return null;
+
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(fId));
+            ps.setTimestamp(2, new Timestamp(versionId));
+            if (remoteUserId == null)
+                ps.setNull(3, Types.DECIMAL);
+            else
+                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)));
+            ps.setLong(4, offset);
+            ps.setLong(5, count);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                JSONObject joGroup = new JSONObject();
+                joGroup.put("uuid", UUIDUtils.fromBigInteger(rs.getBigDecimal("group_uuid").toBigInteger()).toString());
+                jaGroups.put(joGroup);
+            }
+
+            return jaGroups;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
             throws BackendStoreException {
 

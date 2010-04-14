@@ -202,6 +202,22 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="groupListComponentGroups" class="org.seasr.central.ws.restlets.group.ListComponentGroupsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
+    <New id="groupListFlowGroups" class="org.seasr.central.ws.restlets.group.ListFlowGroupsRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
 
     <!-- Component -->
     <New id="componentUpload" class="org.seasr.central.ws.restlets.component.UploadComponentRestlet">
@@ -389,6 +405,16 @@
         <Call name="add">
             <Arg>
                 <Ref id="groupListUserGroups"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupListComponentGroups"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="groupListFlowGroups"/>
             </Arg>
         </Call>
 
