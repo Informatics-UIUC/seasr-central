@@ -95,6 +95,13 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         UUID groupId;
         @SuppressWarnings("unused")
         String groupName = null;
@@ -106,6 +113,14 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
                 groupName = groupProps.getProperty("name");
             } else {
                 sendErrorNotFound(response);
+                return true;
+            }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+
+            // Check whether the user making the request is a member of the group
+            if (!bsl.isGroupMember(remoteUserId, groupId)) {
+                sendErrorUnauthorized(response);
                 return true;
             }
         }
@@ -144,12 +159,30 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
         try {
             for (IdVersionPair flow : flows) {
                 try {
-                    bsl.shareFlow(flow.getId(), flow.getVersion(), groupId);
+                    // Check whether the user making the request is the owner of the flow(s)
+                    UUID ownerId = bsl.getFlowOwner(flow.getId(), flow.getVersion());
+                    if (ownerId != null) {
+                        if (ownerId.equals(remoteUserId)) {
+                            bsl.shareFlow(flow.getId(), flow.getVersion(), groupId, remoteUserId);
 
-                    JSONObject joFlow = new JSONObject();
-                    joFlow.put("uuid", flow.getId());
-                    joFlow.put("version", flow.getVersion());
-                    jaSuccess.put(joFlow);
+                            JSONObject joFlow = new JSONObject();
+                            joFlow.put("uuid", flow.getId());
+                            joFlow.put("version", flow.getVersion());
+                            jaSuccess.put(joFlow);
+                        } else {
+                            // Not the owner of this flow version
+                            JSONObject joError = createJSONErrorObj("Cannot share flow", "Unauthorized: Not owner");
+                            joError.put("uuid", flow.getId());
+                            joError.put("version", flow.getVersion());
+                            jaErrors.put(joError);
+                        }
+                    } else {
+                        // Flow version not found
+                        JSONObject joError = createJSONErrorObj("Cannot share flow", "Unknown flow version");
+                        joError.put("uuid", flow.getId());
+                        joError.put("version", flow.getVersion());
+                        jaErrors.put(joError);
+                    }
                 }
                 catch (BackendStoreException e) {
                     JSONObject joError = createJSONErrorObj("Cannot share flow", e);

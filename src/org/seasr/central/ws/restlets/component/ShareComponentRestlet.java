@@ -171,7 +171,7 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                             jaSuccess.put(joComponent);
                         } else {
                             // Not the owner of this component version
-                            JSONObject joError = createJSONErrorObj("Cannot share component", "Unauthorized");
+                            JSONObject joError = createJSONErrorObj("Cannot share component", "Unauthorized: Not owner");
                             joError.put("uuid", component.getId());
                             joError.put("version", component.getVersion());
                             jaErrors.put(joError);

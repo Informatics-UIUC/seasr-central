@@ -282,6 +282,8 @@ public interface BackendStoreLink {
      */
     public Model getFlow(UUID flowId, int version) throws BackendStoreException;
 
+    public UUID getFlowOwner(UUID flowId, int version) throws BackendStoreException;
+
     /**
      * Returns the version count for a flow
      *
@@ -291,7 +293,7 @@ public interface BackendStoreLink {
      */
     public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
 
-    public void shareFlow(UUID componentId, int version, UUID groupId) throws BackendStoreException;
+    public void shareFlow(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException;
 
     public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 

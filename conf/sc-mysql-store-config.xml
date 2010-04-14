@@ -735,4 +735,7 @@
     <entry key="org.seasr.central.storage.db.query.flow.component.add">
         INSERT INTO sc_flow_comp_core (flow_core_hash, flow_uploaded_at, comp_core_hash, comp_uploaded_at) VALUES (?, ?, ?, ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.flow.get.owner">
+        SELECT user_uuid FROM sc_user_flow WHERE flow_uuid = ? AND uploaded_at = ?;
+    </entry>
 </properties>

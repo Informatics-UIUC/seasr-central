@@ -1604,6 +1604,32 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
+    public UUID getFlowOwner(UUID flowId, int version) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_OWNER).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        BigInteger fId = UUIDUtils.toBigInteger(flowId);
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(fId));
+            ps.setTimestamp(2, new Timestamp(getFlowVersionId(fId, version, conn)));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
     public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException {
         Connection conn = null;
 
@@ -1618,11 +1644,12 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void shareFlow(UUID flowId, int version, UUID groupId) throws BackendStoreException {
+    public void shareFlow(UUID flowId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         BigInteger fId = UUIDUtils.toBigInteger(flowId);
+        BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
 
         try {
             conn = dataSource.getConnection();
@@ -1640,7 +1667,7 @@ public class SQLLink implements BackendStoreLink {
             // or not.  I could find the userId of the user who owns the flow and assume that, but...
 
             // Record the event
-            addEvent(Event.FLOW_SHARED, null, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
+            addEvent(Event.FLOW_SHARED, ruid, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
 
             conn.commit();
         }
