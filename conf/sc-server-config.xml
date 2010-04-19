@@ -310,6 +310,14 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="flowRetrieveMeta" class="org.seasr.central.ws.restlets.flow.RetrieveFlowMetaRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="flowListUserFlows" class="org.seasr.central.ws.restlets.flow.ListUserFlowsRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -482,6 +490,11 @@
         <Call name="add">
             <Arg>
                 <Ref id="flowRetrieve"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="flowRetrieveMeta"/>
             </Arg>
         </Call>
         <Call name="add">

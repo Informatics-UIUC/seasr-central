@@ -596,6 +596,30 @@
     </table>
 </form>
 
+<h3>Get flow meta</h3>
+<form name="getFlowMeta" method="GET" paramAction="/services/flows/[flow]/versions/[version].txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Flow id:</td>
+            <td><input type="text" name="flow"></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.getFlowMeta);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>List flows owned by user</h3>
 <form name="listFlowsForUser" method="GET" paramAction="/services/users/[screen_name]/flows.txt">
     <table>

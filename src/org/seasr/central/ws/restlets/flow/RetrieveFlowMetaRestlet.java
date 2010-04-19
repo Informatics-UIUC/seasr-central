@@ -38,14 +38,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.ws.restlets.component;
+package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.meandre.core.repository.*;
+import org.meandre.core.repository.FlowDescription;
+import org.meandre.core.repository.QueryableRepository;
+import org.meandre.core.repository.RepositoryImpl;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
@@ -62,11 +64,11 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component information metadata
+ * Restlet for retrieving flow information metadata
  *
  * @author Boris Capitanu
  */
-public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
+public class RetrieveFlowMetaRestlet extends AbstractBaseRestlet {
 
     private static final Map<String, ContentType> supportedResponseTypes = new HashMap<String, ContentType>();
 
@@ -85,13 +87,13 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
 
     @Override
     public String getRestContextPathRegexp() {
-        return "/services/components/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
+        return "/services/flows/([a-f\\d]{8}(?:-[a-f\\d]{4}){3}-[a-f\\d]{12})/versions/(\\d+)" +
                 "(?:/|" + regexExtensionMatcher() + ")?$";
     }
 
     @Override
     public boolean process(HttpServletRequest request, HttpServletResponse response, String method, String... values) {
-        // Check for GET
+        // check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
         ContentType ct = getDesiredResponseContentType(request);
@@ -107,11 +109,11 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID componentId;
+        UUID flowId;
         int version;
 
         try {
-            componentId = UUID.fromString(values[0]);
+            flowId = UUID.fromString(values[0]);
             version = Integer.parseInt(values[1]);
             if (version < 1)
                 throw new IllegalArgumentException("The version number cannot be less than 1");
@@ -128,81 +130,47 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        // TODO: check for permissions to access the component
-
+        // TODO: check for permission to access the flow
 
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                // Attempt to retrieve the component from the backend store
-                Model compModel = bsl.getComponent(componentId, version);
+                // Attempt to retrieve the flow from the backend store
+                Model flowModel = bsl.getFlow(flowId, version);
 
-                if (compModel == null) {
+                if (flowModel == null) {
                     sendErrorNotFound(response);
                     return true;
                 }
 
-                QueryableRepository qr = new RepositoryImpl(compModel);
-                ExecutableComponentDescription ecd = qr.getAvailableExecutableComponentDescriptions().iterator().next();
+                QueryableRepository qr = new RepositoryImpl(flowModel);
+                FlowDescription fd = qr.getAvailableFlowDescriptions().iterator().next();
 
-                JSONObject joComponentMeta = new JSONObject();
-                joComponentMeta.put("uuid", componentId.toString());
-                joComponentMeta.put("version", version);
-                joComponentMeta.put("name", ecd.getName());
-                joComponentMeta.put("creator", ecd.getCreator());
-                joComponentMeta.put("creationDate", ecd.getCreationDate().getTime());
-                joComponentMeta.put("description", ecd.getDescription());
-                joComponentMeta.put("rights", ecd.getRights());
-                joComponentMeta.put("firingPolicy", ecd.getFiringPolicy());
-                joComponentMeta.put("runnable", ecd.getRunnable());
-                joComponentMeta.put("uri", ecd.getExecutableComponent().toString());
-                joComponentMeta.put("format", ecd.getFormat());
+                JSONObject joFlowMeta = new JSONObject();
+                joFlowMeta.put("uuid", flowId.toString());
+                joFlowMeta.put("version", version);
+                joFlowMeta.put("name", fd.getName());
+                joFlowMeta.put("creator", fd.getCreator());
+                joFlowMeta.put("creationDate", fd.getCreationDate().getTime());
+                joFlowMeta.put("description", fd.getDescription());
+                joFlowMeta.put("rights", fd.getRights());
+                joFlowMeta.put("uri", fd.getFlowComponent().toString());
 
                 JSONArray jaTags = new JSONArray();
-                for (String tag : ecd.getTags().getTags())
+                for (String tag : fd.getTags().getTags())
                     jaTags.put(tag);
-                joComponentMeta.put("tags", jaTags);
+                joFlowMeta.put("tags", jaTags);
 
-                JSONArray jaInputs = new JSONArray();
-                for (DataPortDescription port : ecd.getInputs()) {
-                    JSONObject joInput = new JSONObject();
-                    joInput.put("name", port.getName());
-                    joInput.put("description", port.getDescription());
+                // TODO: should we add info for the component instances in the flow? how about connectors?
 
-                    jaInputs.put(joInput);
-                }
-                joComponentMeta.put("inputs", jaInputs);
-
-                JSONArray jaOutputs = new JSONArray();
-                for (DataPortDescription port : ecd.getOutputs()) {
-                    JSONObject joOutput = new JSONObject();
-                    joOutput.put("name", port.getName());
-                    joOutput.put("description", port.getDescription());
-
-                    jaOutputs.put(joOutput);
-                }
-                joComponentMeta.put("outputs", jaOutputs);
-
-                JSONArray jaProperties = new JSONArray();
-                PropertiesDescriptionDefinition propDescriptionDef = ecd.getProperties();
-                for (String prop : propDescriptionDef.getKeys()) {
-                    JSONObject joProp = new JSONObject();
-                    joProp.put("key", prop);
-                    joProp.put("value", propDescriptionDef.getValue(prop));
-                    joProp.put("description", propDescriptionDef.getDescription(prop));
-
-                    jaProperties.put(joProp);
-                }
-                joComponentMeta.put("properties", jaProperties);
-
-                jaSuccess.put(joComponentMeta);
+                jaSuccess.put(joFlowMeta);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the component metadata for component "
-                        + componentId + " version " + version, e));
+                jaErrors.put(createJSONErrorObj("Cannot obtain the flow metadata for flow "
+                        + flowId + " version " + version, e));
             }
 
             JSONObject joContent = new JSONObject();
