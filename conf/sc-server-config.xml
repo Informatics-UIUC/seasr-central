@@ -236,6 +236,14 @@
             <Ref id="bsl"/>
         </Set>
     </New>
+    <New id="componentRetrieveMeta" class="org.seasr.central.ws.restlets.component.RetrieveComponentMetaRestlet">
+        <Set name="logger">
+            <Ref id="logger"/>
+        </Set>
+        <Set name="backendStoreLink">
+            <Ref id="bsl"/>
+        </Set>
+    </New>
     <New id="componentRetrieveContext" class="org.seasr.central.ws.restlets.component.RetrieveComponentContextRestlet">
         <Set name="logger">
             <Ref id="logger"/>
@@ -427,6 +435,11 @@
         <Call name="add">
             <Arg>
                 <Ref id="componentRetrieveDescriptor"/>
+            </Arg>
+        </Call>
+        <Call name="add">
+            <Arg>
+                <Ref id="componentRetrieveMeta"/>
             </Arg>
         </Call>
         <Call name="add">

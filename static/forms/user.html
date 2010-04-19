@@ -437,6 +437,30 @@
     </table>
 </form>
 
+<h3>Get component meta</h3>
+<form name="getComponentMeta" method="GET" paramAction="/services/components/[component]/versions/[version].txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td>Component id:</td>
+            <td><input type="text" name="component"></td>
+        </tr>
+        <tr>
+            <td>Version:</td>
+            <td><input type="text" name="version"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.getComponentMeta);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
+
 <h3>List components owned by user</h3>
 <form name="listComponentsForUser" method="GET" paramAction="/services/users/[screen_name]/components.txt">
     <table>
