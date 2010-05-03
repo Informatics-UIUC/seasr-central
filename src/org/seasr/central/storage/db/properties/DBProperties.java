@@ -59,6 +59,8 @@ public abstract class DBProperties {
 
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
+    
+    public static final String Q_ERROR_MSG = "org.seasr.central.storage.db.querry.error_msg";
 
     public static final String Q_ROLE_GET_ID = "org.seasr.central.storage.db.query.role.get.id";
     public static final String Q_ROLE_LIST = "org.seasr.central.storage.db.query.role.list";

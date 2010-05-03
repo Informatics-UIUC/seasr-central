@@ -41,29 +41,50 @@
 package org.seasr.central.storage;
 
 /**
- * Defines the default roles known to SC
+ * Defines the events and associated codes
  *
  * @author Boris Capitanu
  */
-public enum Role {
+public enum SCEvent {
 
-    ADMIN   (100),
-    USER    (200);
+    USER_CREATED            (100),
+    USER_DELETED            (101),
+    USER_RENAMED            (102),
+    USER_PROFILE_UPDATED    (103),
+    USER_JOINED_GROUP       (104),
+    USER_PARTED_GROUP       (105),
+
+    GROUP_CREATED           (200),
+    GROUP_DELETED           (201),
+    GROUP_RENAMED           (202),
+    GROUP_JOINED            (203),
+    GROUP_PARTED            (204),
+
+    COMPONENT_UPLOADED      (300),
+    COMPONENT_DELETED       (301),
+    COMPONENT_SHARED        (302),
+    COMPONENT_UNSHARED      (303),
+
+    FLOW_UPLOADED           (400),
+    FLOW_DELETED            (401),
+    FLOW_SHARED             (402),
+    FLOW_UNSHARED           (403);
+
 
     //--------------------------------------------------------------------------------------------
 
-    private final int _roleId;
+    private final int _code;
 
-    Role(int roleId) {
-        _roleId = roleId;
+    SCEvent(int code) {
+        _code = code;
     }
 
     /**
-     * Returns the role id for this role
+     * Returns the event code for this event
      *
-     * @return The role id for this role
+     * @return The event code for this event
      */
-    public int getRoleId() {
-        return _roleId;
+    public int getEventCode() {
+        return _code;
     }
 }

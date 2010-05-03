@@ -40,43 +40,33 @@
 
 package org.seasr.central.storage;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.seasr.central.storage.exceptions.BackendStoreException;
+
 /**
- * Defines the events and associated codes
+ * Defines the SC application-specific error codes
  *
  * @author Boris Capitanu
  */
-public enum Event {
+public enum SCError {
 
-    USER_CREATED            (100),
-    USER_DELETED            (101),
-    USER_RENAMED            (102),
-    USER_PROFILE_UPDATED    (103),
-    USER_JOINED_GROUP       (104),
-    USER_PARTED_GROUP       (105),
+    INVALID_SCREEN_NAME     (100, "Invalid screen name: '%s'"),
+    SCREEN_NAME_EXISTS      (101, "Screen name '%s' already exists"),
+    USER_PROFILE_ERROR      (102, "Could not decode the user profile"),
 
-    GROUP_CREATED           (200),
-    GROUP_DELETED           (201),
-    GROUP_RENAMED           (202),
-    GROUP_JOINED            (203),
-    GROUP_PARTED            (204),
+    INCOMPLETE_REQUEST      (500, "Incomplete request / Expected parameter missing"),
 
-    COMPONENT_UPLOADED      (300),
-    COMPONENT_DELETED       (301),
-    COMPONENT_SHARED        (302),
-    COMPONENT_UNSHARED      (303),
-
-    FLOW_UPLOADED           (400),
-    FLOW_DELETED            (401),
-    FLOW_SHARED             (402),
-    FLOW_UNSHARED           (403);
-
+    BACKEND_ERROR           (900, "Backend error");
 
     //--------------------------------------------------------------------------------------------
 
     private final int _code;
+    private final String _message;
 
-    Event(int code) {
+    SCError(int code, String message) {
         _code = code;
+        _message = message;
     }
 
     /**
@@ -84,7 +74,51 @@ public enum Event {
      *
      * @return The event code for this event
      */
-    public int getEventCode() {
+    public int getErrorCode() {
         return _code;
+    }
+
+    public String getErrorMessage() {
+        return _message;
+    }
+
+    public static String getErrorCodeKey() {
+        return "sc_error_code";
+    }
+
+    public static String getErrorReasonKey() {
+        return "sc_error_reason";
+    }
+
+    public static String getExceptionMsgKey() {
+        return "sc_exception_msg";
+    }
+
+    public static JSONObject createErrorObj(SCError error, BackendStoreLink bsl, String... params) {
+        return createErrorObj(error, null, bsl, params);
+    }
+
+    public static JSONObject createErrorObj(SCError error, Exception e, BackendStoreLink bsl, String... params) {
+        try {
+            String errMsg = bsl.getErrorMessage(error);
+            if (errMsg == null) errMsg = "No error message found for error code: " + error.getErrorCode();
+
+            if (params != null && params.length > 0)
+                errMsg = String.format(errMsg, params);
+
+            JSONObject joError = new JSONObject();
+            joError.put(getErrorCodeKey(), error.getErrorCode());
+            joError.put(getErrorReasonKey(), errMsg);
+            if (e != null)
+                joError.put(getExceptionMsgKey(), e.getMessage());
+
+            return joError;
+        }
+        catch (BackendStoreException ex) {
+            return null;
+        }
+        catch (JSONException ex) {
+            return null;
+        }
     }
 }

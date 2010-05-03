@@ -44,6 +44,7 @@ import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
+import com.sun.deploy.net.HttpResponse;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
@@ -81,7 +82,7 @@ public class Tools {
     public static final int READ_TIMEOUT = 0;         // Setting this value to 0 signifies "wait-forever"
 
     /** The XSL transformation used to convert XML to HTML */
-    private static final Transformer xslTrans;
+    //private static final Transformer xslTrans;
 
     /** Define the RDF format types RDF, TTL, NT */
     public enum RDFFormat { RDF, TTL, NT }
@@ -91,17 +92,17 @@ public class Tools {
 
 
     static {
-        // Initialize the XSL transformation engine
-        String xsltFile = Tools.class.getSimpleName() + ".xslt";
-        StreamSource xsltSource = new StreamSource(Tools.class.getResourceAsStream(xsltFile));
-        TransformerFactory xslTransFact = TransformerFactory.newInstance();
-
-        try {
-            xslTrans = xslTransFact.newTransformer(xsltSource);
-        }
-        catch (TransformerConfigurationException e) {
-            throw new RuntimeException(e);
-        }
+//        // Initialize the XSL transformation engine
+//        String xsltFile = Tools.class.getSimpleName() + ".xslt";
+//        StreamSource xsltSource = new StreamSource(Tools.class.getResourceAsStream(xsltFile));
+//        TransformerFactory xslTransFact = TransformerFactory.newInstance();
+//
+//        try {
+//            xslTrans = xslTransFact.newTransformer(xsltSource);
+//        }
+//        catch (TransformerConfigurationException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 
     /**
@@ -151,9 +152,18 @@ public class Tools {
     }
 
     public static void sendContent(HttpServletResponse response, JSONObject content, ContentType contentType)
-            throws IOException {
+            throws IOException, JSONException {
 
         response.setContentType(contentType.toString());
+
+        if (content.getJSONArray(OperationResult.FAILURE.name()).length() == 0)
+            response.setStatus(HttpServletResponse.SC_OK);
+        else
+            if (content.getJSONArray(OperationResult.SUCCESS.name()).length() > 0)
+                response.setStatus(207);
+            else {
+
+            }
 
         // JSON
         if (contentType.equals(ContentType.JSON)) {
@@ -185,22 +195,22 @@ public class Tools {
 
         else
 
-        // HTML
-        if (contentType.equals(ContentType.TEXT_HTML)) {
-            try {
-                String xmlc = "<?xml version='1.0' encoding='UTF-8'?><meandre_response>";
-                xmlc += XML.toString(content, "meandre_item");
-                xmlc += "</meandre_response>";
-                StreamSource xmlSource = new StreamSource(new StringReader(xmlc));
-                StreamResult result = new StreamResult(response.getOutputStream());
-                xslTrans.transform(xmlSource, result);
-            }
-            catch (Exception e) {
-                logger.log(Level.SEVERE, e.getMessage(), e);
-            }
-        }
-
-        else
+//        // HTML
+//        if (contentType.equals(ContentType.TEXT_HTML)) {
+//            try {
+//                String xmlc = "<?xml version='1.0' encoding='UTF-8'?><meandre_response>";
+//                xmlc += XML.toString(content, "meandre_item");
+//                xmlc += "</meandre_response>";
+//                StreamSource xmlSource = new StreamSource(new StringReader(xmlc));
+//                StreamResult result = new StreamResult(response.getOutputStream());
+//                xslTrans.transform(xmlSource, result);
+//            }
+//            catch (Exception e) {
+//                logger.log(Level.SEVERE, e.getMessage(), e);
+//            }
+//        }
+//
+//        else
 
         // TXT
         if (contentType.equals(ContentType.TEXT_PLAIN)) {

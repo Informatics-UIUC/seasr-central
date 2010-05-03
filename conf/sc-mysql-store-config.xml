@@ -476,6 +476,20 @@
             INDEX (flow_uuid) USING HASH,
             FOREIGN KEY (flow_uuid) REFERENCES sc_flow (flow_uuid)
         ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+
+        //
+        // sc_error
+        //
+        CREATE TABLE IF NOT EXISTS sc_error (
+            err_code  INT NOT NULL,
+            err_msg   VARCHAR(200) NOT NULL,
+
+            PRIMARY KEY (err_code)
+        ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8;
+    </entry>
+
+    <entry key="org.seasr.central.storage.db.querry.error_msg">
+        SELECT err_msg FROM sc_error WHERE err_code = ?;
     </entry>
 
     <!-- ROLE -->

@@ -44,7 +44,7 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.seasr.central.main.SC;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -57,7 +57,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.seasr.central.util.Tools.*;
 
@@ -99,6 +98,13 @@ public class UserInfoRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         UUID userId;
         String screenName;
 
@@ -111,10 +117,18 @@ public class UserInfoRestlet extends AbstractBaseRestlet {
                 sendErrorNotFound(response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
+            return true;
+        }
+
+        // Check for permission
+        if (!(request.isUserInRole(SCRole.ADMIN.name()) || userId.equals(remoteUserId))) {
+            sendErrorUnauthorized(response);
             return true;
         }
 

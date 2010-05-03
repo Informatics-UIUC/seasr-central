@@ -74,6 +74,8 @@ public interface BackendStoreLink {
 
     //-------------------------------------------------------------------------------------
 
+    public String getErrorMessage(SCError error) throws BackendStoreException;
+
     public JSONArray listRoles(long offset, long count) throws BackendStoreException;
     public boolean hasRole(String roleName) throws BackendStoreException;
 

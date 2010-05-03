@@ -53,8 +53,9 @@ import org.meandre.core.repository.ExecutableComponentInstanceDescription;
 import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.BackendStoreLink;
-import org.seasr.central.storage.Event;
-import org.seasr.central.storage.Role;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCEvent;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.db.properties.DBProperties;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.InactiveUserException;
@@ -178,18 +179,33 @@ public class SQLLink implements BackendStoreLink {
                 stmt.executeUpdate(sql);
 
             // Populate the default roles
-            PreparedStatement ps = conn.prepareStatement("INSERT IGNORE INTO sc_role (role_id, name) VALUES (?, ?);");
+            PreparedStatement psRole = conn.prepareStatement("INSERT IGNORE INTO sc_role (role_id, name) VALUES (?, ?);");
             try {
-                for (Role role : Role.values()) {
-                    ps.setInt(1, role.getRoleId());
-                    ps.setString(2, role.name());
-                    ps.addBatch();
+                for (SCRole role : SCRole.values()) {
+                    psRole.setInt(1, role.getRoleId());
+                    psRole.setString(2, role.name());
+                    psRole.addBatch();
                 }
-                ps.executeBatch();
+                psRole.executeBatch();
             }
             finally {
-                closeStatement(ps);
-                ps = null;
+                closeStatement(psRole);
+                psRole = null;
+            }
+
+            // Add the SC application-specific errors
+            PreparedStatement psError = conn.prepareStatement("INSERT IGNORE INTO sc_error (err_code, err_msg) VALUES (?, ?);");
+            try {
+                for (SCError error : SCError.values()) {
+                    psError.setInt(1, error.getErrorCode());
+                    psError.setString(2, error.getErrorMessage());
+                    psError.addBatch();
+                }
+                psError.executeBatch();
+            }
+            finally {
+                closeStatement(psError);
+                psError = null;
             }
 
             // Create the admin user
@@ -202,7 +218,7 @@ public class SQLLink implements BackendStoreLink {
             // Assign the 'admin' user to the 'admin' role
             stmt.executeUpdate(String.format(
                     "INSERT IGNORE INTO sc_user_role (user_uuid, role_id) VALUES (%d, %d);",
-                    UUIDUtils.toBigInteger(ADMIN_UUID), Role.ADMIN.getRoleId()
+                    UUIDUtils.toBigInteger(ADMIN_UUID), SCRole.ADMIN.getRoleId()
             ));
 
             // Create the main SC schema
@@ -217,18 +233,18 @@ public class SQLLink implements BackendStoreLink {
             ));
 
             // Populate the default event codes
-            ps = conn.prepareStatement("INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (?, ?);");
+            psRole = conn.prepareStatement("INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (?, ?);");
             try {
-                for (Event event : Event.values()) {
-                    ps.setInt(1, event.getEventCode());
-                    ps.setString(2, event.name());
-                    ps.addBatch();
+                for (SCEvent event : SCEvent.values()) {
+                    psRole.setInt(1, event.getEventCode());
+                    psRole.setString(2, event.name());
+                    psRole.addBatch();
                 }
-                ps.executeBatch();
+                psRole.executeBatch();
             }
             finally {
-                closeStatement(ps);
-                ps = null;
+                closeStatement(psRole);
+                psRole = null;
             }
 
             conn.commit();
@@ -240,6 +256,29 @@ public class SQLLink implements BackendStoreLink {
         }
         finally {
             releaseConnection(conn, stmt);
+        }
+    }
+
+    @Override
+    public String getErrorMessage(SCError error) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_ERROR_MSG).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setInt(1, error.getErrorCode());
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? rs.getString(1) : null;
+        }
+        catch (SQLException e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
         }
     }
 
@@ -317,7 +356,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
 
             // Record this event
-            addEvent(Event.USER_CREATED, uid, null, null, null, null, conn);
+            addEvent(SCEvent.USER_CREATED, uid, null, null, null, null, conn);
 
             conn.commit();
 
@@ -349,7 +388,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
 
             // Record the event
-            addEvent(Event.USER_DELETED, uid, null, null, null, null, conn);
+            addEvent(SCEvent.USER_DELETED, uid, null, null, null, null, conn);
 
             conn.commit();
         }
@@ -402,7 +441,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
 
             // Record the event
-            addEvent(Event.USER_PROFILE_UPDATED, uid, null, null, null, profile, conn);
+            addEvent(SCEvent.USER_PROFILE_UPDATED, uid, null, null, null, profile, conn);
 
             conn.commit();
         }
@@ -612,11 +651,11 @@ public class SQLLink implements BackendStoreLink {
             ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_GROUP_MEMBERS_ADD).trim());
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setBigDecimal(2, new BigDecimal(gid));
-            ps.setInt(3, Role.ADMIN.getRoleId());
+            ps.setInt(3, SCRole.ADMIN.getRoleId());
             ps.executeUpdate();
 
             // Record this event
-            addEvent(Event.GROUP_CREATED, uid, gid, null, null, null, conn);
+            addEvent(SCEvent.GROUP_CREATED, uid, gid, null, null, null, conn);
 
             conn.commit();
 
@@ -835,7 +874,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
 
             // Record the event
-            addEvent(Event.USER_JOINED_GROUP, uid, gid, null, null, null, conn);
+            addEvent(SCEvent.USER_JOINED_GROUP, uid, gid, null, null, null, conn);
 
             conn.commit();
         }
@@ -1092,7 +1131,7 @@ public class SQLLink implements BackendStoreLink {
                     joResult.put("version", qCompVersion);
 
                     // Record the event
-                    addEvent(Event.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
+                    addEvent(SCEvent.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
 
                     conn.commit();
 
@@ -1128,7 +1167,7 @@ public class SQLLink implements BackendStoreLink {
             joResult.put("version", version);
 
             // Record the event
-            addEvent(Event.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
+            addEvent(SCEvent.COMPONENT_UPLOADED, uid, null, compId, null, joResult, conn);
 
             conn.commit();
         }
@@ -1275,7 +1314,7 @@ public class SQLLink implements BackendStoreLink {
             ps.executeUpdate();
 
             // Record the event
-            addEvent(Event.COMPONENT_SHARED, ruid, UUIDUtils.toBigInteger(groupId), compId, null, null, conn);
+            addEvent(SCEvent.COMPONENT_SHARED, ruid, UUIDUtils.toBigInteger(groupId), compId, null, null, conn);
 
             conn.commit();
         }
@@ -1502,7 +1541,7 @@ public class SQLLink implements BackendStoreLink {
                     joResult.put("version", qFlowVersion);
 
                     // Record the event
-                    addEvent(Event.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
+                    addEvent(SCEvent.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
 
                     conn.commit();
 
@@ -1556,7 +1595,7 @@ public class SQLLink implements BackendStoreLink {
             joResult.put("version", version);
 
             // Record the event
-            addEvent(Event.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
+            addEvent(SCEvent.FLOW_UPLOADED, uid, null, null, flowId, joResult, conn);
 
             conn.commit();
         }
@@ -1667,7 +1706,7 @@ public class SQLLink implements BackendStoreLink {
             // or not.  I could find the userId of the user who owns the flow and assume that, but...
 
             // Record the event
-            addEvent(Event.FLOW_SHARED, ruid, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
+            addEvent(SCEvent.FLOW_SHARED, ruid, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
 
             conn.commit();
         }
@@ -2729,7 +2768,7 @@ public class SQLLink implements BackendStoreLink {
      * @param metadata The event metadata (or null)
      * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
-    protected void addEvent(Event eventCode, BigInteger userId, BigInteger groupId, BigInteger compId,
+    protected void addEvent(SCEvent eventCode, BigInteger userId, BigInteger groupId, BigInteger compId,
                             BigInteger flowId, JSONObject metadata, Connection conn) throws SQLException {
 
         String sqlQuery = properties.getProperty(DBProperties.Q_EVENT_ADD).trim();
