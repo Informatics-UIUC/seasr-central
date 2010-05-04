@@ -63,6 +63,10 @@ public enum SCError {
     GROUP_PROFILE_ERROR     (202, "Could not decode the group profile"),
     GROUP_NOT_FOUND         (203, "Group '%s' does not exist"),
 
+    COMPONENT_NOT_FOUND     (303, "Unable to find component %s, version %s"),
+
+    FLOW_NOT_FOUND          (403, "Unable to find flow %s, version %s"),
+
     INCOMPLETE_REQUEST      (500, "Incomplete request / Expected parameter missing"),
     INVALID_PARAM_VALUE     (501, "Invalid parameter value"),
 
@@ -138,6 +142,8 @@ public enum SCError {
 
                 case USER_NOT_FOUND:
                 case GROUP_NOT_FOUND:
+                case COMPONENT_NOT_FOUND:
+                case FLOW_NOT_FOUND:
                     httpStatus = HttpServletResponse.SC_NOT_FOUND;
                     break;
 

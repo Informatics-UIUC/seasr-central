@@ -42,23 +42,20 @@ package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for obtaining the list of groups a user has joined
@@ -98,6 +95,9 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         UUID userId;
         String screenName;
 
@@ -108,13 +108,15 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
                 screenName = userProps.getProperty("screen_name");
             } else {
                 // Specified user does not exist
-                sendErrorNotFound(response);
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -127,44 +129,20 @@ public class ListUserGroupsRestlet extends AbstractBaseRestlet {
         try {
             if (sOffset != null) offset = Long.parseLong(sOffset);
             if (sCount != null) count = Long.parseLong(sCount);
+
+            jaSuccess = bsl.listUserGroups(userId, offset, count);
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
-            return true;
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
-
-        try {
-            try {
-                jaSuccess = bsl.listUserGroups(userId, offset, count);
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the group membership information for user " + userId, e));
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
-            }
-        }
-        catch (JSONException e) {
-            // Should not happen
+        catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

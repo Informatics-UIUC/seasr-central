@@ -440,14 +440,14 @@ public class Tools {
      * @return The JSON error object
      * @throws JSONException
      */
-    public static JSONObject createJSONErrorObj(String message, String reason) throws JSONException {
-        JSONObject joError = new JSONObject();
-        joError.put("message", message);
-        if (reason != null)
-            joError.put("reason", reason);
-
-        return joError;
-    }
+//    public static JSONObject createJSONErrorObj(String message, String reason) throws JSONException {
+//        JSONObject joError = new JSONObject();
+//        joError.put("message", message);
+//        if (reason != null)
+//            joError.put("reason", reason);
+//
+//        return joError;
+//    }
 
     /**
      * Creates a JSON error object
@@ -457,9 +457,9 @@ public class Tools {
      * @return The JSON error object
      * @throws JSONException
      */
-    public static JSONObject createJSONErrorObj(String message, Throwable e) throws JSONException {
-        return (e != null) ? createJSONErrorObj(message, getExceptionDetails(e)) : createJSONErrorObj(message, (String) null);
-    }
+//    public static JSONObject createJSONErrorObj(String message, Throwable e) throws JSONException {
+//        return (e != null) ? createJSONErrorObj(message, getExceptionDetails(e)) : createJSONErrorObj(message, (String) null);
+//    }
 
     /**
      * Creates a temporary folder with a specified name prefix

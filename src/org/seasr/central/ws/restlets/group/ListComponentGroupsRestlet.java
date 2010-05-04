@@ -44,20 +44,20 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for obtaining the list of groups a component is shared with
@@ -98,6 +98,9 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         UUID compId = UUID.fromString(values[0]);
         int compVersion = Integer.parseInt(values[1]);
 
@@ -113,7 +116,8 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -129,12 +133,10 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
@@ -142,7 +144,12 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
 
                 if (jaResult == null) {
                     // No component was found to match the componentId and version specified
-                    sendErrorNotFound(response);
+                    JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
+                            compId.toString(), Integer.toString(compVersion));
+                    joError.put("uuid", compId.toString());
+                    joError.put("version", compVersion);
+                    jaErrors.put(joError);
+                    sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }
 
@@ -155,21 +162,10 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the list of groups for component " +
-                        compId + " version " + compVersion, e));
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                joError.put("uuid", compId.toString());
+                joError.put("version", compVersion);
+                jaErrors.put(joError);
             }
         }
         catch (JSONException e) {
@@ -178,6 +174,9 @@ public class ListComponentGroupsRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

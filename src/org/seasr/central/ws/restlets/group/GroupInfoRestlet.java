@@ -44,20 +44,21 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for retrieving group info
@@ -97,6 +98,9 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         UUID groupId;
         String groupName;
 
@@ -106,18 +110,18 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
             } else {
-                sendErrorNotFound(response);
+                // Specified group does not exist
+                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
@@ -133,25 +137,11 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
                 logger.log(Level.SEVERE, null, e);
 
                 // Could not retrieve the group info
-                JSONObject joError = createJSONErrorObj(
-                        String.format("Could not retrieve the group information for group '%s'", groupName), e);
+                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
                 joError.put("uuid", groupId.toString());
                 joError.put("name", groupName);
 
                 jaErrors.put(joError);
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), new JSONArray());
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.SEVERE, null, e);
             }
         }
         catch (JSONException e) {
@@ -159,6 +149,9 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }
