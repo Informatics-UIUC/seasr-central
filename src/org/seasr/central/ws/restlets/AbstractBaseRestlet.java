@@ -41,17 +41,27 @@
 package org.seasr.central.ws.restlets;
 
 import com.google.gdata.util.ContentType;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.Tools;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.seasr.central.util.Tools.sendContent;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
 
 /**
  * Base restlet that provides common functionality
@@ -188,5 +198,31 @@ public abstract class AbstractBaseRestlet implements RestServlet {
         result.put("name", groupName);
 
         return result;
+    }
+
+    /**
+     * Packages and sends a response to a API request
+     *
+     * @param jaSuccess The responses successfuly generated
+     * @param jaErrors The responses that failed
+     * @param ct The desired response content type
+     * @param response The response object
+     */
+    protected void sendResponse(JSONArray jaSuccess, JSONArray jaErrors, ContentType ct, HttpServletResponse response) {
+        try {
+            JSONObject joContent = new JSONObject();
+            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
+            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
+
+            sendContent(response, joContent, ct);
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING, null, e);
+        }
+        catch (JSONException e) {
+            // Should not happen
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+        }
     }
 }

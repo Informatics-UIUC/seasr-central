@@ -44,17 +44,22 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for joining a user to a group
@@ -94,6 +99,16 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         UUID groupId;
         @SuppressWarnings("unused")
         String groupName = null;
@@ -104,33 +119,43 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
             } else {
-                sendErrorNotFound(response);
+                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
-        List<String> users = getSanitizedRequestParameterValues("user", request);
-        List<String> roles = getSanitizedRequestParameterValues("role", request);
+        String[] users = request.getParameterValues("user");
+        String[] roles = request.getParameterValues("role");
 
-        // Check for proper request
-        if (!(users != null && roles != null && users.size() == roles.size())) {
-            sendErrorExpectationFail(response);
+        // Check for proper request format
+        if (!(users != null && roles != null && users.length == roles.length)) {
+            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
-                for (int i = 0, iMax = users.size(); i < iMax; i++) {
-                    String user = users.get(i);
-                    String role = roles.get(i);
+                // Check permissions
+                if (!(request.isUserInRole(SCRole.ADMIN.name()) ||
+                        bsl.isUserInGroupRole(remoteUserId, groupId, SCRole.ADMIN))) {
+                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                    sendResponse(jaSuccess, jaErrors, ct, response);
+                    return true;
+                }
+
+                for (int i = 0, iMax = users.length; i < iMax; i++) {
+                    String user = users[i];
+                    String role = roles[i];
 
                     // Try to obtain the user id
                     Properties userProps = getUserScreenNameAndId(user);
@@ -147,13 +172,13 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
                             jaSuccess.put(jo);
                         } else {
                             // Role unknown
-                            JSONObject joError = createJSONErrorObj("Unknown role: " + role, (String) null);
+                            JSONObject joError = SCError.createErrorObj(SCError.UNKNOWN_ROLE, bsl, role);
                             joError.put("role", role);
                             jaErrors.put(joError);
                         }
                     } else {
                         // User unknown
-                        JSONObject joError = createJSONErrorObj("Unknown user: " + user, (String)null);
+                        JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, user);
                         joError.put("user", user);
                         jaErrors.put(joError);
                     }
@@ -161,24 +186,11 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                sendErrorInternalServerError(response);
-                return true;
-            }
 
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                joError.put("uuid", groupId.toString());
+                joError.put("name", groupName);
+                jaErrors.put(joError);
             }
         }
         catch (JSONException e) {
@@ -187,6 +199,9 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

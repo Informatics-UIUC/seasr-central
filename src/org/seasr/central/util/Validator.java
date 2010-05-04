@@ -51,4 +51,8 @@ public abstract class Validator {
     public static boolean isValidScreenName(String screenName) {
         return screenName.trim().length() > 0;
     }
+
+    public static boolean isValidGroupName(String groupName) {
+        return isValidScreenName(groupName);
+    }
 }

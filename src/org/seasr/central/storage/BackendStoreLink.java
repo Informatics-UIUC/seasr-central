@@ -187,6 +187,7 @@ public interface BackendStoreLink {
     public String getGroupName(UUID groupId) throws BackendStoreException;
     public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
     public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
+    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException;
     public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
     public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException;

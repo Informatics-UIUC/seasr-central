@@ -602,6 +602,9 @@
     <entry key="org.seasr.central.storage.db.query.group.get.createdat">
         SELECT created_at FROM sc_group WHERE group_uuid = ? AND deleted = 0;
     </entry>
+    <entry key="org.seasr.central.storage.db.query.group.is.userinrole">
+        SELECT 1 FROM sc_user_group WHERE user_uuid = ? AND group_uuid = ? AND role_id = ?;
+    </entry>
     <entry key="org.seasr.central.storage.db.query.group.pending.add">
         INSERT IGNORE INTO sc_user_group_pending (user_uuid, group_uuid, requested_at) VALUES (?, ?, NOW());
     </entry>

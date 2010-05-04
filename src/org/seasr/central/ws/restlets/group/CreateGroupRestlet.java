@@ -44,23 +44,28 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.util.Validator;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
- * @author capitanu
+ * Restlet for creating groups
+ *
+ * @author Boris Capitanu
  */
 public class CreateGroupRestlet extends AbstractBaseRestlet {
 
@@ -95,15 +100,25 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        Map<String, String[]> map = extractRequestParameters(request);
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
 
-        // check for proper request
-        if (!(map.containsKey("name") && map.containsKey("profile")
-                && map.get("name").length == map.get("profile").length)) {
+        String[] groupNames = request.getParameterValues("name");
+        String[] profiles = request.getParameterValues("profile");
 
-            sendErrorExpectationFail(response);
+        // Check for proper request format
+        if (!(groupNames != null && profiles != null && groupNames.length == profiles.length)) {
+            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         UUID userId;
         @SuppressWarnings("unused")
@@ -115,33 +130,47 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
                 userId = UUID.fromString(userProps.getProperty("uuid"));
                 screenName = userProps.getProperty("screen_name");
             } else {
-                sendErrorNotFound(response);
+                // Specified user does not exist
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
-        String[] groupNames = map.get("name");
-        String[] profiles = map.get("profile");
+        // Check permissions
+        if (!(request.isUserInRole(SCRole.ADMIN.name()) || userId.equals(remoteUserId))) {
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
 
         UUID groupId;
 
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
-
         try {
             for (int i = 0, iMax = groupNames.length; i < iMax; i++) {
+                String groupName = groupNames[i];
+
+                // Check for valid group name
+                if (!Validator.isValidGroupName(groupName)) {
+                    JSONObject joError = SCError.createErrorObj(SCError.INVALID_GROUP_NAME, bsl, groupName);
+                    joError.put("name", groupName);
+                    jaErrors.put(joError);
+                    continue;
+                }
+
                 try {
                     // Check if another group with the same name exists
-                    groupId = bsl.getGroupId(groupNames[i]);
+                    groupId = bsl.getGroupId(groupName);
                     if (groupId != null) {
-                        JSONObject joError = createJSONErrorObj(
-                                String.format("Unable to add group '%s'", groupNames[i]),
-                                String.format("Group name '%s' already exists", groupNames[i]));
+                        JSONObject joError = SCError.createErrorObj(SCError.GROUP_NAME_EXISTS, bsl, groupName);
                         joError.put("uuid", groupId);
                         joError.put("created_at", bsl.getGroupCreationTime(groupId));
                         joError.put("profile", bsl.getGroupProfile(groupId));
@@ -155,19 +184,19 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
                         joProfile = new JSONObject(profiles[i]);
                     }
                     catch (JSONException e) {
-                        // Could not decode the group profile
-                        logger.log(Level.WARNING, "Could not decode the group profile", e);
-                        sendErrorBadRequest(response);
-                        return true;
+                        JSONObject joError = SCError.createErrorObj(SCError.GROUP_PROFILE_ERROR, e, bsl);
+                        joError.put("name", groupName);
+                        jaErrors.put(joError);
+                        continue;
                     }
 
                     // Add the group to the backend store
-                    groupId = bsl.createGroup(userId, groupNames[i], joProfile);
+                    groupId = bsl.createGroup(userId, groupName, joProfile);
 
                     // Group added successfully
                     JSONObject joGroup = new JSONObject();
                     joGroup.put("uuid", groupId.toString());
-                    joGroup.put("name", groupNames[i]);
+                    joGroup.put("name", groupName);
                     joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
                     joGroup.put("profile", joProfile);
 
@@ -176,24 +205,11 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);
 
-                    jaErrors.put(createJSONErrorObj(String.format("Unable to add group '%s'", groupNames[i]), e));
+                    JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                    joError.put("name", groupName);
+                    jaErrors.put(joError);
+                    continue;
                 }
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
             }
         }
         catch (JSONException e) {
@@ -202,6 +218,9 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

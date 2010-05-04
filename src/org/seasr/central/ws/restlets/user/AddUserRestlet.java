@@ -52,13 +52,13 @@ import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for adding users
@@ -102,97 +102,78 @@ public class AddUserRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        Map<String, String[]> params = extractRequestParameters(request);
+        String[] screenNames = request.getParameterValues("screen_name");
+        String[] passwords = request.getParameterValues("password");
+        String[] profiles = request.getParameterValues("profile");
 
-        // Check for proper request
-        if (params.containsKey("screen_name") && params.containsKey("password") && params.containsKey("profile")
-                && params.get("screen_name").length == params.get("password").length
-                && params.get("password").length == params.get("profile").length) {
-
-            String[] screenNames = params.get("screen_name");
-            String[] passwords = params.get("password");
-            String[] profiles = params.get("profile");
-
-            UUID userId;
-
-            try {
-                for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
-                    String screenName = screenNames[i];
-
-                    // Check for proper screen name
-                    if (!Validator.isValidScreenName(screenName)) {
-                        JSONObject joError = SCError.createErrorObj(SCError.INVALID_SCREEN_NAME, bsl, screenName);
-                        joError.put("screen_name", screenName);
-                        jaErrors.put(joError);
-                        continue;
-                    }
-
-                    try {
-                        // Check if another user with the same screen name exists
-                        userId = bsl.getUserId(screenName);
-                        if (userId != null) {
-                            JSONObject joError = SCError.createErrorObj(SCError.SCREEN_NAME_EXISTS, bsl, screenName);
-                            joError.put("screen_name", screenName);
-                            joError.put("uuid", userId);
-                            joError.put("created_at", bsl.getUserCreationTime(userId));
-                            joError.put("profile", bsl.getUserProfile(userId));
-
-                            jaErrors.put(joError);
-                            continue;
-                        }
-
-                        JSONObject joProfile;
-                        try {
-                            joProfile = new JSONObject(profiles[i]);
-                        }
-                        catch (JSONException e) {
-                            // Could not decode the user profile
-                            JSONObject joError = SCError.createErrorObj(SCError.USER_PROFILE_ERROR, e, bsl);
-                            joError.put("screen_name", screenName);
-                            jaErrors.put(joError);
-                            continue;
-                        }
-
-                        // Add the user to the backend store
-                        userId = bsl.addUser(screenName, passwords[i], joProfile);
-
-                        // User added successfully
-                        JSONObject joUser = new JSONObject();
-                        joUser.put("uuid", userId.toString());
-                        joUser.put("screen_name", screenName);
-                        joUser.put("created_at", bsl.getUserCreationTime(userId));
-                        joUser.put("profile", joProfile);
-
-                        jaSuccess.put(joUser);
-                    }
-                    catch (BackendStoreException e) {
-                        logger.log(Level.SEVERE, null, e);
-
-                        JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
-                        joError.put("screen_name", screenName);
-                        jaErrors.put(joError);
-                        continue;
-                    }
-                }
-            }
-            catch (JSONException e) {
-                // Should not happen
-                logger.log(Level.SEVERE, null, e);
-                sendErrorInternalServerError(response);
-                return true;
-            }
-        } else
+        // Check for proper request format
+        if (!(screenNames != null && passwords != null && profiles != null &&
+                screenNames.length == passwords.length && screenNames.length == profiles.length)) {
             jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+        }
+
+        UUID userId;
 
         try {
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
+            for (int i = 0, iMax = screenNames.length; i < iMax; i++) {
+                String screenName = screenNames[i];
 
-            sendContent(response, joContent, ct);
-        }
-        catch (IOException e) {
-            logger.log(Level.WARNING, null, e);
+                // Check for valid screen name
+                if (!Validator.isValidScreenName(screenName)) {
+                    JSONObject joError = SCError.createErrorObj(SCError.INVALID_SCREEN_NAME, bsl, screenName);
+                    joError.put("screen_name", screenName);
+                    jaErrors.put(joError);
+                    continue;
+                }
+
+                try {
+                    // Check if another user with the same screen name exists
+                    userId = bsl.getUserId(screenName);
+                    if (userId != null) {
+                        JSONObject joError = SCError.createErrorObj(SCError.SCREEN_NAME_EXISTS, bsl, screenName);
+                        joError.put("screen_name", screenName);
+                        joError.put("uuid", userId);
+                        joError.put("created_at", bsl.getUserCreationTime(userId));
+                        joError.put("profile", bsl.getUserProfile(userId));
+
+                        jaErrors.put(joError);
+                        continue;
+                    }
+
+                    JSONObject joProfile;
+                    try {
+                        joProfile = new JSONObject(profiles[i]);
+                    }
+                    catch (JSONException e) {
+                        // Could not decode the user profile
+                        JSONObject joError = SCError.createErrorObj(SCError.USER_PROFILE_ERROR, e, bsl);
+                        joError.put("screen_name", screenName);
+                        jaErrors.put(joError);
+                        continue;
+                    }
+
+                    // Add the user to the backend store
+                    userId = bsl.addUser(screenName, passwords[i], joProfile);
+
+                    // User added successfully
+                    JSONObject joUser = new JSONObject();
+                    joUser.put("uuid", userId.toString());
+                    joUser.put("screen_name", screenName);
+                    joUser.put("created_at", bsl.getUserCreationTime(userId));
+                    joUser.put("profile", joProfile);
+
+                    jaSuccess.put(joUser);
+                }
+                catch (BackendStoreException e) {
+                    logger.log(Level.SEVERE, null, e);
+
+                    JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                    joError.put("screen_name", screenName);
+                    jaErrors.put(joError);
+                    continue;
+                }
+            }
         }
         catch (JSONException e) {
             // Should not happen
@@ -200,6 +181,9 @@ public class AddUserRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

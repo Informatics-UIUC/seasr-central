@@ -42,20 +42,19 @@ package org.seasr.central.ws.restlets.user;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for retrieving the list of users
@@ -96,6 +95,16 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
+        // Check permissions
+        if (!(request.isUserInRole(SCRole.ADMIN.name()))) {
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+
         long offset = 0;
         long count = Long.MAX_VALUE;
 
@@ -105,44 +114,20 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
         try {
             if (sOffset != null) offset = Long.parseLong(sOffset);
             if (sCount != null) count = Long.parseLong(sCount);
+
+            jaSuccess = bsl.listUsers(offset, count);
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
-            return true;
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
-
-        try {
-            try {
-                jaSuccess = bsl.listUsers(offset, count);
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the user list", e));
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
-            }
-        }
-        catch (JSONException e) {
-            // Should not happen
+        catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
-            return true;
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

@@ -44,17 +44,22 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for adding a user to the pending list of a group
@@ -94,6 +99,16 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         UUID groupId;
         @SuppressWarnings("unused")
         String groupName = null;
@@ -104,30 +119,30 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
             } else {
-                sendErrorNotFound(response);
+                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
+
+            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
-        List<String> users = new ArrayList<String>();
-        for (String user : request.getParameterValues("user")) {
-            user = user.trim();
-            if (user.length() > 0)
-                users.add(user);
-        }
+        String[] users = request.getParameterValues("user");
 
-        if (users.size() == 0) {
-            sendErrorExpectationFail(response);
+        // Check for proper request format
+        if (users == null) {
+            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
+        boolean remoteUserIsAdmin = request.isUserInRole(SCRole.ADMIN.name());
 
         try {
             try {
@@ -135,7 +150,13 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
                     Properties userProps = getUserScreenNameAndId(user);
                     if (userProps != null) {
                         UUID userId = UUID.fromString(userProps.getProperty("uuid"));
-                        // TODO: Should we check whether the user is already on the pending list?
+
+                        // Check permissions
+                        if (!(remoteUserIsAdmin || (users.length == 1 && userId.equals(remoteUserId)))) {
+                            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                            sendResponse(jaSuccess, jaErrors, ct, response);
+                            return true;
+                        }
 
                         bsl.addPendingGroupMember(userId, groupId);
 
@@ -144,7 +165,7 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
                         jaSuccess.put(jo);
                     } else {
                         // User unknown
-                        JSONObject joError = createJSONErrorObj("Unknown user: " + user, (String)null);
+                        JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, user);
                         joError.put("user", user);
                         jaErrors.put(joError);
                     }
@@ -152,24 +173,7 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                sendErrorInternalServerError(response);
-                return true;
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             }
         }
         catch (JSONException e) {
@@ -178,6 +182,9 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

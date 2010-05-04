@@ -179,33 +179,18 @@ public class SQLLink implements BackendStoreLink {
                 stmt.executeUpdate(sql);
 
             // Populate the default roles
-            PreparedStatement psRole = conn.prepareStatement("INSERT IGNORE INTO sc_role (role_id, name) VALUES (?, ?);");
+            PreparedStatement ps = conn.prepareStatement("INSERT IGNORE INTO sc_role (role_id, name) VALUES (?, ?);");
             try {
                 for (SCRole role : SCRole.values()) {
-                    psRole.setInt(1, role.getRoleId());
-                    psRole.setString(2, role.name());
-                    psRole.addBatch();
+                    ps.setInt(1, role.getRoleId());
+                    ps.setString(2, role.name());
+                    ps.addBatch();
                 }
-                psRole.executeBatch();
+                ps.executeBatch();
             }
             finally {
-                closeStatement(psRole);
-                psRole = null;
-            }
-
-            // Add the SC application-specific errors
-            PreparedStatement psError = conn.prepareStatement("INSERT IGNORE INTO sc_error (err_code, err_msg) VALUES (?, ?);");
-            try {
-                for (SCError error : SCError.values()) {
-                    psError.setInt(1, error.getErrorCode());
-                    psError.setString(2, error.getErrorMessage());
-                    psError.addBatch();
-                }
-                psError.executeBatch();
-            }
-            finally {
-                closeStatement(psError);
-                psError = null;
+                closeStatement(ps);
+                ps = null;
             }
 
             // Create the admin user
@@ -233,18 +218,33 @@ public class SQLLink implements BackendStoreLink {
             ));
 
             // Populate the default event codes
-            psRole = conn.prepareStatement("INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (?, ?);");
+            ps = conn.prepareStatement("INSERT IGNORE INTO sc_event_code (evt_code, description) VALUES (?, ?);");
             try {
                 for (SCEvent event : SCEvent.values()) {
-                    psRole.setInt(1, event.getEventCode());
-                    psRole.setString(2, event.name());
-                    psRole.addBatch();
+                    ps.setInt(1, event.getEventCode());
+                    ps.setString(2, event.name());
+                    ps.addBatch();
                 }
-                psRole.executeBatch();
+                ps.executeBatch();
             }
             finally {
-                closeStatement(psRole);
-                psRole = null;
+                closeStatement(ps);
+                ps = null;
+            }
+
+            // Add the SC application-specific errors
+            ps = conn.prepareStatement("INSERT IGNORE INTO sc_error (err_code, err_msg) VALUES (?, ?);");
+            try {
+                for (SCError error : SCError.values()) {
+                    ps.setInt(1, error.getErrorCode());
+                    ps.setString(2, error.getErrorMessage());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            finally {
+                closeStatement(ps);
+                ps = null;
             }
 
             conn.commit();
@@ -786,6 +786,31 @@ public class SQLLink implements BackendStoreLink {
             ResultSet rs = ps.executeQuery();
 
             return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
+        }
+        catch (Exception e) {
+            logger.log(Level.SEVERE, null, e);
+            throw new BackendStoreException(e);
+        }
+        finally {
+            releaseConnection(conn, ps);
+        }
+    }
+
+    @Override
+    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_IS_USERINROLE).trim();
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = dataSource.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setInt(3, role.getRoleId());
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next();
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

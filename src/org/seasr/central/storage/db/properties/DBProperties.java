@@ -59,7 +59,7 @@ public abstract class DBProperties {
 
     public static final String AUTH_SCHEMA = "org.seasr.central.storage.db.auth_schema";
     public static final String SC_SCHEMA = "org.seasr.central.storage.db.schema";
-    
+
     public static final String Q_ERROR_MSG = "org.seasr.central.storage.db.querry.error_msg";
 
     public static final String Q_ROLE_GET_ID = "org.seasr.central.storage.db.query.role.get.id";
@@ -100,6 +100,7 @@ public abstract class DBProperties {
     public static final String Q_GROUP_GET_NAME = "org.seasr.central.storage.db.query.group.get.name";
     public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";
     public static final String Q_GROUP_GET_CREATEDAT = "org.seasr.central.storage.db.query.group.get.createdat";
+    public static final String Q_GROUP_IS_USERINROLE = "org.seasr.central.storage.db.query.group.is.userinrole";
 
     public static final String Q_GROUP_PENDING_ADD = "org.seasr.central.storage.db.query.group.pending.add";
     public static final String Q_GROUP_PENDING_LIST = "org.seasr.central.storage.db.query.group.pending.list";

@@ -44,7 +44,7 @@ import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.vocabulary.RDF;
-import com.sun.deploy.net.HttpResponse;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
@@ -57,14 +57,8 @@ import org.seasr.meandre.support.generic.io.ModelUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
 import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.util.*;
@@ -151,19 +145,23 @@ public class Tools {
         }
     }
 
+    /**
+     * Sends an appropriately formatted response to a API request
+     *
+     * @param response The response object
+     * @param content The content to send
+     * @param contentType The content type requested for the response
+     * @throws IOException
+     * @throws JSONException
+     */
     public static void sendContent(HttpServletResponse response, JSONObject content, ContentType contentType)
             throws IOException, JSONException {
 
+        JSONArray jaSuccess = content.getJSONArray(OperationResult.SUCCESS.name());
+        JSONArray jaFailure = content.getJSONArray(OperationResult.FAILURE.name());
+
         response.setContentType(contentType.toString());
-
-        if (content.getJSONArray(OperationResult.FAILURE.name()).length() == 0)
-            response.setStatus(HttpServletResponse.SC_OK);
-        else
-            if (content.getJSONArray(OperationResult.SUCCESS.name()).length() > 0)
-                response.setStatus(207);
-            else {
-
-            }
+        response.setStatus(determineHttpStatusCode(jaSuccess, jaFailure));
 
         // JSON
         if (contentType.equals(ContentType.JSON)) {
@@ -174,8 +172,8 @@ public class Tools {
 
         // SmartGWT
         if (contentType.equals(ContentTypes.SmartGWT)) {
-            System.out.println(contentType);
-            throw new RuntimeException("Not implemented");
+            response.setStatus(HttpServletResponse.SC_OK);
+            sendRawContent(response, content);
         }
 
         else
@@ -224,6 +222,40 @@ public class Tools {
 
         else
             sendErrorNotAcceptable(response);
+    }
+
+    /**
+     * Determines the HTTP status code based on the success / failure of a request
+     *
+     * @param jaSuccess The success response
+     * @param jaFailure The failure response
+     * @return The HTTP status code
+     * @throws JSONException
+     */
+    private static int determineHttpStatusCode(JSONArray jaSuccess, JSONArray jaFailure) throws JSONException {
+        if (jaFailure.length() == 0)
+            return HttpServletResponse.SC_OK;
+
+        Set<Integer> errorCodes = new HashSet<Integer>();
+
+        for (int i = 0, iMax = jaFailure.length(); i < iMax; i++) {
+            JSONObject joError = jaFailure.getJSONObject(i);
+            Object obj = joError.remove("http_status");
+            if (obj != null)
+                errorCodes.add((Integer) obj);
+        }
+
+        if (jaSuccess.length() > 0)
+            return 207;
+
+        if (errorCodes.size() > 1) {
+            if (errorCodes.contains(HttpServletResponse.SC_INTERNAL_SERVER_ERROR))
+                return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+
+            return HttpServletResponse.SC_BAD_REQUEST;
+        }
+
+        return errorCodes.iterator().next();
     }
 
 
@@ -345,19 +377,19 @@ public class Tools {
      * @param request The request
      * @return The request parameter map
      */
-    @SuppressWarnings("unchecked")
-    public static Map<String, String[]> extractRequestParameters(HttpServletRequest request) {
-        Map<String, String[]> map = new HashMap<String, String[]>();
-
-        Enumeration it = request.getParameterNames();
-        while (it.hasMoreElements()) {
-            String name = it.nextElement().toString();
-            String[] values = request.getParameterValues(name);
-            map.put(name, values);
-        }
-
-        return map;
-    }
+//    @SuppressWarnings("unchecked")
+//    public static Map<String, String[]> extractRequestParameters(HttpServletRequest request) {
+//        Map<String, String[]> map = new HashMap<String, String[]>();
+//
+//        Enumeration it = request.getParameterNames();
+//        while (it.hasMoreElements()) {
+//            String name = it.nextElement().toString();
+//            String[] values = request.getParameterValues(name);
+//            map.put(name, values);
+//        }
+//
+//        return map;
+//    }
 
     /**
      * Returns a list of non-empty parameter values for the specified request parameter
@@ -366,20 +398,20 @@ public class Tools {
      * @param request The HTTP request object
      * @return The list of non-empty parameter values for this parameter, or null if none found
      */
-    public static List<String> getSanitizedRequestParameterValues(String parameter, HttpServletRequest request) {
-        List<String> result = new ArrayList<String>();
-
-        String[] values = request.getParameterValues(parameter);
-        if (values != null) {
-            for (String value : values) {
-                value = value.trim();
-                if (value.length() > 0)
-                    result.add(value);
-            }
-        }
-
-        return result.size() > 0 ? result : null;
-    }
+//    public static List<String> getSanitizedRequestParameterValues(String parameter, HttpServletRequest request) {
+//        List<String> result = new ArrayList<String>();
+//
+//        String[] values = request.getParameterValues(parameter);
+//        if (values != null) {
+//            for (String value : values) {
+//                value = value.trim();
+//                if (value.length() > 0)
+//                    result.add(value);
+//            }
+//        }
+//
+//        return result.size() > 0 ? result : null;
+//    }
 
     /**
      * Returns a formatted string containing the exception details

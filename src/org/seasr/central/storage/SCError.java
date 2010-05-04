@@ -44,6 +44,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 
+import javax.servlet.http.HttpServletResponse;
+
 /**
  * Defines the SC application-specific error codes
  *
@@ -54,10 +56,20 @@ public enum SCError {
     INVALID_SCREEN_NAME     (100, "Invalid screen name: '%s'"),
     SCREEN_NAME_EXISTS      (101, "Screen name '%s' already exists"),
     USER_PROFILE_ERROR      (102, "Could not decode the user profile"),
+    USER_NOT_FOUND          (103, "User '%s' does not exist"),
+
+    INVALID_GROUP_NAME      (200, "Invalid group name: '%s'"),
+    GROUP_NAME_EXISTS       (201, "Group '%s' already exists"),
+    GROUP_PROFILE_ERROR     (202, "Could not decode the group profile"),
+    GROUP_NOT_FOUND         (203, "Group '%s' does not exist"),
 
     INCOMPLETE_REQUEST      (500, "Incomplete request / Expected parameter missing"),
+    INVALID_PARAM_VALUE     (501, "Invalid parameter value"),
 
-    BACKEND_ERROR           (900, "Backend error");
+    UNKNOWN_ROLE            (600, "Unknown role: '%s'"),
+
+    BACKEND_ERROR           (900, "Backend error"),
+    UNAUTHORIZED            (901, "Permission denied.");
 
     //--------------------------------------------------------------------------------------------
 
@@ -100,7 +112,7 @@ public enum SCError {
 
     public static JSONObject createErrorObj(SCError error, Exception e, BackendStoreLink bsl, String... params) {
         try {
-            String errMsg = bsl.getErrorMessage(error);
+            String errMsg =  bsl.getErrorMessage(error); //error.getErrorMessage();
             if (errMsg == null) errMsg = "No error message found for error code: " + error.getErrorCode();
 
             if (params != null && params.length > 0)
@@ -111,6 +123,34 @@ public enum SCError {
             joError.put(getErrorReasonKey(), errMsg);
             if (e != null)
                 joError.put(getExceptionMsgKey(), e.getMessage());
+
+            int httpStatus;
+
+            switch (error) {
+                case SCREEN_NAME_EXISTS:
+                case GROUP_NAME_EXISTS:
+                    httpStatus = HttpServletResponse.SC_CONFLICT;
+                    break;
+
+                case BACKEND_ERROR:
+                    httpStatus = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+                    break;
+
+                case USER_NOT_FOUND:
+                case GROUP_NOT_FOUND:
+                    httpStatus = HttpServletResponse.SC_NOT_FOUND;
+                    break;
+
+                case UNAUTHORIZED:
+                    httpStatus = HttpServletResponse.SC_UNAUTHORIZED;
+                    break;
+
+                default:
+                    httpStatus = HttpServletResponse.SC_BAD_REQUEST;
+                    break;
+            }
+
+            joError.put("http_status", httpStatus);
 
             return joError;
         }
