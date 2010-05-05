@@ -45,6 +45,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -111,9 +112,8 @@ public class RetrieveGroupComponentsRestlet extends ListGroupComponentsRestlet {
 
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
 
-            // Check whether the remote user is a member of the group in question
-            // and return an error if not
-            if (!bsl.isGroupMember(remoteUserId, groupId)) {
+            // Check permissions
+            if (!(request.isUserInRole(SCRole.ADMIN.name()) || bsl.isGroupMember(remoteUserId, groupId))) {
                 sendErrorUnauthorized(response);
                 return true;
             }

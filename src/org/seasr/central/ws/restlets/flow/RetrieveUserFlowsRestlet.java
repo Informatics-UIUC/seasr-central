@@ -59,7 +59,7 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving flow descriptors of accessible flows owned by a user
+ * Restlet for retrieving flow descriptors of accessible flows owned by another user
  *
  * @author Boris Capitanu
  */

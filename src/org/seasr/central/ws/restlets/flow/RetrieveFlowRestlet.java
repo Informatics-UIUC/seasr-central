@@ -105,6 +105,8 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        // TODO: Check permissions
+
         try {
             // Attempt to retrieve the flow from the backend store
             Model flowModel = bsl.getFlow(flowId, version);

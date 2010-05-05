@@ -44,14 +44,14 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
+import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -98,6 +98,9 @@ public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
 
@@ -114,22 +117,25 @@ public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
             } else {
-                sendErrorNotFound(response);
+                // Specified group does not exist
+                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
 
-            // Check whether the remote user is a member of the group in question
-            // and return an error if not
-            if (!bsl.isGroupMember(remoteUserId, groupId)) {
-                sendErrorUnauthorized(response);
+            // Check permissions
+            if (!(request.isUserInRole(SCRole.ADMIN.name()) || bsl.isGroupMember(remoteUserId, groupId))) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -145,16 +151,14 @@ public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
         boolean includeOldVersions = false;
         if (request.getParameterMap().containsKey("includeOldVersions"))
             includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
@@ -173,20 +177,7 @@ public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for group " + groupId, e));
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             }
         }
         catch (JSONException e) {
@@ -195,6 +186,9 @@ public class ListGroupFlowsRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

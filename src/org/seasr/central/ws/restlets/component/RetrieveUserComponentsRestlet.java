@@ -59,7 +59,7 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component descriptors of accessible components owned by a user
+ * Restlet for retrieving component descriptors of accessible components owned by another user
  *
  * @author Boris Capitanu
  */

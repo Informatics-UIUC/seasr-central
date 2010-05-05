@@ -105,6 +105,8 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        // TODO: Check permissions
+
         try {
             // Attempt to retrieve the component from the backend store
             Model compModel = bsl.getComponent(componentId, version);

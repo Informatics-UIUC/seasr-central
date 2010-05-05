@@ -46,20 +46,20 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.meandre.core.repository.*;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.*;
+import static org.seasr.central.util.Tools.sendErrorInternalServerError;
+import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
 
 /**
  * Restlet for retrieving component information metadata
@@ -94,6 +94,9 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
         // Check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
             sendErrorNotAcceptable(response);
@@ -119,20 +122,19 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
         }
         catch (IllegalArgumentException e) {
-            sendErrorBadRequest(response);
+            logger.log(Level.WARNING, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
         // TODO: check for permissions to access the component
-
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
@@ -140,7 +142,12 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
                 Model compModel = bsl.getComponent(componentId, version);
 
                 if (compModel == null) {
-                    sendErrorNotFound(response);
+                    JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
+                            componentId.toString(), Integer.toString(version));
+                    joError.put("uuid", componentId.toString());
+                    joError.put("version", version);
+                    jaErrors.put(joError);
+                    sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }
 
@@ -201,21 +208,11 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the component metadata for component "
-                        + componentId + " version " + version, e));
-            }
 
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                joError.put("uuid", componentId.toString());
+                joError.put("version", version);
+                jaErrors.put(joError);
             }
         }
         catch (JSONException e) {
@@ -224,6 +221,9 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

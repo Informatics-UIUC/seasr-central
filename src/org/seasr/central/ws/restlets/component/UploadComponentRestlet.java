@@ -57,6 +57,7 @@ import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -114,8 +115,12 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         if (!ServletFileUpload.isMultipartContent(request)) {
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -129,13 +134,15 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 userId = UUID.fromString(userProps.getProperty("uuid"));
                 screenName = userProps.getProperty("screen_name");
             } else {
-                sendErrorNotFound(response);
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -145,12 +152,10 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
             uploadedFiles = fileUpload.parseRequest(request);
         }
         catch (FileUploadException e) {
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             // Mapping between component uri and set of contexts, and temp context folders
@@ -209,9 +214,10 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         String descriptorName = file.isFormField() ? file.getString().trim() : file.getName();
                         logger.log(Level.WARNING, String.format("Error parsing RDF from '%s'", descriptorName), e);
 
-                        JSONObject joError = createJSONErrorObj("Invalid component RDF descriptor received", e);
+                        JSONObject joError = (e instanceof IOException) ?
+                                SCError.createErrorObj(SCError.NETWORK_ERROR, e, bsl) :
+                                SCError.createErrorObj(SCError.RDF_PARSE_ERROR, e, bsl, descriptorName);
                         joError.put("descriptor", descriptorName);
-
                         jaErrors.put(joError);
 
                         skipProcessingContexts = true;
@@ -226,8 +232,11 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
 
                     // Sanity check
                     if (currentComponentResUri == null) {
-                        sendErrorBadRequest(response);
-                        return true;
+                        JSONObject joError = SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl);
+                        joError.put("param", "component_rdf");
+                        jaErrors.put(joError);
+                        skipProcessingContexts = true;
+                        continue;
                     }
 
                     Component component = componentsMap.get(currentComponentResUri);
@@ -245,16 +254,19 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                             component.getContexts().put(url, contentType);
                         }
                         catch (MalformedURLException e) {
-                            sendErrorBadRequest(response);
-                            return true;
+                            JSONObject joError = SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl);
+                            joError.put("url", file.getString());
+                            joError.put("compUri", currentComponentResUri);
+                            skipProcessingContexts = true;
+                            continue;
                         }
                         catch (IOException e) {
                             // Error reading from URL
                             logger.log(Level.WARNING, "Error reading from context url: " + file.getString(), e);
-                            JSONObject joError = createJSONErrorObj("Cannot access context location", e);
+
+                            JSONObject joError = SCError.createErrorObj(SCError.NETWORK_ERROR, e, bsl);
                             joError.put("compUri", currentComponentResUri);
                             joError.put("url", file.getString());
-
                             jaErrors.put(joError);
 
                             try {
@@ -277,8 +289,12 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                         }
                         catch (Exception e) {
                             logger.log(Level.SEVERE, "Cannot save uploaded context file: " + contextFile, e);
-                            sendErrorInternalServerError(response);
-                            return true;
+                            JSONObject joError = SCError.createErrorObj(SCError.IO_ERROR, e, bsl);
+                            joError.put("compUri", currentComponentResUri);
+                            joError.put("context_file", file.getName());
+                            jaErrors.put(joError);
+                            skipProcessingContexts = true;
+                            continue;
                         }
 
                         try {
@@ -325,8 +341,11 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                     catch (BackendStoreException e) {
                         logger.log(Level.SEVERE, null, e);
 
-                        jaErrors.put(createJSONErrorObj(String.format("Failed to add component '%s' (%s)",
-                                ecd.getName(), origUri), e));
+                        JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                        joError.put("name", ecd.getName());
+                        joError.put("orig_uri", origUri);
+                        jaErrors.put(joError);
+                        continue;
                     }
                 }
 
@@ -340,28 +359,15 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                                 + component.getTempContextFolder(), e);
                     }
             }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
-            }
         }
         catch (JSONException e) {
             logger.log(Level.SEVERE, null, e);
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

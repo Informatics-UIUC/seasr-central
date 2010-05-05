@@ -56,6 +56,7 @@ import org.meandre.core.repository.FlowDescription;
 import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.UnknownComponentsException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
@@ -110,8 +111,12 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         if (!ServletFileUpload.isMultipartContent(request)) {
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -125,13 +130,16 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                 userId = UUID.fromString(userProps.getProperty("uuid"));
                 screenName = userProps.getProperty("screen_name");
             } else {
-                sendErrorNotFound(response);
+                // Specified user does not exist
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -141,12 +149,10 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
             files = fileUpload.parseRequest(request);
         }
         catch (FileUploadException e) {
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             // Accumulator for the flow models
@@ -190,14 +196,18 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                         String descriptorName = file.isFormField() ? file.getString().trim() : file.getName();
                         logger.log(Level.WARNING, String.format("Error parsing RDF from '%s'", descriptorName), e);
 
-                        JSONObject joError = createJSONErrorObj("Invalid flow RDF descriptor received", e);
+                        JSONObject joError = (e instanceof IOException) ?
+                                SCError.createErrorObj(SCError.NETWORK_ERROR, e, bsl) :
+                                SCError.createErrorObj(SCError.RDF_PARSE_ERROR, e, bsl, descriptorName);
                         joError.put("descriptor", descriptorName);
-
                         jaErrors.put(joError);
+                        continue;
                     }
                 } else {
-                    sendErrorBadRequest(response);
-                    return true;
+                    JSONObject joError = SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, bsl);
+                    joError.put("param", file.getFieldName());
+                    jaErrors.put(joError);
+                    continue;
                 }
             }
 
@@ -224,34 +234,21 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     jaSuccess.put(joFlow);
                 }
                 catch (BackendStoreException e) {
-                    logger.log(Level.SEVERE, null, e);
-
-                    JSONObject errorObj = createJSONErrorObj(String.format("Failed to add flow '%s' (%s)",
-                            fd.getName(), origUri), e);
+                    JSONObject joError;
 
                     if (e.getCause() != null && e.getCause() instanceof UnknownComponentsException) {
                         UnknownComponentsException ex = (UnknownComponentsException) e.getCause();
-                        errorObj.put("unknown_components", new JSONArray(ex.getUnknownComponents()));
+                        joError = SCError.createErrorObj(SCError.UNKNOWN_COMP_IN_FLOW, bsl);
+                        joError.put("unknown_components", new JSONArray(ex.getUnknownComponents()));
+                    } else {
+                        logger.log(Level.SEVERE, null, e);
+                        joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
                     }
 
-                    jaErrors.put(errorObj);
+                    joError.put("name", fd.getName());
+                    joError.put("orig_uri", origUri);
+                    jaErrors.put(joError);
                 }
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(OperationResult.FAILURE.name(), jaErrors);
-
-            if (jaErrors.length() == 0)
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            else
-                response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
             }
         }
         catch (JSONException e) {
@@ -259,6 +256,9 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }

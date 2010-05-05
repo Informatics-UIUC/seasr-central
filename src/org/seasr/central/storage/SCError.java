@@ -66,9 +66,15 @@ public enum SCError {
     COMPONENT_NOT_FOUND     (303, "Unable to find component %s, version %s"),
 
     FLOW_NOT_FOUND          (403, "Unable to find flow %s, version %s"),
+    UNKNOWN_COMP_IN_FLOW    (404, "Unknown component(s) referenced in the flow"),
 
     INCOMPLETE_REQUEST      (500, "Incomplete request / Expected parameter missing"),
     INVALID_PARAM_VALUE     (501, "Invalid parameter value"),
+    UPLOAD_ERROR            (502, "Error retrieving uploaded file(s). " +
+                                  "Ensure that enctype='multipart/form-data' is specified in your request"),
+    RDF_PARSE_ERROR         (503, "Error parsing RDF descriptor '%s'"),
+    NETWORK_ERROR           (504, "A network communication error has occurred"),
+    IO_ERROR                (505, "An I/O error has occurred"),
 
     UNKNOWN_ROLE            (600, "Unknown role: '%s'"),
 
@@ -137,7 +143,12 @@ public enum SCError {
                     break;
 
                 case BACKEND_ERROR:
+                case IO_ERROR:
                     httpStatus = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+                    break;
+
+                case NETWORK_ERROR:
+                    httpStatus = HttpServletResponse.SC_REQUEST_TIMEOUT;
                     break;
 
                 case USER_NOT_FOUND:

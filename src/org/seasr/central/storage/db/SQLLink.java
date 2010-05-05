@@ -1759,7 +1759,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count,
-                                                        boolean includeOldVersions) throws BackendStoreException {
+                                                   boolean includeOldVersions) throws BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
@@ -1836,7 +1836,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listGroupFlows(UUID groupId, long offset, long count,
-                                                        boolean includeOldVersions) throws BackendStoreException {
+                                    boolean includeOldVersions) throws BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();

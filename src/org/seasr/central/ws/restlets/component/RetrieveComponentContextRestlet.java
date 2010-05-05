@@ -93,6 +93,8 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        // TODO: Check permissions
+
         String contextId = values[2];
 
         try {

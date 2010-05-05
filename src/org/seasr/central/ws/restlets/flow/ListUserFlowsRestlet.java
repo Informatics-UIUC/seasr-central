@@ -44,14 +44,13 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Tools;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -98,6 +97,9 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
+
         UUID userId;
         String screenName;
 
@@ -115,15 +117,19 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
                 screenName = userProps.getProperty("screen_name");
             } else {
                 // Specified user does not exist
-                sendErrorNotFound(response);
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
             remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+
+            // TODO: Check permissions
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
-            sendErrorInternalServerError(response);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
@@ -139,16 +145,14 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
-            sendErrorBadRequest(response);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
         boolean includeOldVersions = false;
         if (request.getParameterMap().containsKey("includeOldVersions"))
             includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
-
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
 
         try {
             try {
@@ -167,20 +171,7 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                jaErrors.put(createJSONErrorObj("Cannot obtain the flow list for user " + userId, e));
-            }
-
-            JSONObject joContent = new JSONObject();
-            joContent.put(Tools.OperationResult.SUCCESS.name(), jaSuccess);
-            joContent.put(Tools.OperationResult.FAILURE.name(), jaErrors);
-
-            response.setStatus(HttpServletResponse.SC_OK);
-
-            try {
-                sendContent(response, joContent, ct);
-            }
-            catch (IOException e) {
-                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             }
         }
         catch (JSONException e) {
@@ -189,6 +180,9 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
             sendErrorInternalServerError(response);
             return true;
         }
+
+        // Send the response
+        sendResponse(jaSuccess, jaErrors, ct, response);
 
         return true;
     }
