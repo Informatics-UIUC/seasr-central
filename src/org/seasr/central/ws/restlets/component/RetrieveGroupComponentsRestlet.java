@@ -106,15 +106,15 @@ public class RetrieveGroupComponentsRestlet extends ListGroupComponentsRestlet {
 
             try {
                 remoteUserId = bsl.getUserId(remoteUser);
+
+                // Check permissions
+                if (!SCSecurity.canAccessGroupComponents(groupId, remoteUserId, bsl, request)) {
+                    sendErrorUnauthorized(response);
+                    return true;
+                }
             }
             catch (UserNotFoundException e) {
                 logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                sendErrorUnauthorized(response);
-                return true;
-            }
-
-            // Check permissions
-            if (!SCSecurity.canAccessGroupComponents(groupId, remoteUserId, bsl, request)) {
                 sendErrorUnauthorized(response);
                 return true;
             }

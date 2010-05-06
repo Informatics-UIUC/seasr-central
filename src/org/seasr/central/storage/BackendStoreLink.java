@@ -190,14 +190,14 @@ public interface BackendStoreLink {
     public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
     public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
     public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException, GroupNotFoundException;
-    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
-    public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
-    public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
-    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
+    public void addGroupMember(UUID userId, UUID groupId, SCRole role) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
+    public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
+    public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException, GroupNotFoundException;
+    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException, UserNotFoundException;
     public JSONArray listComponentGroupsAsUser(UUID componentId, int version, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException;
+            throws BackendStoreException, ComponentNotFoundException, UserNotFoundException;
     public JSONArray listFlowGroupsAsUser(UUID flowId, int version, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException;
+            throws BackendStoreException, FlowNotFoundException, UserNotFoundException;
 
     /**
      * Adds (or updates) a component
@@ -251,13 +251,13 @@ public interface BackendStoreLink {
      * @return The version count, or null if the component does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
+    public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException, ComponentNotFoundException;
 
-    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException, ComponentNotFoundException;
+    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException, ComponentNotFoundException, GroupNotFoundException, UserNotFoundException;
 
-    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
-    public JSONArray listPublicUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listPublicUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Retrieves the list of components owned by a user that can be accessed by a remote user
@@ -279,9 +279,9 @@ public interface BackendStoreLink {
      * @return The list of components owned by the specified user that can be accessed by the remote user
      * @throws BackendStoreException
      */
-    public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
-    public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions) throws BackendStoreException, GroupNotFoundException;
 
     /**
      * Retrieves the list of components that have been shared with a specific group
@@ -293,7 +293,7 @@ public interface BackendStoreLink {
      * @return A JSON array of components that have been shared with the specified group
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public JSONArray listGroupComponents(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listGroupComponents(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, GroupNotFoundException;
 
     /**
      * Adds (or updates) a flow
@@ -313,9 +313,9 @@ public interface BackendStoreLink {
      * @return The flow descriptor, or null if the flow does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Model getFlow(UUID flowId, int version) throws BackendStoreException;
+    public Model getFlow(UUID flowId, int version) throws BackendStoreException, FlowNotFoundException;
 
-    public UUID getFlowOwner(UUID flowId, int version) throws BackendStoreException;
+    public UUID getFlowOwner(UUID flowId, int version) throws BackendStoreException, FlowNotFoundException;
 
     /**
      * Returns the version count for a flow
@@ -324,18 +324,18 @@ public interface BackendStoreLink {
      * @return The version count, or null if the flow does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException;
+    public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException, FlowNotFoundException;
 
-    public void shareFlow(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException;
+    public void shareFlow(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException, FlowNotFoundException, GroupNotFoundException, UserNotFoundException;
 
-    public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
-    public JSONArray listPublicUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listPublicUserFlows(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
-    public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, UserNotFoundException;
 
     public JSONArray listPublicFlows(long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
-    public JSONArray listGroupFlows(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
+    public JSONArray listGroupFlows(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException, GroupNotFoundException;
 
 }

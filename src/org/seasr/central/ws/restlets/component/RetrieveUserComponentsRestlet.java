@@ -91,7 +91,7 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             return true;
         }
 
-        UUID remoteUserId;
+        UUID remoteUserId = null;
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
@@ -103,14 +103,7 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             UUID userId = UUID.fromString(userProps.getProperty("uuid"));
             String screenName = userProps.getProperty("screen_name");
 
-            try {
-                remoteUserId = bsl.getUserId(remoteUser);
-            }
-            catch (UserNotFoundException e) {
-                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                sendErrorUnauthorized(response);
-                return true;
-            }
+            remoteUserId = bsl.getUserId(remoteUser);
 
             boolean includeOldVersions = false;
             if (request.getParameterMap().containsKey("includeOldVersions"))
@@ -152,7 +145,14 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
                 model.write(response.getOutputStream(), "TURTLE");
         }
         catch (UserNotFoundException e) {
-            sendErrorNotFound(response);
+            // If the authenticated user cannot be found
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) || 
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
+            } else
+                sendErrorNotFound(response);
+
             return true;
         }
         catch (ComponentNotFoundException e) {

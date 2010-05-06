@@ -949,9 +949,9 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void addGroupMember(UUID userId, UUID groupId, String roleName)
+    public void addGroupMember(UUID userId, UUID groupId, SCRole role)
             throws UserNotFoundException, GroupNotFoundException, BackendStoreException {
-        
+
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_MEMBERS_ADD).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -975,7 +975,7 @@ public class SQLLink implements BackendStoreLink {
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setBigDecimal(2, new BigDecimal(gid));
-            ps.setInt(3, getRoleId(roleName, conn));
+            ps.setInt(3, role.getRoleId());
             ps.executeUpdate();
 
             // Record the event
@@ -994,7 +994,8 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException {
+    public boolean isGroupMember(UUID userId, UUID groupId)
+            throws UserNotFoundException, GroupNotFoundException, BackendStoreException {
         // Everyone is in the PUBLIC group
         if (PUBLIC_GROUP.equals(groupId))
             return true;
@@ -1005,12 +1006,21 @@ public class SQLLink implements BackendStoreLink {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GROUP_ISMEMBER).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setBigDecimal(2, new BigDecimal(gid));
             ResultSet rs = ps.executeQuery();
 
             return rs.next();
@@ -1025,16 +1035,23 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException {
+    public JSONArray listGroupMembers(UUID groupId, long offset, long count)
+            throws GroupNotFoundException, BackendStoreException {
+
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_MEMBERS_LIST).trim();
         JSONArray jaUsers = new JSONArray();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(gid));
             ps.setLong(2, offset);
             ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
@@ -1058,16 +1075,23 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException {
+    public JSONArray listUserGroups(UUID userId, long offset, long count)
+            throws UserNotFoundException, BackendStoreException {
+
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GROUP_LIST).trim();
         JSONArray jaGroups = new JSONArray();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setLong(2, offset);
             ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
@@ -1092,7 +1116,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listComponentGroupsAsUser(UUID componentId, int version, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException {
+            throws ComponentNotFoundException, UserNotFoundException, BackendStoreException {
 
         String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GROUP_LIST).trim();
         Connection conn = null;
@@ -1100,11 +1124,17 @@ public class SQLLink implements BackendStoreLink {
         JSONArray jaGroups = new JSONArray();
 
         BigInteger compId = UUIDUtils.toBigInteger(componentId);
+        BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
 
         try {
             conn = dataSource.getConnection();
+
             Long versionId = getComponentVersionId(compId, version, conn);
-            if (versionId == null) return null;
+            if (versionId == null) throw new ComponentNotFoundException(componentId, version);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid, conn)))
+                    throw new UserNotFoundException(remoteUserId);
 
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(compId));
@@ -1112,7 +1142,7 @@ public class SQLLink implements BackendStoreLink {
             if (remoteUserId == null)
                 ps.setNull(3, Types.DECIMAL);
             else
-                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)));
+                ps.setBigDecimal(3, new BigDecimal(ruid));
             ps.setLong(4, offset);
             ps.setLong(5, count);
             ResultSet rs = ps.executeQuery();
@@ -1136,7 +1166,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listFlowGroupsAsUser(UUID flowId, int version, UUID remoteUserId, long offset, long count)
-            throws BackendStoreException {
+            throws FlowNotFoundException, UserNotFoundException, BackendStoreException {
 
         String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GROUP_LIST).trim();
         Connection conn = null;
@@ -1144,11 +1174,17 @@ public class SQLLink implements BackendStoreLink {
         JSONArray jaGroups = new JSONArray();
 
         BigInteger fId = UUIDUtils.toBigInteger(flowId);
+        BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
 
         try {
             conn = dataSource.getConnection();
+
             Long versionId = getFlowVersionId(fId, version, conn);
-            if (versionId == null) return null;
+            if (versionId == null) throw new FlowNotFoundException(flowId, version);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid, conn)))
+                    throw new UserNotFoundException(remoteUserId);
 
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(fId));
@@ -1156,7 +1192,7 @@ public class SQLLink implements BackendStoreLink {
             if (remoteUserId == null)
                 ps.setNull(3, Types.DECIMAL);
             else
-                ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(remoteUserId)));
+                ps.setBigDecimal(3, new BigDecimal(ruid));
             ps.setLong(4, offset);
             ps.setLong(5, count);
             ResultSet rs = ps.executeQuery();
@@ -1301,6 +1337,7 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
             Long versionId = getComponentVersionId(compId, version, conn);
             if (versionId == null) throw new ComponentNotFoundException(componentId, version);
 
@@ -1327,6 +1364,7 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
             Long versionId = getComponentVersionId(compId, version, conn);
             if (versionId == null) throw new ComponentNotFoundException(componentId, version);
 
@@ -1396,12 +1434,16 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Integer getComponentVersionCount(UUID compId) throws BackendStoreException {
+    public Integer getComponentVersionCount(UUID compId) throws ComponentNotFoundException, BackendStoreException {
         Connection conn;
 
         try {
             conn = dataSource.getConnection();
-            return getComponentVersionCount(UUIDUtils.toBigInteger(compId), conn);
+            Integer verCount = getComponentVersionCount(UUIDUtils.toBigInteger(compId), conn);
+            if (verCount != null)
+                return verCount;
+            else
+                throw new ComponentNotFoundException(compId, -1);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -1411,13 +1453,14 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId)
-            throws ComponentNotFoundException, BackendStoreException {
+            throws ComponentNotFoundException, GroupNotFoundException, UserNotFoundException, BackendStoreException {
 
         String sqlQuery = properties.getProperty(DBProperties.Q_COMP_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         BigInteger compId = UUIDUtils.toBigInteger(componentId);
         BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
@@ -1426,10 +1469,17 @@ public class SQLLink implements BackendStoreLink {
             Long compVerId = getComponentVersionId(compId, version, conn);
             if (compVerId == null) throw new ComponentNotFoundException(componentId, version);
 
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid, conn)))
+                    throw new UserNotFoundException(remoteUserId);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(compId));
             ps.setTimestamp(2, new Timestamp(compVerId));
-            ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(3, new BigDecimal(gid));
             ps.executeUpdate();
 
             // Record the event
@@ -1449,19 +1499,22 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listUserComponents(UUID userId, long offset, long count,
-                                        boolean includeOldVersions) throws BackendStoreException {
+                                        boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
         return listAccessibleUserComponentsAsUser(userId, userId, offset, count, includeOldVersions);
     }
 
     @Override
     public JSONArray listPublicUserComponents(UUID userId, long offset, long count,
-                                              boolean includeOldVersions) throws BackendStoreException {
+                                              boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
         return listAccessibleUserComponentsAsUser(userId, null, offset, count, includeOldVersions);
     }
 
     @Override
     public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count,
-                                                        boolean includeOldVersions) throws BackendStoreException {
+                                                        boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
@@ -1470,6 +1523,14 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid.toBigInteger(), conn)))
+                throw new UserNotFoundException(userId);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid.toBigInteger(), conn)))
+                    throw new UserNotFoundException(remoteUserId);
+
             if (includeOldVersions) {
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_USER_COMPONENT_SHARING_LIST_ALL_ASUSER).trim());
@@ -1532,19 +1593,25 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions) throws BackendStoreException {
+    public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions)
+            throws GroupNotFoundException, BackendStoreException {
         return listGroupComponents(PUBLIC_GROUP, offset, count, includeOldVersions);
     }
 
     @Override
-    public JSONArray listGroupComponents(UUID groupId, long offset, long count,
-                                                        boolean includeOldVersions) throws BackendStoreException {
+    public JSONArray listGroupComponents(UUID groupId, long offset, long count, boolean includeOldVersions)
+            throws GroupNotFoundException, BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             if (includeOldVersions)
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_GROUP_COMPONENTS_LIST_ALL).trim());
@@ -1552,7 +1619,7 @@ public class SQLLink implements BackendStoreLink {
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_GROUP_COMPONENTS_LIST_LATEST).trim());
 
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(gid));
             ps.setLong(2, offset);
             ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
@@ -1737,15 +1804,16 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Model getFlow(UUID flowId, int version) throws BackendStoreException {
+    public Model getFlow(UUID flowId, int version) throws FlowNotFoundException, BackendStoreException {
         Connection conn = null;
 
         BigInteger fId = UUIDUtils.toBigInteger(flowId);
 
         try {
             conn = dataSource.getConnection();
+
             Long versionId = getFlowVersionId(fId, version, conn);
-            if (versionId == null) return null;
+            if (versionId == null) throw new FlowNotFoundException(flowId, version);
 
             InputStream is = getFlowDescriptor(fId, versionId, conn);
             if (is == null) return null;
@@ -1762,7 +1830,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public UUID getFlowOwner(UUID flowId, int version) throws BackendStoreException {
+    public UUID getFlowOwner(UUID flowId, int version) throws FlowNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_GET_OWNER).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -1771,9 +1839,13 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
+            Long versionId = getFlowVersionId(fId, version, conn);
+            if (versionId == null) throw new FlowNotFoundException(flowId, version);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(fId));
-            ps.setTimestamp(2, new Timestamp(getFlowVersionId(fId, version, conn)));
+            ps.setTimestamp(2, new Timestamp(versionId));
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()) : null;
@@ -1788,12 +1860,16 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Integer getFlowVersionCount(UUID flowId) throws BackendStoreException {
-        Connection conn = null;
+    public Integer getFlowVersionCount(UUID flowId) throws FlowNotFoundException, BackendStoreException {
+        Connection conn;
 
         try {
             conn = dataSource.getConnection();
-            return getFlowVersionCount(UUIDUtils.toBigInteger(flowId), conn);
+            Integer verCount = getFlowVersionCount(UUIDUtils.toBigInteger(flowId), conn);
+            if (verCount != null)
+                return verCount;
+            else
+                throw new FlowNotFoundException(flowId, -1);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -1802,27 +1878,34 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void shareFlow(UUID flowId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException {
+    public void shareFlow(UUID flowId, int version, UUID groupId, UUID remoteUserId)
+            throws FlowNotFoundException, GroupNotFoundException, UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_FLOW_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         BigInteger fId = UUIDUtils.toBigInteger(flowId);
         BigInteger ruid = (remoteUserId != null) ? UUIDUtils.toBigInteger(remoteUserId) : null;
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
 
+            Long versionId = getFlowVersionId(fId, version, conn);
+            if (versionId == null) throw new FlowNotFoundException(flowId, version);
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid, conn)))
+                    throw new UserNotFoundException(remoteUserId);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(fId));
-            ps.setTimestamp(2, new Timestamp(getFlowVersionId(fId, version, conn)));
-            ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setTimestamp(2, new Timestamp(versionId));
+            ps.setBigDecimal(3, new BigDecimal(gid));
             ps.executeUpdate();
-
-            // TODO: what to do about "who" shared the flow
-            // this brings back the question
-            // about whether events need to be an application-specific concept (which it started out as)
-            // or not.  I could find the userId of the user who owns the flow and assume that, but...
 
             // Record the event
             addEvent(SCEvent.FLOW_SHARED, ruid, UUIDUtils.toBigInteger(groupId), null, fId, null, conn);
@@ -1840,20 +1923,22 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listUserFlows(UUID userId, long offset, long count,
-                                   boolean includeOldVersions) throws BackendStoreException {
+    public JSONArray listUserFlows(UUID userId, long offset, long count, boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
         return listAccessibleUserFlowsAsUser(userId, userId, offset, count, includeOldVersions);
     }
 
     @Override
-    public JSONArray listPublicUserFlows(UUID userId, long offset, long count,
-                                         boolean includeOldVersions) throws BackendStoreException {
+    public JSONArray listPublicUserFlows(UUID userId, long offset, long count, boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
         return listAccessibleUserFlowsAsUser(userId, null, offset, count, includeOldVersions);
     }
 
     @Override
     public JSONArray listAccessibleUserFlowsAsUser(UUID userId, UUID remoteUserId, long offset, long count,
-                                                   boolean includeOldVersions) throws BackendStoreException {
+                                                   boolean includeOldVersions)
+            throws UserNotFoundException, BackendStoreException {
+
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
@@ -1862,6 +1947,14 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid.toBigInteger(), conn)))
+                throw new UserNotFoundException(userId);
+
+            if (remoteUserId != null)
+                if (!Boolean.TRUE.equals(isUserActive(ruid.toBigInteger(), conn)))
+                    throw new UserNotFoundException(remoteUserId);
+
             if (includeOldVersions) {
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_USER_FLOW_SHARING_LIST_ALL_ASUSER).trim());
@@ -1925,18 +2018,29 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONArray listPublicFlows(long offset, long count, boolean includeOldVersions) throws BackendStoreException {
-        return listGroupFlows(PUBLIC_GROUP, offset, count, includeOldVersions);
+        try {
+            return listGroupFlows(PUBLIC_GROUP, offset, count, includeOldVersions);
+        }
+        catch (GroupNotFoundException e) {
+            // Should never happen
+            return null;
+        }
     }
 
     @Override
-    public JSONArray listGroupFlows(UUID groupId, long offset, long count,
-                                    boolean includeOldVersions) throws BackendStoreException {
+    public JSONArray listGroupFlows(UUID groupId, long offset, long count, boolean includeOldVersions)
+            throws GroupNotFoundException, BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         JSONArray jaResult = new JSONArray();
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             if (includeOldVersions)
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_GROUP_FLOWS_LIST_ALL).trim());
@@ -1944,7 +2048,7 @@ public class SQLLink implements BackendStoreLink {
                 ps = conn.prepareStatement(properties.getProperty(
                         DBProperties.Q_GROUP_FLOWS_LIST_LATEST).trim());
 
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(gid));
             ps.setLong(2, offset);
             ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
@@ -2909,6 +3013,7 @@ public class SQLLink implements BackendStoreLink {
      * @param compId The component id (or null if not applicable)
      * @param flowId The flow id (or null if not applicable)
      * @param metadata The event metadata (or null)
+     * @param conn The DB connection to use
      * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
     protected void addEvent(SCEvent eventCode, BigInteger userId, BigInteger groupId, BigInteger compId,

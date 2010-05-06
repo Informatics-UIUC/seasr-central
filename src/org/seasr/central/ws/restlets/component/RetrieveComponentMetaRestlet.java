@@ -133,20 +133,20 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
             try {
                 try {
                     remoteUserId = bsl.getUserId(remoteUser);
+
+                    // Check permissions
+                    if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
+                        JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
+                        joError.put("uuid", componentId.toString());
+                        joError.put("version", version);
+                        jaErrors.put(joError);
+                        sendResponse(jaSuccess, jaErrors, ct, response);
+                        return true;
+                    }
                 }
                 catch (UserNotFoundException e) {
                     logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
                     jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                    sendResponse(jaSuccess, jaErrors, ct, response);
-                    return true;
-                }
-
-                // Check permissions
-                if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
-                    JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
-                    joError.put("uuid", componentId.toString());
-                    joError.put("version", version);
-                    jaErrors.put(joError);
                     sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }

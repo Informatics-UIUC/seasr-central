@@ -44,6 +44,8 @@ import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.UUID;
@@ -55,7 +57,7 @@ public abstract class SCSecurity {
 
     public static boolean canAccessGroupComponents(UUID groupId, UUID remoteUserId,
                                                    BackendStoreLink bsl, HttpServletRequest request)
-        throws BackendStoreException {
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role
         if (request.isUserInRole(SCRole.ADMIN.name()))
@@ -69,7 +71,7 @@ public abstract class SCSecurity {
 
     public static boolean canAccessComponent(UUID componentId, int version, UUID remoteUserId,
                                              BackendStoreLink bsl, HttpServletRequest request)
-        throws ComponentNotFoundException, BackendStoreException {
+        throws ComponentNotFoundException, UserNotFoundException, BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role
         if (request.isUserInRole(SCRole.ADMIN.name()))
@@ -94,7 +96,7 @@ public abstract class SCSecurity {
 
     public static boolean canShareComponent(UUID componentId, int version, UUID remoteUserId,
                                             BackendStoreLink bsl, HttpServletRequest request)
-        throws ComponentNotFoundException, BackendStoreException {
+        throws ComponentNotFoundException, UserNotFoundException, BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role
         if (request.isUserInRole(SCRole.ADMIN.name()))

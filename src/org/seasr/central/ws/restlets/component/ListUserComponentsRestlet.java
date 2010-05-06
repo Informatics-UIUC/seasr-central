@@ -109,27 +109,16 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             remoteUser = request.getParameter("remoteUser");
 
         try {
-            UUID userId;
-            String screenName;
+            Properties userProps = getUserScreenNameAndId(values[0]);
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
 
             try {
-                Properties userProps = getUserScreenNameAndId(values[0]);
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-
-                try {
-                    remoteUserId = bsl.getUserId(remoteUser);
-                }
-                catch (UserNotFoundException e) {
-                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                    sendResponse(jaSuccess, jaErrors, ct, response);
-                    return true;
-                }
+                remoteUserId = bsl.getUserId(remoteUser);
             }
             catch (UserNotFoundException e) {
-                // Specified user does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
@@ -168,6 +157,11 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
                 joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
                 jaSuccess.put(joResult);
             }
+        }
+        catch (UserNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);

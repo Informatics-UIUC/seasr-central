@@ -119,20 +119,7 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
 
-                try {
-                    remoteUserId = bsl.getUserId(remoteUser);
-                }
-                catch (UserNotFoundException e) {
-                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                    sendResponse(jaSuccess, jaErrors, ct, response);
-                    return true;
-                }
-            }
-            catch (GroupNotFoundException e) {
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
+                remoteUserId = bsl.getUserId(remoteUser);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
@@ -209,6 +196,17 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                     continue;
                 }
             }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (UserNotFoundException e) {
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (JSONException e) {
             // Should not happen

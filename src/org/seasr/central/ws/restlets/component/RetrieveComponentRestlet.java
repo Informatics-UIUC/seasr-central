@@ -118,15 +118,15 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
         try {
             try {
                 remoteUserId = bsl.getUserId(remoteUser);
+
+                // Check permissions
+                if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
+                    sendErrorUnauthorized(response);
+                    return true;
+                }
             }
             catch (UserNotFoundException e) {
                 logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                sendErrorUnauthorized(response);
-                return true;
-            }
-
-            // Check permissions
-            if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
                 sendErrorUnauthorized(response);
                 return true;
             }

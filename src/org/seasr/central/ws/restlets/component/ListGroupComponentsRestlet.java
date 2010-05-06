@@ -111,23 +111,12 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
             remoteUser = request.getParameter("remoteUser");
 
         try {
-            UUID groupId;
-            String groupName;
+            Properties groupProps = getGroupNameAndId(values[0]);
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
 
             try {
-                Properties groupProps = getGroupNameAndId(values[0]);
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-
-                try {
-                    remoteUserId = bsl.getUserId(remoteUser);
-                }
-                catch (UserNotFoundException e) {
-                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                    sendResponse(jaSuccess, jaErrors, ct, response);
-                    return true;
-                }
+                remoteUserId = bsl.getUserId(remoteUser);
 
                 // Check permissions
                 if (!SCSecurity.canAccessGroupComponents(groupId, remoteUserId, bsl, request)) {
@@ -136,9 +125,9 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
                     return true;
                 }
             }
-            catch (GroupNotFoundException e) {
-                // Specified group does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
@@ -176,6 +165,11 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
                 joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
                 jaSuccess.put(joResult);
             }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
