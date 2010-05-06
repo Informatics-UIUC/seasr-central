@@ -45,7 +45,8 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
@@ -59,7 +60,8 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for retrieving component descriptors of accessible components owned by another user
+ * Restlet for retrieving component descriptors of components owned by a
+ * user, that can be accessed by the remote user
  *
  * @author Boris Capitanu
  */
@@ -89,9 +91,6 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             return true;
         }
 
-        UUID userId;
-        String screenName;
-
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
 
@@ -101,16 +100,17 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                sendErrorNotFound(response);
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
+
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
                 return true;
             }
-
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
 
             boolean includeOldVersions = false;
             if (request.getParameterMap().containsKey("includeOldVersions"))
@@ -127,13 +127,10 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
                 UUID compId = UUID.fromString(joCompVer.getString("uuid"));
                 int compVersion = joCompVer.getInt("version");
 
+                // Retrieve the component from the backend
                 Model compModel = bsl.getComponent(compId, compVersion);
-                if (compModel == null)
-                    throw new BackendStoreException(
-                            String.format("Could not retrieve component %s version %d", compId, compVersion));
 
                 rewriteComponentModel(compModel, compId, compVersion, request);
-
                 model.add(compModel);
             }
 
@@ -144,11 +141,23 @@ public class RetrieveUserComponentsRestlet extends ListUserComponentsRestlet {
             if (ct.equals(ContentTypes.RDFXML))
                 model.write(response.getOutputStream(), "RDF/XML");
 
-            else if (ct.equals(ContentTypes.RDFNT))
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
                 model.write(response.getOutputStream(), "N-TRIPLE");
 
-            else if (ct.equals(ContentTypes.RDFTTL))
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
                 model.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (UserNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
+        }
+        catch (ComponentNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

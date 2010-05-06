@@ -42,6 +42,9 @@ package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -105,16 +108,31 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        // TODO: Check permissions
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
-            // Attempt to retrieve the component from the backend store
-            Model compModel = bsl.getComponent(componentId, version);
-
-            if (compModel == null) {
-                sendErrorNotFound(response);
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
                 return true;
             }
+
+            // Check permissions
+            if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
+                sendErrorUnauthorized(response);
+                return true;
+            }
+
+            // Attempt to retrieve the component from the backend store
+            Model compModel = bsl.getComponent(componentId, version);
 
             rewriteComponentModel(compModel, componentId, version, request);
 
@@ -134,6 +152,10 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
 
             if (ct.equals(ContentTypes.RDFTTL))
                 compModel.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (ComponentNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

@@ -42,6 +42,10 @@ package org.seasr.central.ws.restlets.component;
 
 import com.google.gdata.util.ContentType;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.ComponentContextNotFoundException;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ComponentContext;
 
@@ -93,28 +97,43 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        // TODO: Check permissions
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
 
-        String contextId = values[2];
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
+
+                // Check permissions
+                if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
+                    sendErrorUnauthorized(response);
+                    return true;
+                }
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
+                return true;
+            }
+
+            String contextId = values[2];
+
             // Check whether this is a special request for the MD5 value of a resource
             if (request.getRequestURI().endsWith(".md5")) {
                 if (bsl.hasComponentContext(contextId)) {
                     response.setContentType("text/plain");
                     response.getWriter().print(contextId);
-                } else {
+                } else
                     sendErrorNotFound(response);
-                }
 
                 return true;
             }
 
             ComponentContext context = bsl.getComponentContext(componentId, version, contextId);
-            if (context == null) {
-                sendErrorNotFound(response);
-                return true;
-            }
 
             InputStream contextStream = context.getDataStream();
             OutputStream responseStream = response.getOutputStream();
@@ -127,6 +146,14 @@ public class RetrieveComponentContextRestlet extends AbstractBaseRestlet {
 
             while ((nRead = contextStream.read(buffer)) > 0)
                 responseStream.write(buffer, 0, nRead);
+        }
+        catch (ComponentNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
+        }
+        catch (ComponentContextNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);

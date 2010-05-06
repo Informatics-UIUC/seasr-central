@@ -45,8 +45,10 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.seasr.central.storage.SCRole;
-import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
@@ -97,23 +99,22 @@ public class RetrieveGroupComponentsRestlet extends ListGroupComponentsRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID groupId;
-        String groupName;
-
         try {
             Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                sendErrorNotFound(response);
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
+
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
                 return true;
             }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-
             // Check permissions
-            if (!(request.isUserInRole(SCRole.ADMIN.name()) || bsl.isGroupMember(remoteUserId, groupId))) {
+            if (!SCSecurity.canAccessGroupComponents(groupId, remoteUserId, bsl, request)) {
                 sendErrorUnauthorized(response);
                 return true;
             }
@@ -133,13 +134,10 @@ public class RetrieveGroupComponentsRestlet extends ListGroupComponentsRestlet {
                 UUID compId = UUID.fromString(joCompVer.getString("uuid"));
                 int compVersion = joCompVer.getInt("version");
 
+                // Retrieve the component from the backend
                 Model compModel = bsl.getComponent(compId, compVersion);
-                if (compModel == null)
-                    throw new BackendStoreException(
-                            String.format("Could not retrieve component %s version %d", compId, compVersion));
 
                 rewriteComponentModel(compModel, compId, compVersion, request);
-
                 model.add(compModel);
             }
 
@@ -150,11 +148,23 @@ public class RetrieveGroupComponentsRestlet extends ListGroupComponentsRestlet {
             if (ct.equals(ContentTypes.RDFXML))
                 model.write(response.getOutputStream(), "RDF/XML");
 
-            else if (ct.equals(ContentTypes.RDFNT))
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
                 model.write(response.getOutputStream(), "N-TRIPLE");
 
-            else if (ct.equals(ContentTypes.RDFTTL))
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
                 model.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (GroupNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
+        }
+        catch (ComponentNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

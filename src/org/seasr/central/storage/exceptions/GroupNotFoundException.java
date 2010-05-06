@@ -38,47 +38,34 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
+package org.seasr.central.storage.exceptions;
 
 import java.util.UUID;
 
 /**
+ * Exception class used to indicate a group-not-found error
+ *
  * @author Boris Capitanu
  */
-public class IdVersionPair {
-    private final UUID id;
-    private final int version;
+public class GroupNotFoundException extends Exception {
+    private final UUID _groupId;
+    private final String _groupName;
 
-    public IdVersionPair(UUID id, int version) {
-        this.id = id;
-        this.version = version;
+    public GroupNotFoundException(UUID groupId) {
+        _groupId = groupId;
+        _groupName = null;
     }
 
-    public UUID getId() {
-        return id;
+    public GroupNotFoundException(String groupName) {
+        _groupName = groupName;
+        _groupId = null;
     }
 
-    public int getVersion() {
-        return version;
+    public UUID getGroupId() {
+        return _groupId;
     }
 
-    @Override
-    public int hashCode() {
-        int hash = 1;
-        hash = hash * 31 + id.hashCode();
-        hash = hash * 31 + version;
-
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-
-        if (!(obj instanceof IdVersionPair))
-            return false;
-
-        IdVersionPair other = (IdVersionPair)obj;
-        return id.equals(other.id) && version == other.version;
+    public String getGroupName() {
+        return _groupName;
     }
 }

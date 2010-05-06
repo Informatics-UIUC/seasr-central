@@ -46,6 +46,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.util.Tools;
 
 import javax.servlet.http.HttpServletRequest;
@@ -145,9 +147,10 @@ public abstract class AbstractBaseRestlet implements RestServlet {
      *
      * @param screenNameOrUserId The string representing a screen name or a user id
      * @return A property map keyed on "uuid" and "screen_name", or null if either could not be determined
+     * @throws UserNotFoundException Thrown if the user specified cannot be found
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Properties getUserScreenNameAndId(String screenNameOrUserId) throws BackendStoreException {
+    public Properties getUserScreenNameAndId(String screenNameOrUserId) throws UserNotFoundException, BackendStoreException {
         String screenName;
         UUID userId;
 
@@ -159,9 +162,6 @@ public abstract class AbstractBaseRestlet implements RestServlet {
             screenName = screenNameOrUserId;
             userId = bsl.getUserId(screenName);
         }
-
-        if (userId == null || screenName == null)
-            return null;
 
         Properties result = new Properties();
         result.put("uuid", userId.toString());
@@ -175,9 +175,10 @@ public abstract class AbstractBaseRestlet implements RestServlet {
      *
      * @param groupNameOrId The string representing a group name or a group id
      * @return A property map keyed on "uuid" and "name", or null if either could not be determined
+     * @throws GroupNotFoundException Thrown if the group specified cannot be found
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Properties getGroupNameAndId(String groupNameOrId) throws BackendStoreException {
+    public Properties getGroupNameAndId(String groupNameOrId) throws GroupNotFoundException, BackendStoreException {
         String groupName;
         UUID groupId;
 
@@ -189,9 +190,6 @@ public abstract class AbstractBaseRestlet implements RestServlet {
             groupName = groupNameOrId;
             groupId = bsl.getGroupId(groupName);
         }
-
-        if (groupId == null || groupName == null)
-            return null;
 
         Properties result = new Properties();
         result.put("uuid", groupId.toString());

@@ -43,20 +43,29 @@ package org.seasr.central.storage.exceptions;
 import java.util.UUID;
 
 /**
- * Exception class used to indicate that an operation was attempted on an inactive user
+ * Exception class used to indicate a user-not-found error
  *
  * @author Boris Capitanu
  */
-public class InactiveUserException extends Exception {
+public class UserNotFoundException extends Exception {
+    private final UUID _userId;
+    private final String _userName;
 
-    private final UUID userId;
+    public UserNotFoundException(UUID userId) {
+        _userId = userId;
+        _userName = null;
+    }
 
-    public InactiveUserException(UUID userId) {
-        super("Attempted to perform an operation on an inactive user: " + userId);
-        this.userId = userId;
+    public UserNotFoundException(String userName) {
+        _userName = userName;
+        _userId = null;
     }
 
     public UUID getUserId() {
-        return userId;
+        return _userId;
+    }
+
+    public String getUserName() {
+        return _userName;
     }
 }

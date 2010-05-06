@@ -46,6 +46,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -60,7 +61,7 @@ import java.util.logging.Level;
 import static org.seasr.central.util.Tools.*;
 
 /**
- * Restlet for obtaining the list of components uploaded by a user
+ * Restlet for obtaining the list of components owned by a user that can be accessed by a remote user
  *
  * @author Boris Capitanu
  */
@@ -100,9 +101,6 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID userId;
-        String screenName;
-
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
 
@@ -111,68 +109,71 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             remoteUser = request.getParameter("remoteUser");
 
         try {
-            Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
+            UUID userId;
+            String screenName;
+
+            try {
+                Properties userProps = getUserScreenNameAndId(values[0]);
                 userId = UUID.fromString(userProps.getProperty("uuid"));
                 screenName = userProps.getProperty("screen_name");
-            } else {
+
+                try {
+                    remoteUserId = bsl.getUserId(remoteUser);
+                }
+                catch (UserNotFoundException e) {
+                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+                    sendResponse(jaSuccess, jaErrors, ct, response);
+                    return true;
+                }
+            }
+            catch (UserNotFoundException e) {
                 // Specified user does not exist
                 jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+            long offset = 0;
+            long count = Long.MAX_VALUE;
 
-            // TODO: Check permissions
+            String sOffset = request.getParameter("offset");
+            String sCount = request.getParameter("count");
+
+            try {
+                if (sOffset != null) offset = Long.parseLong(sOffset);
+                if (sCount != null) count = Long.parseLong(sCount);
+            }
+            catch (NumberFormatException e) {
+                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
+
+            boolean includeOldVersions = false;
+            if (request.getParameterMap().containsKey("includeOldVersions"))
+                includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
+
+            JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId,
+                    offset, count, includeOldVersions);
+
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joCompVer = jaResult.getJSONObject(i);
+                String sCompId = joCompVer.getString("uuid");
+                int compVersion = joCompVer.getInt("version");
+                JSONObject joResult = new JSONObject();
+                joResult.put("uuid", joCompVer.get("uuid"));
+                joResult.put("version", joCompVer.get("version"));
+                joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
+                jaSuccess.put(joResult);
+            }
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
-        }
-
-        long offset = 0;
-        long count = Long.MAX_VALUE;
-
-        String sOffset = request.getParameter("offset");
-        String sCount = request.getParameter("count");
-
-        try {
-            if (sOffset != null) offset = Long.parseLong(sOffset);
-            if (sCount != null) count = Long.parseLong(sCount);
-        }
-        catch (NumberFormatException e) {
-            logger.log(Level.WARNING, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        boolean includeOldVersions = false;
-        if (request.getParameterMap().containsKey("includeOldVersions"))
-            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
-
-        try {
-            try {
-                JSONArray jaResult = bsl.listAccessibleUserComponentsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
-
-                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joCompVer = jaResult.getJSONObject(i);
-                    String  sCompId = joCompVer.getString("uuid");
-                    int compVersion = joCompVer.getInt("version");
-                    JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joCompVer.get("uuid"));
-                    joResult.put("version", joCompVer.get("version"));
-                    joResult.put("url", getComponentBaseAccessUrl(request, sCompId, compVersion) + ".ttl");
-                    jaSuccess.put(joResult);
-                }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            }
         }
         catch (JSONException e) {
             // Should not happen

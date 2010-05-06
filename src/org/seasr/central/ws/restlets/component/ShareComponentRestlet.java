@@ -45,9 +45,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.util.IdVersionPair;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -107,57 +110,65 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
-
         try {
-            Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
+            UUID groupId;
+            String groupName;
+
+            try {
+                Properties groupProps = getGroupNameAndId(values[0]);
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
-            } else {
-                // Specified group does not exist
+
+                try {
+                    remoteUserId = bsl.getUserId(remoteUser);
+                }
+                catch (UserNotFoundException e) {
+                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+                    sendResponse(jaSuccess, jaErrors, ct, response);
+                    return true;
+                }
+            }
+            catch (GroupNotFoundException e) {
                 jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
+            catch (BackendStoreException e) {
+                logger.log(Level.SEVERE, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
+            String[] compIds = request.getParameterValues("component");
+            String[] compVersions = request.getParameterValues("version");
 
-        String[] compIds = request.getParameterValues("component");
-        String[] compVersions = request.getParameterValues("version");
+            // Check for proper request
+            if (!(compIds != null && compVersions != null && compIds.length == compVersions.length)) {
+                jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-        // Check for proper request
-        if (!(compIds != null && compVersions != null && compIds.length == compVersions.length)) {
-            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        try {
             Set<IdVersionPair> components = new HashSet<IdVersionPair>(compIds.length);
 
             for (int i = 0, iMax = compIds.length; i < iMax; i++) {
+                String sCompId = compIds[i];
+                String sVersion = compVersions[i];
+
                 try {
-                    UUID compId = UUID.fromString(compIds[i]);
-                    int version = Integer.parseInt(compVersions[i]);
+                    UUID compId = UUID.fromString(sCompId);
+                    int version = Integer.parseInt(sVersion);
 
                     components.add(new IdVersionPair(compId, version));
                 }
                 catch (IllegalArgumentException e) {
                     JSONObject joError = SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl);
-                    joError.put("uuid", compIds[i]);
-                    joError.put("version", compVersions[i]);
+                    joError.put("uuid", sCompId);
+                    joError.put("version", sVersion);
                     jaErrors.put(joError);
-                    return true;
+                    continue;
                 }
             }
 
@@ -166,40 +177,36 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                 int version = component.getVersion();
 
                 try {
-                    // Check whether the user making the request is the owner of the component(s)
-                    UUID ownerId = bsl.getComponentOwner(compId, version);
-                    if (ownerId != null) {
-                        // Check permissions
-                        if ((ownerId.equals(remoteUserId) && bsl.isGroupMember(ownerId, groupId))
-                                || request.isUserInRole(SCRole.ADMIN.name())) {
-
-                            bsl.shareComponent(compId, version, groupId, remoteUserId);
-
-                            JSONObject joComponent = new JSONObject();
-                            joComponent.put("uuid", compId.toString());
-                            joComponent.put("version", version);
-                            jaSuccess.put(joComponent);
-                        } else {
-                            // Not the owner of this component version
-                            JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
-                            joError.put("uuid", compId.toString());
-                            joError.put("version", version);
-                            jaErrors.put(joError);
-                        }
-                    } else {
-                        // Component version not found
-                        JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
-                            compId.toString(), Integer.toString(version));
+                    // Check permissions
+                    if (!SCSecurity.canShareComponent(compId, version, remoteUserId, bsl, request)) {
+                        JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
                         joError.put("uuid", compId.toString());
                         joError.put("version", version);
                         jaErrors.put(joError);
+                        continue;
                     }
+
+                    bsl.shareComponent(compId, version, groupId, remoteUserId);
+
+                    JSONObject joComponent = new JSONObject();
+                    joComponent.put("uuid", compId.toString());
+                    joComponent.put("version", version);
+                    jaSuccess.put(joComponent);
+                }
+                catch (ComponentNotFoundException e) {
+                    JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
+                            compId.toString(), Integer.toString(version));
+                    joError.put("uuid", compId.toString());
+                    joError.put("version", version);
+                    jaErrors.put(joError);
+                    continue;
                 }
                 catch (BackendStoreException e) {
                     JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
                     joError.put("uuid", compId.toString());
                     joError.put("version", version);
                     jaErrors.put(joError);
+                    continue;
                 }
             }
         }

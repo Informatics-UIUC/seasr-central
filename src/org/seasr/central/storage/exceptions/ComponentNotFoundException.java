@@ -38,47 +38,29 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
  */
 
-package org.seasr.central.util;
+package org.seasr.central.storage.exceptions;
 
 import java.util.UUID;
 
 /**
+ * Exception class used to indicate a component-not-found error
+ *
  * @author Boris Capitanu
  */
-public class IdVersionPair {
-    private final UUID id;
-    private final int version;
+public class ComponentNotFoundException extends Exception {
+    private final UUID _componentId;
+    private final int _version;
 
-    public IdVersionPair(UUID id, int version) {
-        this.id = id;
-        this.version = version;
+    public ComponentNotFoundException(UUID componentId, int version) {
+        _componentId = componentId;
+        _version = version;
     }
 
-    public UUID getId() {
-        return id;
+    public UUID getComponentId() {
+        return _componentId;
     }
 
     public int getVersion() {
-        return version;
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 1;
-        hash = hash * 31 + id.hashCode();
-        hash = hash * 31 + version;
-
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-
-        if (!(obj instanceof IdVersionPair))
-            return false;
-
-        IdVersionPair other = (IdVersionPair)obj;
-        return id.equals(other.id) && version == other.version;
+        return _version;
     }
 }

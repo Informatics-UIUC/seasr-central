@@ -57,9 +57,7 @@ import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.SCEvent;
 import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.db.properties.DBProperties;
-import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.storage.exceptions.InactiveUserException;
-import org.seasr.central.storage.exceptions.UnknownComponentsException;
+import org.seasr.central.storage.exceptions.*;
 import org.seasr.central.util.SCLogFormatter;
 import org.seasr.central.ws.restlets.ComponentContext;
 import org.seasr.meandre.support.generic.crypto.Crypto;
@@ -373,7 +371,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void removeUser(UUID userId) throws BackendStoreException {
+    public void removeUser(UUID userId) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_REMOVE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -382,6 +380,9 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
 
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(uid));
@@ -403,16 +404,21 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void updateUserPassword(UUID userId, String password) throws BackendStoreException {
+    public void updateUserPassword(UUID userId, String password) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PASSWORD).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, computePasswordDigest(password));
-            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(2, new BigDecimal(uid));
             ps.executeUpdate();
             ps.close();
         }
@@ -426,7 +432,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void updateUserProfile(UUID userId, JSONObject profile) throws BackendStoreException {
+    public void updateUserProfile(UUID userId, JSONObject profile) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_UPDATE_PROFILE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -435,6 +441,10 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setString(1, profile.toString());
             ps.setBigDecimal(2, new BigDecimal(uid));
@@ -456,7 +466,9 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public UUID getUserId(String userName) throws BackendStoreException {
+    public UUID getUserId(String userName) throws UserNotFoundException, BackendStoreException {
+        if (userName == null) return null;
+
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_UUID).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -467,7 +479,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setString(1, userName);
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger()) : null;
+            if (rs.next())
+                return UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger());
+            else
+                throw new UserNotFoundException(userName);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -479,7 +494,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public String getUserScreenName(UUID userId) throws BackendStoreException {
+    public String getUserScreenName(UUID userId) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_SCREENNAME).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -490,7 +505,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? rs.getString(1) : null;
+            if (rs.next())
+                return rs.getString(1);
+            else
+                throw new UserNotFoundException(userId);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -502,7 +520,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONObject getUserProfile(UUID userId) throws BackendStoreException {
+    public JSONObject getUserProfile(UUID userId) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_PROFILE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -513,7 +531,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? new JSONObject(rs.getString(1)) : null;
+            if (rs.next())
+                return new JSONObject(rs.getString(1));
+            else
+                throw new UserNotFoundException(userId);
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
@@ -525,7 +546,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Date getUserCreationTime(UUID userId) throws BackendStoreException {
+    public Date getUserCreationTime(UUID userId) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_GET_CREATEDAT).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -536,7 +557,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
             ResultSet rs = ps.executeQuery();
 
-            return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
+            if (rs.next())
+                return SQL_DATE_PARSER.parse(rs.getString(1));
+            else
+                throw new UserNotFoundException(userId);
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
@@ -548,15 +572,20 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException {
+    public boolean isUserPasswordValid(UUID userId, String password) throws UserNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_USER_PASSWORDVALID).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setString(2, computePasswordDigest(password));
             ResultSet rs = ps.executeQuery();
 
@@ -628,7 +657,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException {
+    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws UserNotFoundException, BackendStoreException {
         Connection conn = null;
         PreparedStatement ps = null;
         UUID groupId = UUID.randomUUID();
@@ -638,6 +667,9 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
 
             // Insert the group into the sc_group table
             ps = conn.prepareStatement(properties.getProperty(DBProperties.Q_GROUP_ADD).trim());
@@ -705,7 +737,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public UUID getGroupId(String groupName) throws BackendStoreException {
+    public UUID getGroupId(String groupName) throws GroupNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_UUID).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -716,7 +748,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setString(1, groupName);
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger()) : null;
+            if (rs.next())
+                return UUIDUtils.fromBigInteger(rs.getBigDecimal(1).toBigInteger());
+            else
+                throw new GroupNotFoundException(groupName);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -728,7 +763,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public String getGroupName(UUID groupId) throws BackendStoreException {
+    public String getGroupName(UUID groupId) throws GroupNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_NAME).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -739,7 +774,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? rs.getString(1) : null;
+            if (rs.next())
+                return rs.getString(1);
+            else
+                throw new GroupNotFoundException(groupId);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -751,7 +789,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException {
+    public JSONObject getGroupProfile(UUID groupId) throws GroupNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_PROFILE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -762,7 +800,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             ResultSet rs = ps.executeQuery();
 
-            return rs.next() ? new JSONObject(rs.getString(1)) : null;
+            if (rs.next())
+                return new JSONObject(rs.getString(1));
+            else
+                throw new GroupNotFoundException(groupId);
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
@@ -774,7 +815,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Date getGroupCreationTime(UUID groupId) throws BackendStoreException {
+    public Date getGroupCreationTime(UUID groupId) throws GroupNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_CREATEDAT).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -785,7 +826,10 @@ public class SQLLink implements BackendStoreLink {
             ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             ResultSet rs = ps.executeQuery();
 
-            return (rs.next()) ? SQL_DATE_PARSER.parse(rs.getString(1)) : null;
+            if (rs.next())
+                return SQL_DATE_PARSER.parse(rs.getString(1));
+            else
+                throw new GroupNotFoundException(groupId);
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);
@@ -797,16 +841,27 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException {
+    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role)
+            throws UserNotFoundException, GroupNotFoundException, BackendStoreException {
+
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_IS_USERINROLE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setBigDecimal(2, new BigDecimal(gid));
             ps.setInt(3, role.getRoleId());
             ResultSet rs = ps.executeQuery();
 
@@ -822,16 +877,26 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException {
+    public void addPendingGroupMember(UUID userId, UUID groupId)
+            throws UserNotFoundException, GroupNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_PENDING_ADD).trim();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger uid = UUIDUtils.toBigInteger(userId);
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(userId)));
-            ps.setBigDecimal(2, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setBigDecimal(2, new BigDecimal(gid));
             ps.executeUpdate();
         }
         catch (SQLException e) {
@@ -844,16 +909,23 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException {
+    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count)
+            throws GroupNotFoundException, BackendStoreException {
+
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_PENDING_LIST).trim();
         JSONArray jaUsers = new JSONArray();
         Connection conn = null;
         PreparedStatement ps = null;
+        BigInteger gid = UUIDUtils.toBigInteger(groupId);
 
         try {
             conn = dataSource.getConnection();
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
+
             ps = conn.prepareStatement(sqlQuery);
-            ps.setBigDecimal(1, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
+            ps.setBigDecimal(1, new BigDecimal(gid));
             ps.setLong(2, offset);
             ps.setLong(3, count);
             ResultSet rs = ps.executeQuery();
@@ -877,7 +949,9 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException {
+    public void addGroupMember(UUID userId, UUID groupId, String roleName)
+            throws UserNotFoundException, GroupNotFoundException, BackendStoreException {
+        
         String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_MEMBERS_ADD).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -887,6 +961,12 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+
+            if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
+                throw new UserNotFoundException(userId);
+
+            if (!Boolean.TRUE.equals(isGroupActive(gid, conn)))
+                throw new GroupNotFoundException(groupId);
 
             // Delete the user from the pending members list for this group (if exists)
             deletePendingMember(gid, uid, conn);
@@ -1100,7 +1180,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
-            throws BackendStoreException {
+            throws UserNotFoundException, BackendStoreException {
 
         JSONObject joResult = new JSONObject();
         BigInteger uid = UUIDUtils.toBigInteger(userId);
@@ -1111,7 +1191,7 @@ public class SQLLink implements BackendStoreLink {
             conn.setAutoCommit(false);
 
             if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
-                throw new InactiveUserException(userId);
+                throw new UserNotFoundException(userId);
 
             SortedMap<BigInteger, ContextFile> contextHashes = retrieveContextsAndComputeHashes(contexts);
             BigInteger coreHash = new BigInteger(getComponentCoreHash(component, (SortedSet)contextHashes.keySet()));
@@ -1214,7 +1294,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public Model getComponent(UUID componentId, int version) throws BackendStoreException {
+    public Model getComponent(UUID componentId, int version) throws ComponentNotFoundException, BackendStoreException {
         Connection conn = null;
 
         BigInteger compId = UUIDUtils.toBigInteger(componentId);
@@ -1222,10 +1302,10 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             Long versionId = getComponentVersionId(compId, version, conn);
-            if (versionId == null) return null;
+            if (versionId == null) throw new ComponentNotFoundException(componentId, version);
 
             InputStream is = getComponentDescriptor(compId, versionId, conn);
-            if (is == null) return null;
+            if (is == null) throw new ComponentNotFoundException(componentId, version);
 
             return ModelUtils.getModel(is, null);
         }
@@ -1240,7 +1320,7 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public ComponentContext getComponentContext(UUID componentId, int version, String contextId)
-            throws BackendStoreException {
+            throws ComponentNotFoundException, ComponentContextNotFoundException, BackendStoreException {
 
         Connection conn = null;
         BigInteger compId = UUIDUtils.toBigInteger(componentId);
@@ -1248,10 +1328,15 @@ public class SQLLink implements BackendStoreLink {
         try {
             conn = dataSource.getConnection();
             Long versionId = getComponentVersionId(compId, version, conn);
-            if (versionId == null) return null;
+            if (versionId == null) throw new ComponentNotFoundException(componentId, version);
 
             BigInteger ctxHash = new BigInteger(Crypto.fromHexString(contextId));
-            return getComponentContext(compId, versionId, ctxHash, conn);
+            ComponentContext context = getComponentContext(compId, versionId, ctxHash, conn);
+
+            if (context != null)
+                return context;
+            else
+                throw new ComponentContextNotFoundException(componentId, version, contextId);
         }
         catch (SQLException e) {
             logger.log(Level.SEVERE, null, e);
@@ -1281,7 +1366,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public UUID getComponentOwner(UUID componentId, int version) throws BackendStoreException {
+    public UUID getComponentOwner(UUID componentId, int version) throws ComponentNotFoundException, BackendStoreException {
         String sqlQuery = properties.getProperty(DBProperties.Q_COMP_GET_OWNER).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -1290,9 +1375,13 @@ public class SQLLink implements BackendStoreLink {
 
         try {
             conn = dataSource.getConnection();
+
+            Long compVerId = getComponentVersionId(compId, version, conn);
+            if (compVerId == null) throw new ComponentNotFoundException(componentId, version);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(compId));
-            ps.setTimestamp(2, new Timestamp(getComponentVersionId(compId, version, conn)));
+            ps.setTimestamp(2, new Timestamp(compVerId));
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? UUIDUtils.fromBigInteger(rs.getBigDecimal("user_uuid").toBigInteger()) : null;
@@ -1321,7 +1410,9 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException {
+    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId)
+            throws ComponentNotFoundException, BackendStoreException {
+
         String sqlQuery = properties.getProperty(DBProperties.Q_COMP_SHARE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
@@ -1332,9 +1423,12 @@ public class SQLLink implements BackendStoreLink {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
 
+            Long compVerId = getComponentVersionId(compId, version, conn);
+            if (compVerId == null) throw new ComponentNotFoundException(componentId, version);
+
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(compId));
-            ps.setTimestamp(2, new Timestamp(getComponentVersionId(compId, version, conn)));
+            ps.setTimestamp(2, new Timestamp(compVerId));
             ps.setBigDecimal(3, new BigDecimal(UUIDUtils.toBigInteger(groupId)));
             ps.executeUpdate();
 
@@ -1486,7 +1580,7 @@ public class SQLLink implements BackendStoreLink {
     }
 
     @Override
-    public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStoreException {
+    public JSONObject addFlow(UUID userId, FlowDescription flow) throws UserNotFoundException, BackendStoreException {
         JSONObject joResult = new JSONObject();
         BigInteger uid = UUIDUtils.toBigInteger(userId);
         Connection conn = null;
@@ -1496,7 +1590,7 @@ public class SQLLink implements BackendStoreLink {
             conn.setAutoCommit(false);
 
             if (!Boolean.TRUE.equals(isUserActive(uid, conn)))
-                throw new InactiveUserException(userId);
+                throw new UserNotFoundException(userId);
 
             // Check whether this flow contains any unknown components
             // and also build the list of components used in the flow
@@ -2015,8 +2109,8 @@ public class SQLLink implements BackendStoreLink {
      * Checks whether a user is active (i.e. user exists and is not deleted) or not
      *
      * @param userId The user id
-     * @param conn The DB transaction connection to use
-     * @return Tue if user exists and is not deleted, False if user exists and is marked as deleted, null if user does not exist
+     * @param conn The DB connection to use
+     * @return True if user exists and is not deleted, False if user exists and is marked as deleted, null if user does not exist
      * @throws SQLException Thrown if an error occurred while communicating with the SQL server
      */
     protected Boolean isUserActive(BigInteger userId, Connection conn) throws SQLException {
@@ -2026,6 +2120,30 @@ public class SQLLink implements BackendStoreLink {
         try {
             ps = conn.prepareStatement(sqlQuery);
             ps.setBigDecimal(1, new BigDecimal(userId));
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next() ? !rs.getBoolean(1) : null;
+        }
+        finally {
+            closeStatement(ps);
+        }
+    }
+
+    /**
+     * Checks whether a group is active (i.e. group exists and is not deleted) or not
+     *
+     * @param groupId The group id
+     * @param conn The DB connection to use
+     * @return True if group exists and is not deleted, False if group exists and is marked as deleted, null if group does not exist
+     * @throws SQLException Thrown if an error occurred while communicating with the SQL server
+     */
+    protected Boolean isGroupActive(BigInteger groupId, Connection conn) throws SQLException {
+        String sqlQuery = properties.getProperty(DBProperties.Q_GROUP_GET_DELETED).trim();
+        PreparedStatement ps = null;
+
+        try {
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setBigDecimal(1, new BigDecimal(groupId));
             ResultSet rs = ps.executeQuery();
 
             return rs.next() ? !rs.getBoolean(1) : null;

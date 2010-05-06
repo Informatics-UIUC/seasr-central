@@ -100,6 +100,7 @@ public abstract class DBProperties {
     public static final String Q_GROUP_GET_NAME = "org.seasr.central.storage.db.query.group.get.name";
     public static final String Q_GROUP_GET_PROFILE = "org.seasr.central.storage.db.query.group.get.profile";
     public static final String Q_GROUP_GET_CREATEDAT = "org.seasr.central.storage.db.query.group.get.createdat";
+    public static final String Q_GROUP_GET_DELETED = "org.seasr.central.storage.db.query.group.get.deleted";
     public static final String Q_GROUP_IS_USERINROLE = "org.seasr.central.storage.db.query.group.is.userinrole";
 
     public static final String Q_GROUP_PENDING_ADD = "org.seasr.central.storage.db.query.group.pending.add";

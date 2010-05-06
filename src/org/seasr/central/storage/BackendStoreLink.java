@@ -45,7 +45,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.meandre.core.repository.ExecutableComponentDescription;
 import org.meandre.core.repository.FlowDescription;
-import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.*;
 import org.seasr.central.ws.restlets.ComponentContext;
 
 import java.net.URL;
@@ -96,7 +96,7 @@ public interface BackendStoreLink {
      * @param userId The user id
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public void removeUser(UUID userId) throws BackendStoreException;
+    public void removeUser(UUID userId) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Updates a user's password
@@ -105,7 +105,7 @@ public interface BackendStoreLink {
      * @param password The new password
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public void updateUserPassword(UUID userId, String password) throws BackendStoreException;
+    public void updateUserPassword(UUID userId, String password) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Updates a user's profile
@@ -114,7 +114,7 @@ public interface BackendStoreLink {
      * @param profile The new profile
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public void updateUserProfile(UUID userId, JSONObject profile) throws BackendStoreException;
+    public void updateUserProfile(UUID userId, JSONObject profile) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Returns the id of a user given the screen name
@@ -123,7 +123,7 @@ public interface BackendStoreLink {
      * @return The user id or null if the user does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public UUID getUserId(String userName) throws BackendStoreException;
+    public UUID getUserId(String userName) throws UserNotFoundException, BackendStoreException;
 
     /**
      * Returns the screen name of a user given the user id
@@ -132,7 +132,7 @@ public interface BackendStoreLink {
      * @return The screen name of the user or null if the user does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public String getUserScreenName(UUID userId) throws BackendStoreException;
+    public String getUserScreenName(UUID userId) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Returns the profile of a user given the user id
@@ -141,7 +141,7 @@ public interface BackendStoreLink {
      * @return The profile of the user or null if the user does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public JSONObject getUserProfile(UUID userId) throws BackendStoreException;
+    public JSONObject getUserProfile(UUID userId) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Returns the creation time of a user given the user id
@@ -150,7 +150,7 @@ public interface BackendStoreLink {
      * @return The creation time of the user or null if the user does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Date getUserCreationTime(UUID userId) throws BackendStoreException;
+    public Date getUserCreationTime(UUID userId) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Checks if a user's password is valid based on the user id
@@ -160,7 +160,7 @@ public interface BackendStoreLink {
      * @return True if the password matches, False otherwise (also returned for nonexistent or deleted user)
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException;
+    public boolean isUserPasswordValid(UUID userId, String password) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Returns the number of users
@@ -181,16 +181,16 @@ public interface BackendStoreLink {
     public JSONArray listUsers(long offset, long count) throws BackendStoreException;
 
 
-    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException;
+    public UUID createGroup(UUID userId, String groupName, JSONObject profile) throws BackendStoreException, UserNotFoundException;
     public JSONArray listGroups(long offset, long count) throws BackendStoreException;
-    public UUID getGroupId(String groupName) throws BackendStoreException;
-    public String getGroupName(UUID groupId) throws BackendStoreException;
-    public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException;
-    public Date getGroupCreationTime(UUID groupId) throws BackendStoreException;
-    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException;
-    public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
-    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
-    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException;
+    public UUID getGroupId(String groupName) throws BackendStoreException, GroupNotFoundException;
+    public String getGroupName(UUID groupId) throws GroupNotFoundException, BackendStoreException;
+    public JSONObject getGroupProfile(UUID groupId) throws BackendStoreException, GroupNotFoundException;
+    public Date getGroupCreationTime(UUID groupId) throws BackendStoreException, GroupNotFoundException;
+    public boolean isUserInGroupRole(UUID userId, UUID groupId, SCRole role) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
+    public void addPendingGroupMember(UUID userId, UUID groupId) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
+    public JSONArray listPendingGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException, GroupNotFoundException;
+    public void addGroupMember(UUID userId, UUID groupId, String roleName) throws BackendStoreException, UserNotFoundException, GroupNotFoundException;
     public boolean isGroupMember(UUID userId, UUID groupId) throws BackendStoreException;
     public JSONArray listGroupMembers(UUID groupId, long offset, long count) throws BackendStoreException;
     public JSONArray listUserGroups(UUID userId, long offset, long count) throws BackendStoreException;
@@ -209,7 +209,7 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public JSONObject addComponent(UUID userId, ExecutableComponentDescription component, Map<URL, String> contexts)
-            throws BackendStoreException;
+            throws UserNotFoundException, BackendStoreException;
 
     /**
      * Retrieves a component given the component id and version
@@ -219,7 +219,7 @@ public interface BackendStoreLink {
      * @return The component descriptor, or null if the component does not exist
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public Model getComponent(UUID componentId, int version) throws BackendStoreException;
+    public Model getComponent(UUID componentId, int version) throws ComponentNotFoundException, BackendStoreException;
 
     /**
      * Retrieves a component context for a particular component version
@@ -231,7 +231,7 @@ public interface BackendStoreLink {
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
     public ComponentContext getComponentContext(UUID componentId, int version, String contextId)
-            throws BackendStoreException;
+            throws BackendStoreException, ComponentNotFoundException, ComponentContextNotFoundException;
 
     /**
      * Checks whether a component context exists in the backend store
@@ -242,7 +242,7 @@ public interface BackendStoreLink {
      */
     public boolean hasComponentContext(String contextId) throws BackendStoreException;
 
-    public UUID getComponentOwner(UUID componentId, int version) throws BackendStoreException;
+    public UUID getComponentOwner(UUID componentId, int version) throws BackendStoreException, ComponentNotFoundException;
 
     /**
      * Returns the version count for a component
@@ -253,16 +253,46 @@ public interface BackendStoreLink {
      */
     public Integer getComponentVersionCount(UUID componentId) throws BackendStoreException;
 
-    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException;
+    public void shareComponent(UUID componentId, int version, UUID groupId, UUID remoteUserId) throws BackendStoreException, ComponentNotFoundException;
 
     public JSONArray listUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     public JSONArray listPublicUserComponents(UUID userId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
+    /**
+     * Retrieves the list of components owned by a user that can be accessed by a remote user
+     *
+     * Depending on who the remote user is, there are three situations:
+     *   1. Remote user is nobody (i.e. unauthenticated request)
+     *        In this case the method returns all components owned by the specified user that are PUBLIC
+     *   2. Remote user is authenticated, but different than the user being queried
+     *        In this case the method returns all components owned by the specified user that can be accessed by
+     *        the remote user (i.e. components shared with a group to which the remote user belongs, or PUBLIC components)
+     *   3. Remote user is authenticated and the same as the user being queried (i.e. querying one's own components)
+     *        In this case the method returns all the components the user owns (public, shared, and private)
+     *
+     * @param userId The user id of the user whose components should be retrieved
+     * @param remoteUserId The id of the remote "authenticated" user, or null if non-authenticated request
+     * @param offset Offset into the list to start from
+     * @param count The number of components to retrieve
+     * @param includeOldVersions True to include old versions of components, False to only return latest versions
+     * @return The list of components owned by the specified user that can be accessed by the remote user
+     * @throws BackendStoreException
+     */
     public JSONArray listAccessibleUserComponentsAsUser(UUID userId, UUID remoteUserId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     public JSONArray listPublicComponents(long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
+    /**
+     * Retrieves the list of components that have been shared with a specific group
+     *
+     * @param groupId The group id
+     * @param offset Offset into the list to start from
+     * @param count The number of groups to retrieve
+     * @param includeOldVersions True to include old versions of components, False to only return latest versions
+     * @return A JSON array of components that have been shared with the specified group
+     * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
+     */
     public JSONArray listGroupComponents(UUID groupId, long offset, long count, boolean includeOldVersions) throws BackendStoreException;
 
     /**
@@ -273,7 +303,7 @@ public interface BackendStoreLink {
      * @return A JSON object keyed on uuid and version containing information about the flow
      * @throws BackendStoreException Thrown if an error occurred while communicating with the backend
      */
-    public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStoreException;
+    public JSONObject addFlow(UUID userId, FlowDescription flow) throws BackendStoreException, UserNotFoundException;
 
     /**
      * Retrieves a flow given the flow id and version

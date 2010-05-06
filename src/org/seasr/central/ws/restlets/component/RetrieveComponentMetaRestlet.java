@@ -48,6 +48,9 @@ import org.json.JSONObject;
 import org.meandre.core.repository.*;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.ComponentNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -94,14 +97,14 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
         // Check for GET
         if (!method.equalsIgnoreCase("GET")) return false;
 
-        JSONArray jaSuccess = new JSONArray();
-        JSONArray jaErrors = new JSONArray();
-
         ContentType ct = getDesiredResponseContentType(request);
         if (ct == null) {
             sendErrorNotAcceptable(response);
             return true;
         }
+
+        JSONArray jaSuccess = new JSONArray();
+        JSONArray jaErrors = new JSONArray();
 
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
@@ -110,46 +113,46 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID componentId;
-        int version;
-
         try {
-            componentId = UUID.fromString(values[0]);
-            version = Integer.parseInt(values[1]);
-            if (version < 1)
-                throw new IllegalArgumentException("The version number cannot be less than 1");
+            UUID componentId;
+            int version;
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (IllegalArgumentException e) {
-            logger.log(Level.WARNING, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        // TODO: check for permissions to access the component
-
-        try {
             try {
-                // Attempt to retrieve the component from the backend store
-                Model compModel = bsl.getComponent(componentId, version);
+                componentId = UUID.fromString(values[0]);
+                version = Integer.parseInt(values[1]);
+                if (version < 1)
+                    throw new IllegalArgumentException("The version number cannot be less than 1");
+            }
+            catch (IllegalArgumentException e) {
+                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-                if (compModel == null) {
-                    JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
-                            componentId.toString(), Integer.toString(version));
+            try {
+                try {
+                    remoteUserId = bsl.getUserId(remoteUser);
+                }
+                catch (UserNotFoundException e) {
+                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+                    sendResponse(jaSuccess, jaErrors, ct, response);
+                    return true;
+                }
+
+                // Check permissions
+                if (!SCSecurity.canAccessComponent(componentId, version, remoteUserId, bsl, request)) {
+                    JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
                     joError.put("uuid", componentId.toString());
                     joError.put("version", version);
                     jaErrors.put(joError);
                     sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }
+
+                // Attempt to retrieve the component from the backend store
+                Model compModel = bsl.getComponent(componentId, version);
 
                 QueryableRepository qr = new RepositoryImpl(compModel);
                 ExecutableComponentDescription ecd = qr.getAvailableExecutableComponentDescriptions().iterator().next();
@@ -205,6 +208,14 @@ public class RetrieveComponentMetaRestlet extends AbstractBaseRestlet {
                 joComponentMeta.put("properties", jaProperties);
 
                 jaSuccess.put(joComponentMeta);
+            }
+            catch (ComponentNotFoundException e) {
+                JSONObject joError = SCError.createErrorObj(SCError.COMPONENT_NOT_FOUND, bsl,
+                        e.getComponentId().toString(), Integer.toString(e.getVersion()));
+                joError.put("uuid", e.getComponentId().toString());
+                joError.put("version", e.getVersion());
+                jaErrors.put(joError);
+                sendResponse(jaSuccess, jaErrors, ct, response);
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
