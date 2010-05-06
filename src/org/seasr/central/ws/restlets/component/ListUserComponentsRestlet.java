@@ -108,29 +108,29 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
+        long offset = 0;
+        long count = Long.MAX_VALUE;
+
+        String sOffset = request.getParameter("offset");
+        String sCount = request.getParameter("count");
+
+        try {
+            if (sOffset != null) offset = Long.parseLong(sOffset);
+            if (sCount != null) count = Long.parseLong(sCount);
+        }
+        catch (NumberFormatException e) {
+            logger.log(Level.WARNING, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
             UUID userId = UUID.fromString(userProps.getProperty("uuid"));
             String screenName = userProps.getProperty("screen_name");
 
             remoteUserId = bsl.getUserId(remoteUser);
-
-            long offset = 0;
-            long count = Long.MAX_VALUE;
-
-            String sOffset = request.getParameter("offset");
-            String sCount = request.getParameter("count");
-
-            try {
-                if (sOffset != null) offset = Long.parseLong(sOffset);
-                if (sCount != null) count = Long.parseLong(sCount);
-            }
-            catch (NumberFormatException e) {
-                logger.log(Level.WARNING, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
 
             boolean includeOldVersions = false;
             if (request.getParameterMap().containsKey("includeOldVersions"))

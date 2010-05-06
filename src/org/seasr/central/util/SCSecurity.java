@@ -191,4 +191,52 @@ public abstract class SCSecurity {
 
         return false;
     }
+
+    public static boolean canAddGroupMember(UUID groupId, UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user is a member of the group having ADMIN role in that group
+        if (bsl.isUserInGroupRole(remoteUserId, groupId, SCRole.ADMIN))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canAddPendingGroupMember(UUID groupId, UUID userId, UUID remoteUserId,
+                                                   BackendStoreLink bsl, HttpServletRequest request)
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user is the same as the user being added to the pending group members list
+        if (userId.equals(remoteUserId))
+            return true;
+
+        // Allowed if the remote user is a member of the group having ADMIN role in that group
+        if (bsl.isUserInGroupRole(remoteUserId, groupId, SCRole.ADMIN))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canCreateGroup(UUID userId, UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user is the same as the user who will be the new owner of the group
+        if (userId.equals(remoteUserId))
+            return true;
+
+        return false;
+    }
+
 }

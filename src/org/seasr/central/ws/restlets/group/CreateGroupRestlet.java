@@ -45,9 +45,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Validator;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
+import org.seasr.central.util.SCValidator;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -100,6 +102,13 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
@@ -113,53 +122,27 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        UUID remoteUserId;
-        String remoteUser = request.getRemoteUser();
-
-        //TODO: for test purposes
-        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
-            remoteUser = request.getParameter("remoteUser");
-
-        UUID userId;
-        @SuppressWarnings("unused")
-        String screenName = null;
-
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
+
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            // Check permissions
+            if (!SCSecurity.canCreateGroup(userId, remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
+            UUID groupId;
 
-        // Check permissions
-        if (!(request.isUserInRole(SCRole.ADMIN.name()) || userId.equals(remoteUserId))) {
-            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        UUID groupId;
-
-        try {
             for (int i = 0, iMax = groupNames.length; i < iMax; i++) {
                 String groupName = groupNames[i];
 
                 // Check for valid group name
-                if (!Validator.isValidGroupName(groupName)) {
+                if (!SCValidator.isValidGroupName(groupName)) {
                     JSONObject joError = SCError.createErrorObj(SCError.INVALID_GROUP_NAME, bsl, groupName);
                     joError.put("name", groupName);
                     jaErrors.put(joError);
@@ -168,15 +151,18 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
 
                 try {
                     // Check if another group with the same name exists
-                    groupId = bsl.getGroupId(groupName);
-                    if (groupId != null) {
+                    try {
+                        groupId = bsl.getGroupId(groupName);
+
                         JSONObject joError = SCError.createErrorObj(SCError.GROUP_NAME_EXISTS, bsl, groupName);
                         joError.put("uuid", groupId);
                         joError.put("created_at", bsl.getGroupCreationTime(groupId));
                         joError.put("profile", bsl.getGroupProfile(groupId));
-
                         jaErrors.put(joError);
                         continue;
+                    }
+                    catch (GroupNotFoundException e) {
+                        // This is ok - it means there's no collision with other groups
                     }
 
                     JSONObject joProfile;
@@ -202,6 +188,13 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
 
                     jaSuccess.put(joGroup);
                 }
+                catch (GroupNotFoundException e) {
+                    // Should never happen
+                    JSONObject joError = SCError.createErrorObj(SCError.GROUP_NOT_FOUND, e, bsl);
+                    joError.put("name", groupName);
+                    jaErrors.put(joError);
+                    continue;
+                }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);
 
@@ -211,6 +204,22 @@ public class CreateGroupRestlet extends AbstractBaseRestlet {
                     continue;
                 }
             }
+        }
+        catch (UserNotFoundException e) {
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (JSONException e) {
             // Should not happen

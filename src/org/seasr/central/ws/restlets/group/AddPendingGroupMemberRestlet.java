@@ -45,8 +45,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -109,72 +111,77 @@ public class AddPendingGroupMemberRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
+        String[] users = request.getParameterValues("user");
+
+        // Check for proper request format
+        if (users == null || users.length == 0) {
+            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
 
         try {
             Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            for (String user : users) {
+                try {
+                    Properties userProps = getUserScreenNameAndId(user);
+                    UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+
+                    // Check permissions
+                    if (!SCSecurity.canAddPendingGroupMember(groupId, userId, remoteUserId, bsl, request)) {
+                        jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                        sendResponse(jaSuccess, jaErrors, ct, response);
+                        return true;
+                    }
+
+                    bsl.addPendingGroupMember(userId, groupId);
+
+                    JSONObject jo = new JSONObject();
+                    jo.put("uuid", userProps.getProperty("uuid"));
+                    jaSuccess.put(jo);
+                }
+                catch (UserNotFoundException e) {
+                    // If the user generating the "not found" error is the remote user, handle in outside catch block
+                    if (remoteUserId != null && remoteUserId.equals(e.getUserId()))
+                        throw e;
+
+                    JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, user);
+                    joError.put("uuid", groupId.toString());
+                    joError.put("user", user);
+                    jaErrors.put(joError);
+                    continue;
+                }
+                catch (BackendStoreException e) {
+                    logger.log(Level.SEVERE, null, e);
+                    JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                    joError.put("user", user);
+                    jaErrors.put(joError);
+                    continue;
+                }
+            }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (UserNotFoundException e) {
+            // Authenticated remote user no longer exists
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
-        }
-
-        String[] users = request.getParameterValues("user");
-
-        // Check for proper request format
-        if (users == null) {
-            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        boolean remoteUserIsAdmin = request.isUserInRole(SCRole.ADMIN.name());
-
-        try {
-            try {
-                for (String user : users) {
-                    Properties userProps = getUserScreenNameAndId(user);
-                    if (userProps != null) {
-                        UUID userId = UUID.fromString(userProps.getProperty("uuid"));
-
-                        // Check permissions
-                        if (!(remoteUserIsAdmin || (users.length == 1 && userId.equals(remoteUserId)))) {
-                            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
-                            sendResponse(jaSuccess, jaErrors, ct, response);
-                            return true;
-                        }
-
-                        bsl.addPendingGroupMember(userId, groupId);
-
-                        JSONObject jo = new JSONObject();
-                        jo.put("uuid", userProps.getProperty("uuid"));
-                        jaSuccess.put(jo);
-                    } else {
-                        // User unknown
-                        JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, user);
-                        joError.put("user", user);
-                        jaErrors.put(joError);
-                    }
-                }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            }
         }
         catch (JSONException e) {
             // Should not happen

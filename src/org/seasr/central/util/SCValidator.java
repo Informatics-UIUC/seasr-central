@@ -46,7 +46,7 @@ package org.seasr.central.util;
  * @author Boris Capitanu
  */
 
-public abstract class Validator {
+public abstract class SCValidator {
 
     public static boolean isValidScreenName(String screenName) {
         return screenName.trim().length() > 0;

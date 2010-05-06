@@ -47,6 +47,9 @@ import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -109,30 +112,6 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
-
-        try {
-            Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
-
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
         String[] users = request.getParameterValues("user");
         String[] roles = request.getParameterValues("role");
 
@@ -144,54 +123,83 @@ public class AddGroupMemberRestlet extends AbstractBaseRestlet {
         }
 
         try {
+            Properties groupProps = getGroupNameAndId(values[0]);
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
+
             try {
+                remoteUserId = bsl.getUserId(remoteUser);
+
                 // Check permissions
-                if (!(request.isUserInRole(SCRole.ADMIN.name()) ||
-                        bsl.isUserInGroupRole(remoteUserId, groupId, SCRole.ADMIN))) {
+                if (!SCSecurity.canAddGroupMember(groupId, remoteUserId, bsl, request)) {
                     jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
                     sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-                for (int i = 0, iMax = users.length; i < iMax; i++) {
-                    String user = users[i];
-                    String role = roles[i];
+            for (int i = 0, iMax = users.length; i < iMax; i++) {
+                String sUser = users[i];
+                String sRole = roles[i].toUpperCase();
 
-                    // Try to obtain the user id
-                    Properties userProps = getUserScreenNameAndId(user);
-                    if (userProps != null) {
-                        UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+                try {
+                    // Try to obtain the user id and role
+                    Properties userProps = getUserScreenNameAndId(sUser);
+                    UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+                    SCRole role = SCRole.valueOf(sRole);
 
-                        // Check whether the role exists
-                        if (bsl.hasRole(role)) {
-                            bsl.addGroupMember(userId, groupId, role);
+                    bsl.addGroupMember(userId, groupId, role);
 
-                            JSONObject jo = new JSONObject();
-                            jo.put("uuid", userProps.getProperty("uuid"));
-                            jo.put("role", role);
-                            jaSuccess.put(jo);
-                        } else {
-                            // Role unknown
-                            JSONObject joError = SCError.createErrorObj(SCError.UNKNOWN_ROLE, bsl, role);
-                            joError.put("role", role);
-                            jaErrors.put(joError);
-                        }
-                    } else {
-                        // User unknown
-                        JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, user);
-                        joError.put("user", user);
-                        jaErrors.put(joError);
-                    }
+                    JSONObject jo = new JSONObject();
+                    jo.put("uuid", userProps.getProperty("uuid"));
+                    jo.put("role", sRole);
+                    jaSuccess.put(jo);
+                }
+                catch (UserNotFoundException e) {
+                    JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, sUser);
+                    joError.put("uuid", groupId.toString());
+                    joError.put("user", sUser);
+                    joError.put("role", sRole);
+                    jaErrors.put(joError);
+                    continue;
+                }
+                catch (IllegalArgumentException e) {
+                    // Role unknown
+                    JSONObject joError = SCError.createErrorObj(SCError.UNKNOWN_ROLE, bsl, sRole);
+                    joError.put("uuid", groupId.toString());
+                    joError.put("user", sUser);
+                    joError.put("role", sRole);
+                    jaErrors.put(joError);
+                    continue;
+                }
+                catch (BackendStoreException e) {
+                    logger.log(Level.SEVERE, null, e);
+
+                    JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                    joError.put("uuid", groupId.toString());
+                    joError.put("user", sUser);
+                    joError.put("role", sRole);
+                    jaErrors.put(joError);
+                    continue;
                 }
             }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-
-                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
-                joError.put("uuid", groupId.toString());
-                joError.put("name", groupName);
-                jaErrors.put(joError);
-            }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (JSONException e) {
             // Should not happen

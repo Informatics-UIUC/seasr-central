@@ -46,6 +46,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -101,48 +102,31 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID groupId;
-        String groupName;
-
         try {
             Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                // Specified group does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
+
+            JSONObject joGroup = new JSONObject();
+            joGroup.put("uuid", groupId.toString());
+            joGroup.put("name", groupName);
+
+            
+            joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
+            joGroup.put("profile", bsl.getGroupProfile(groupId));
+
+            jaSuccess.put(joGroup);
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
-        }
-
-        try {
-            try {
-                JSONObject joGroup = new JSONObject();
-                joGroup.put("uuid", groupId.toString());
-                joGroup.put("name", groupName);
-                joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
-                joGroup.put("profile", bsl.getGroupProfile(groupId));
-
-                jaSuccess.put(joGroup);
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-
-                // Could not retrieve the group info
-                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
-                joError.put("uuid", groupId.toString());
-                joError.put("name", groupName);
-
-                jaErrors.put(joError);
-            }
         }
         catch (JSONException e) {
             logger.log(Level.SEVERE, null, e);

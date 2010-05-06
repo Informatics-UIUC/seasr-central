@@ -46,7 +46,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.util.Validator;
+import org.seasr.central.util.SCValidator;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -120,7 +120,7 @@ public class AddUserRestlet extends AbstractBaseRestlet {
                 String screenName = screenNames[i];
 
                 // Check for valid screen name
-                if (!Validator.isValidScreenName(screenName)) {
+                if (!SCValidator.isValidScreenName(screenName)) {
                     JSONObject joError = SCError.createErrorObj(SCError.INVALID_SCREEN_NAME, bsl, screenName);
                     joError.put("screen_name", screenName);
                     jaErrors.put(joError);

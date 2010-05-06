@@ -115,23 +115,23 @@ public class RetrieveFlowMetaRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
+        UUID flowId;
+        int version;
+
         try {
-            UUID flowId;
-            int version;
+            flowId = UUID.fromString(values[0]);
+            version = Integer.parseInt(values[1]);
+            if (version < 1)
+                throw new IllegalArgumentException("The version number cannot be less than 1");
+        }
+        catch (IllegalArgumentException e) {
+            logger.log(Level.WARNING, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
 
-            try {
-                flowId = UUID.fromString(values[0]);
-                version = Integer.parseInt(values[1]);
-                if (version < 1)
-                    throw new IllegalArgumentException("The version number cannot be less than 1");
-            }
-            catch (IllegalArgumentException e) {
-                logger.log(Level.WARNING, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
-
+        try {
             try {
                 try {
                     remoteUserId = bsl.getUserId(remoteUser);

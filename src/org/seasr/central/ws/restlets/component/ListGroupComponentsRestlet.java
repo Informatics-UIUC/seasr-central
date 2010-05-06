@@ -110,6 +110,23 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
+        long offset = 0;
+        long count = Long.MAX_VALUE;
+
+        String sOffset = request.getParameter("offset");
+        String sCount = request.getParameter("count");
+
+        try {
+            if (sOffset != null) offset = Long.parseLong(sOffset);
+            if (sCount != null) count = Long.parseLong(sCount);
+        }
+        catch (NumberFormatException e) {
+            logger.log(Level.WARNING, null, e);
+            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        
         try {
             Properties groupProps = getGroupNameAndId(values[0]);
             UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
@@ -128,23 +145,6 @@ public class ListGroupComponentsRestlet extends AbstractBaseRestlet {
             catch (UserNotFoundException e) {
                 logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
                 jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
-
-            long offset = 0;
-            long count = Long.MAX_VALUE;
-
-            String sOffset = request.getParameter("offset");
-            String sCount = request.getParameter("count");
-
-            try {
-                if (sOffset != null) offset = Long.parseLong(sOffset);
-                if (sCount != null) count = Long.parseLong(sCount);
-            }
-            catch (NumberFormatException e) {
-                logger.log(Level.WARNING, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }

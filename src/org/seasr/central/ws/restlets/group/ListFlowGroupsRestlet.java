@@ -46,6 +46,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.FlowNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -101,25 +103,12 @@ public class ListFlowGroupsRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID flowId = UUID.fromString(values[0]);
-        int flowVersion = Integer.parseInt(values[1]);
-
         UUID remoteUserId;
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
-
-        try {
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
 
         long offset = 0;
         long count = Long.MAX_VALUE;
@@ -139,19 +128,13 @@ public class ListFlowGroupsRestlet extends AbstractBaseRestlet {
         }
 
         try {
-            try {
-                JSONArray jaResult = bsl.listFlowGroupsAsUser(flowId, flowVersion, remoteUserId, offset, count);
+            UUID flowId = UUID.fromString(values[0]);
+            int flowVersion = Integer.parseInt(values[1]);
 
-                if (jaResult == null) {
-                    // No flow was found to match the flowId and version specified
-                    JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
-                            flowId.toString(), Integer.toString(flowVersion));
-                    joError.put("uuid", flowId.toString());
-                    joError.put("version", flowVersion);
-                    jaErrors.put(joError);
-                    sendResponse(jaSuccess, jaErrors, ct, response);
-                    return true;
-                }
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
+
+                JSONArray jaResult = bsl.listFlowGroupsAsUser(flowId, flowVersion, remoteUserId, offset, count);
 
                 for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
                     JSONObject joGroup = jaResult.getJSONObject(i);
@@ -160,12 +143,26 @@ public class ListFlowGroupsRestlet extends AbstractBaseRestlet {
                     jaSuccess.put(joResult);
                 }
             }
+            catch (FlowNotFoundException e) {
+                JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
+                        e.getFlowId().toString(), Integer.toString(e.getVersion()));
+                joError.put("uuid", e.getFlowId().toString());
+                joError.put("version", e.getVersion());
+                jaErrors.put(joError);
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
-                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
-                joError.put("uuid", flowId.toString());
-                joError.put("version", flowVersion);
-                jaErrors.put(joError);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
             }
         }
         catch (JSONException e) {

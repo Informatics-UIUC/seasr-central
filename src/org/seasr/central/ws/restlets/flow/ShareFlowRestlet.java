@@ -110,6 +110,16 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
+        String[] flowIds = request.getParameterValues("flow");
+        String[] flowVersions = request.getParameterValues("version");
+
+        // Check for proper request
+        if (!(flowIds != null && flowVersions != null && flowIds.length == flowVersions.length)) {
+            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+
         try {
             UUID groupId;
             String groupName;
@@ -124,16 +134,6 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);
                 jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
-
-            String[] flowIds = request.getParameterValues("flow");
-            String[] flowVersions = request.getParameterValues("version");
-
-            // Check for proper request
-            if (!(flowIds != null && flowVersions != null && flowIds.length == flowVersions.length)) {
-                jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
