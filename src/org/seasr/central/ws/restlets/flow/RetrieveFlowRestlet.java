@@ -42,6 +42,9 @@ package org.seasr.central.ws.restlets.flow;
 
 import com.google.gdata.util.ContentType;
 import com.hp.hpl.jena.rdf.model.Model;
+import org.seasr.central.storage.exceptions.FlowNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -105,16 +108,31 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
             return true;
         }
 
-        // TODO: Check permissions
+        UUID remoteUserId;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
-            // Attempt to retrieve the flow from the backend store
-            Model flowModel = bsl.getFlow(flowId, version);
+            try {
+                remoteUserId = bsl.getUserId(remoteUser);
 
-            if (flowModel == null) {
-                sendErrorNotFound(response);
+                // Check permissions
+                if (!SCSecurity.canAccessFlow(flowId, version, remoteUserId, bsl, request)) {
+                    sendErrorUnauthorized(response);
+                    return true;
+                }
+            }
+            catch (UserNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
                 return true;
             }
+
+            // Attempt to retrieve the flow from the backend store
+            Model flowModel = bsl.getFlow(flowId, version);
 
             // Rewrite the flow model to align the URIs
             rewriteFlowModel(flowModel, flowId, version, request);
@@ -135,6 +153,10 @@ public class RetrieveFlowRestlet extends AbstractBaseRestlet {
 
             if (ct.equals(ContentTypes.RDFTTL))
                 flowModel.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (FlowNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

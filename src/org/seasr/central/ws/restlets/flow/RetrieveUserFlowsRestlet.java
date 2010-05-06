@@ -45,7 +45,8 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.FlowNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.ContentTypes;
 
 import javax.servlet.http.HttpServletRequest;
@@ -89,10 +90,7 @@ public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
             return true;
         }
 
-        UUID userId;
-        String screenName;
-
-        UUID remoteUserId;
+        UUID remoteUserId = null;
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
@@ -101,16 +99,10 @@ public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                sendErrorNotFound(response);
-                return true;
-            }
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+            remoteUserId = bsl.getUserId(remoteUser);
 
             boolean includeOldVersions = false;
             if (request.getParameterMap().containsKey("includeOldVersions"))
@@ -127,13 +119,10 @@ public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
                 UUID flowId = UUID.fromString(joFlowVer.getString("uuid"));
                 int flowVersion = joFlowVer.getInt("version");
 
+                // Retrieve the flow from the backend
                 Model flowModel = bsl.getFlow(flowId, flowVersion);
-                if (flowModel == null)
-                    throw new BackendStoreException(
-                            String.format("Could not retrieve flow %s version %d", flowId, flowVersion));
 
                 rewriteFlowModel(flowModel, flowId, flowVersion, request);
-
                 model.add(flowModel);
             }
 
@@ -144,11 +133,30 @@ public class RetrieveUserFlowsRestlet extends ListUserFlowsRestlet {
             if (ct.equals(ContentTypes.RDFXML))
                 model.write(response.getOutputStream(), "RDF/XML");
 
-            else if (ct.equals(ContentTypes.RDFNT))
+            else
+
+            if (ct.equals(ContentTypes.RDFNT))
                 model.write(response.getOutputStream(), "N-TRIPLE");
 
-            else if (ct.equals(ContentTypes.RDFTTL))
+            else
+
+            if (ct.equals(ContentTypes.RDFTTL))
                 model.write(response.getOutputStream(), "TURTLE");
+        }
+        catch (UserNotFoundException e) {
+            // If the authenticated user cannot be found
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                sendErrorUnauthorized(response);
+            } else
+                sendErrorNotFound(response);
+
+            return true;
+        }
+        catch (FlowNotFoundException e) {
+            sendErrorNotFound(response);
+            return true;
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

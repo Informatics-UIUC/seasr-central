@@ -101,7 +101,7 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID remoteUserId;
+        UUID remoteUserId = null;
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
@@ -113,15 +113,7 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             UUID userId = UUID.fromString(userProps.getProperty("uuid"));
             String screenName = userProps.getProperty("screen_name");
 
-            try {
-                remoteUserId = bsl.getUserId(remoteUser);
-            }
-            catch (UserNotFoundException e) {
-                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
-                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
+            remoteUserId = bsl.getUserId(remoteUser);
 
             long offset = 0;
             long count = Long.MAX_VALUE;
@@ -159,7 +151,12 @@ public class ListUserComponentsRestlet extends AbstractBaseRestlet {
             }
         }
         catch (UserNotFoundException e) {
-            jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }

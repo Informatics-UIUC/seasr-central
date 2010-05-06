@@ -134,6 +134,7 @@ public class RetrieveComponentRestlet extends AbstractBaseRestlet {
             // Attempt to retrieve the component from the backend store
             Model compModel = bsl.getComponent(componentId, version);
 
+            // Rewrite the component model to align the URIs
             rewriteComponentModel(compModel, componentId, version, request);
 
             // Send the response

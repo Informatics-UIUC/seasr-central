@@ -320,22 +320,33 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                 for (ExecutableComponentDescription ecd : qr.getAvailableExecutableComponentDescriptions()) {
                     String origUri = ecd.getExecutableComponent().getURI();
 
-                    // Attempt to add the component to the backend storage
-                    Map<URL, String> contexts = componentsMap.get(origUri).getContexts();
-                    JSONObject joResult = bsl.addComponent(userId, ecd, contexts);
+                    try {
+                        // Attempt to add the component to the backend storage
+                        Map<URL, String> contexts = componentsMap.get(origUri).getContexts();
+                        JSONObject joResult = bsl.addComponent(userId, ecd, contexts);
 
-                    String compId = joResult.getString("uuid");
-                    int compVersion = joResult.getInt("version");
+                        String compId = joResult.getString("uuid");
+                        int compVersion = joResult.getInt("version");
 
-                    String compUrl = getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl";
+                        String compUrl = getComponentBaseAccessUrl(request, compId, compVersion) + ".ttl";
 
-                    JSONObject joComponent = new JSONObject();
-                    joComponent.put("orig_uri", origUri);
-                    joComponent.put("uuid", compId);
-                    joComponent.put("version", compVersion);
-                    joComponent.put("url", compUrl);
+                        JSONObject joComponent = new JSONObject();
+                        joComponent.put("orig_uri", origUri);
+                        joComponent.put("uuid", compId);
+                        joComponent.put("version", compVersion);
+                        joComponent.put("url", compUrl);
 
-                    jaSuccess.put(joComponent);
+                        jaSuccess.put(joComponent);
+                    }
+                    catch (BackendStoreException e) {
+                        logger.log(Level.SEVERE, null, e);
+                        
+                        JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
+                        joError.put("name", ecd.getName());
+                        joError.put("orig_uri", origUri);
+                        jaErrors.put(joError);
+                        continue;
+                    }
                 }
 
                 // Clean up the temp folders

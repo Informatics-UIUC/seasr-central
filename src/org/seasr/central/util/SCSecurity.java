@@ -42,10 +42,7 @@ package org.seasr.central.util;
 
 import org.seasr.central.storage.BackendStoreLink;
 import org.seasr.central.storage.SCRole;
-import org.seasr.central.storage.exceptions.BackendStoreException;
-import org.seasr.central.storage.exceptions.ComponentNotFoundException;
-import org.seasr.central.storage.exceptions.GroupNotFoundException;
-import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.storage.exceptions.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.UUID;
@@ -57,6 +54,20 @@ public abstract class SCSecurity {
 
     public static boolean canAccessGroupComponents(UUID groupId, UUID remoteUserId,
                                                    BackendStoreLink bsl, HttpServletRequest request)
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        if (bsl.isGroupMember(remoteUserId, groupId))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canAccessGroupFlows(UUID groupId, UUID remoteUserId,
+                                              BackendStoreLink bsl, HttpServletRequest request)
         throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role
@@ -94,6 +105,31 @@ public abstract class SCSecurity {
         return false;
     }
 
+    public static boolean canAccessFlow(UUID flowId, int version, UUID remoteUserId,
+                                        BackendStoreLink bsl, HttpServletRequest request)
+        throws FlowNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        UUID ownerId = bsl.getFlowOwner(flowId, version);
+
+        // Allowed if the remote user is the owner of the flow
+        if (ownerId.equals(remoteUserId))
+            return true;
+
+        // Get the number of groups common between the groups the remote user belongs to and the groups
+        // with which this flow version is shared
+        int nCommonGroups = bsl.listFlowGroupsAsUser(flowId, version, remoteUserId, 0, Long.MAX_VALUE).length();
+
+        // Allowed if the remote user belong to a group with which this component version is shared
+        if (nCommonGroups > 0)
+            return true;
+
+        return false;
+    }
+
     public static boolean canShareComponent(UUID componentId, int version, UUID remoteUserId,
                                             BackendStoreLink bsl, HttpServletRequest request)
         throws ComponentNotFoundException, UserNotFoundException, BackendStoreException {
@@ -111,7 +147,38 @@ public abstract class SCSecurity {
         return false;
     }
 
+    public static boolean canShareFlow(UUID flowId, int version, UUID remoteUserId,
+                                       BackendStoreLink bsl, HttpServletRequest request)
+        throws FlowNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        UUID ownerId = bsl.getFlowOwner(flowId, version);
+
+        // Allowed if the remote user is the owner of the flow
+        if (ownerId.equals(remoteUserId))
+            return true;
+
+        return false;
+    }
+
     public static boolean canUploadComponent(UUID userId, UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user is the same as the user who will be credited with the upload
+        if (userId.equals(remoteUserId))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canUploadFlow(UUID userId, UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
         throws BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role

@@ -50,6 +50,9 @@ import org.meandre.core.repository.QueryableRepository;
 import org.meandre.core.repository.RepositoryImpl;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.FlowNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -112,47 +115,46 @@ public class RetrieveFlowMetaRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID flowId;
-        int version;
-
         try {
-            flowId = UUID.fromString(values[0]);
-            version = Integer.parseInt(values[1]);
-            if (version < 1)
-                throw new IllegalArgumentException("The version number cannot be less than 1");
+            UUID flowId;
+            int version;
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (IllegalArgumentException e) {
-            logger.log(Level.WARNING, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        // TODO: check for permission to access the flow
-
-
-        try {
             try {
-                // Attempt to retrieve the flow from the backend store
-                Model flowModel = bsl.getFlow(flowId, version);
+                flowId = UUID.fromString(values[0]);
+                version = Integer.parseInt(values[1]);
+                if (version < 1)
+                    throw new IllegalArgumentException("The version number cannot be less than 1");
+            }
+            catch (IllegalArgumentException e) {
+                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-                if (flowModel == null) {
-                    JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
-                            flowId.toString(), Integer.toString(version));
-                    joError.put("uuid", flowId.toString());
-                    joError.put("version", version);
-                    jaErrors.put(joError);
+            try {
+                try {
+                    remoteUserId = bsl.getUserId(remoteUser);
+
+                    // Check permissions
+                    if (!SCSecurity.canAccessFlow(flowId, version, remoteUserId, bsl, request)) {
+                        JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
+                        joError.put("uuid", flowId.toString());
+                        joError.put("version", version);
+                        jaErrors.put(joError);
+                        sendResponse(jaSuccess, jaErrors, ct, response);
+                        return true;
+                    }
+                }
+                catch (UserNotFoundException e) {
+                    logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                    jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
                     sendResponse(jaSuccess, jaErrors, ct, response);
                     return true;
                 }
+
+                // Attempt to retrieve the flow from the backend store
+                Model flowModel = bsl.getFlow(flowId, version);
 
                 QueryableRepository qr = new RepositoryImpl(flowModel);
                 FlowDescription fd = qr.getAvailableFlowDescriptions().iterator().next();
@@ -175,6 +177,15 @@ public class RetrieveFlowMetaRestlet extends AbstractBaseRestlet {
                 // TODO: should we add info for the component instances in the flow? how about connectors?
 
                 jaSuccess.put(joFlowMeta);
+            }
+            catch (FlowNotFoundException e) {
+                JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
+                        flowId.toString(), Integer.toString(version));
+                joError.put("uuid", flowId.toString());
+                joError.put("version", version);
+                jaErrors.put(joError);
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
             }
             catch (BackendStoreException e) {
                 logger.log(Level.SEVERE, null, e);

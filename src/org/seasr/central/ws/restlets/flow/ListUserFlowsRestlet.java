@@ -46,6 +46,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -100,10 +101,7 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID userId;
-        String screenName;
-
-        UUID remoteUserId;
+        UUID remoteUserId = null;
         String remoteUser = request.getRemoteUser();
 
         //TODO: for test purposes
@@ -112,67 +110,60 @@ public class ListUserFlowsRestlet extends AbstractBaseRestlet {
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
+
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            long offset = 0;
+            long count = Long.MAX_VALUE;
+
+            String sOffset = request.getParameter("offset");
+            String sCount = request.getParameter("count");
+
+            try {
+                if (sOffset != null) offset = Long.parseLong(sOffset);
+                if (sCount != null) count = Long.parseLong(sCount);
+            }
+            catch (NumberFormatException e) {
+                logger.log(Level.WARNING, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
+            boolean includeOldVersions = false;
+            if (request.getParameterMap().containsKey("includeOldVersions"))
+                includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
 
-            // TODO: Check permissions
+            JSONArray jaResult = bsl.listAccessibleUserFlowsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
+
+            for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
+                JSONObject joFlowVer = jaResult.getJSONObject(i);
+                String sFlowId = joFlowVer.getString("uuid");
+                int flowVersion = joFlowVer.getInt("version");
+                JSONObject joResult = new JSONObject();
+                joResult.put("uuid", joFlowVer.get("uuid"));
+                joResult.put("version", joFlowVer.get("version"));
+                joResult.put("url", getFlowBaseAccessUrl(request, sFlowId, flowVersion) + ".ttl");
+                jaSuccess.put(joResult);
+            }
+        }
+        catch (UserNotFoundException e) {
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
-        }
-
-        long offset = 0;
-        long count = Long.MAX_VALUE;
-
-        String sOffset = request.getParameter("offset");
-        String sCount = request.getParameter("count");
-
-        try {
-            if (sOffset != null) offset = Long.parseLong(sOffset);
-            if (sCount != null) count = Long.parseLong(sCount);
-        }
-        catch (NumberFormatException e) {
-            logger.log(Level.WARNING, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        boolean includeOldVersions = false;
-        if (request.getParameterMap().containsKey("includeOldVersions"))
-            includeOldVersions = Boolean.parseBoolean(request.getParameter("includeOldVersions"));
-
-        try {
-            try {
-                JSONArray jaResult = bsl.listAccessibleUserFlowsAsUser(userId, remoteUserId, offset, count, includeOldVersions);
-
-                for (int i = 0, iMax = jaResult.length(); i < iMax; i++) {
-                    JSONObject joFlowVer = jaResult.getJSONObject(i);
-                    String  sFlowId = joFlowVer.getString("uuid");
-                    int flowVersion = joFlowVer.getInt("version");
-                    JSONObject joResult = new JSONObject();
-                    joResult.put("uuid", joFlowVer.get("uuid"));
-                    joResult.put("version", joFlowVer.get("version"));
-                    joResult.put("url", getFlowBaseAccessUrl(request, sFlowId, flowVersion) + ".ttl");
-                    jaSuccess.put(joResult);
-                }
-            }
-            catch (BackendStoreException e) {
-                logger.log(Level.SEVERE, null, e);
-                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            }
         }
         catch (JSONException e) {
             // Should not happen

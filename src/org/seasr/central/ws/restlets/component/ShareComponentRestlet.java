@@ -173,6 +173,7 @@ public class ShareComponentRestlet extends AbstractBaseRestlet {
                         continue;
                     }
 
+                    // Share the component
                     bsl.shareComponent(compId, version, groupId, remoteUserId);
 
                     JSONObject joComponent = new JSONObject();

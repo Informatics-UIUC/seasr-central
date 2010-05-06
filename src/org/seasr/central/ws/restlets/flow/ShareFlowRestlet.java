@@ -45,9 +45,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.FlowNotFoundException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.util.IdVersionPair;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -107,57 +110,52 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
         if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
             remoteUser = request.getParameter("remoteUser");
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
-
         try {
-            Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
+            UUID groupId;
+            String groupName;
+
+            try {
+                Properties groupProps = getGroupNameAndId(values[0]);
                 groupId = UUID.fromString(groupProps.getProperty("uuid"));
                 groupName = groupProps.getProperty("name");
-            } else {
-                // Specified group does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+
+                remoteUserId = bsl.getUserId(remoteUser);
+            }
+            catch (BackendStoreException e) {
+                logger.log(Level.SEVERE, null, e);
+                jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
 
-            remoteUserId = (remoteUser != null) ? bsl.getUserId(remoteUser) : null;
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
+            String[] flowIds = request.getParameterValues("flow");
+            String[] flowVersions = request.getParameterValues("version");
 
-        String[] flowIds = request.getParameterValues("flow");
-        String[] flowVersions = request.getParameterValues("version");
+            // Check for proper request
+            if (!(flowIds != null && flowVersions != null && flowIds.length == flowVersions.length)) {
+                jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-        // Check for proper request
-        if (!(flowIds != null && flowVersions != null && flowIds.length == flowVersions.length)) {
-            jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        try {
             Set<IdVersionPair> flows = new HashSet<IdVersionPair>(flowIds.length);
 
             for (int i = 0, iMax = flowIds.length; i < iMax; i++) {
+                String sFlowId = flowIds[i];
+                String sVersion = flowVersions[i];
+
                 try {
-                    UUID flowId = UUID.fromString(flowIds[i]);
-                    int version = Integer.parseInt(flowVersions[i]);
+                    UUID flowId = UUID.fromString(sFlowId);
+                    int version = Integer.parseInt(sVersion);
 
                     flows.add(new IdVersionPair(flowId, version));
                 }
                 catch (IllegalArgumentException e) {
-                    logger.log(Level.WARNING, null, e);
                     JSONObject joError = SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl);
-                    joError.put("uuid", flowIds[i]);
-                    joError.put("version", flowVersions[i]);
+                    joError.put("uuid", sFlowId);
+                    joError.put("version", sVersion);
                     jaErrors.put(joError);
+                    continue;
                 }
             }
 
@@ -166,42 +164,50 @@ public class ShareFlowRestlet extends AbstractBaseRestlet {
                 int version = flow.getVersion();
 
                 try {
-                    UUID ownerId = bsl.getFlowOwner(flowId, version);
-                    if (ownerId != null) {
-                        // Check permissions
-                        if ((ownerId.equals(remoteUserId) && bsl.isGroupMember(ownerId, groupId))
-                                || request.isUserInRole(SCRole.ADMIN.name())) {
-
-                            // Share the flow
-                            bsl.shareFlow(flowId, version, groupId, remoteUserId);
-
-                            JSONObject joFlow = new JSONObject();
-                            joFlow.put("uuid", flowId.toString());
-                            joFlow.put("version", version);
-                            jaSuccess.put(joFlow);
-                        } else {
-                            // Not the owner of this flow version
-                            JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
-                            joError.put("uuid", flowId.toString());
-                            joError.put("version", version);
-                            jaErrors.put(joError);
-                        }
-                    } else {
-                        // Flow version not found
-                        JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
-                            flowId.toString(), Integer.toString(version));
+                    // Check permissions
+                    if (!SCSecurity.canShareFlow(flowId, version, remoteUserId, bsl, request)) {
+                        JSONObject joError = SCError.createErrorObj(SCError.UNAUTHORIZED, bsl);
                         joError.put("uuid", flowId.toString());
                         joError.put("version", version);
                         jaErrors.put(joError);
+                        continue;
                     }
+
+                    // Share the flow
+                    bsl.shareFlow(flowId, version, groupId, remoteUserId);
+
+                    JSONObject joFlow = new JSONObject();
+                    joFlow.put("uuid", flowId.toString());
+                    joFlow.put("version", version);
+                    jaSuccess.put(joFlow);
+                }
+                catch (FlowNotFoundException e) {
+                    JSONObject joError = SCError.createErrorObj(SCError.FLOW_NOT_FOUND, bsl,
+                            flowId.toString(), Integer.toString(version));
+                    joError.put("uuid", flowId.toString());
+                    joError.put("version", version);
+                    jaErrors.put(joError);
+                    continue;
                 }
                 catch (BackendStoreException e) {
                     JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
                     joError.put("uuid", flowId.toString());
                     joError.put("version", version);
                     jaErrors.put(joError);
+                    continue;
                 }
             }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (UserNotFoundException e) {
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (JSONException e) {
             // Should not happen

@@ -59,6 +59,8 @@ import org.meandre.core.utils.vocabulary.RepositoryVocabulary;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.UnknownComponentsException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 import org.seasr.meandre.support.generic.io.ModelUtils;
@@ -114,47 +116,44 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         if (!ServletFileUpload.isMultipartContent(request)) {
             jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
 
-        UUID userId;
-        @SuppressWarnings("unused")
-        String screenName = null;
-
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
+
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            // Check permissions
+            if (!SCSecurity.canUploadFlow(userId, remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
 
-        ServletFileUpload fileUpload = new ServletFileUpload(new DiskFileItemFactory());
-        List<FileItem> files;
-        try {
-            files = fileUpload.parseRequest(request);
-        }
-        catch (FileUploadException e) {
-            jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
+            ServletFileUpload fileUpload = new ServletFileUpload(new DiskFileItemFactory());
+            List<FileItem> files;
+            try {
+                files = fileUpload.parseRequest(request);
+            }
+            catch (FileUploadException e) {
+                jaErrors.put(SCError.createErrorObj(SCError.UPLOAD_ERROR, e, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-        try {
             // Accumulator for the flow models
             Model model = ModelFactory.createDefaultModel();
 
@@ -248,8 +247,26 @@ public class UploadFlowRestlet extends AbstractBaseRestlet {
                     joError.put("name", fd.getName());
                     joError.put("orig_uri", origUri);
                     jaErrors.put(joError);
+                    continue;
                 }
             }
+        }
+        catch (UserNotFoundException e) {
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (BackendStoreException e) {
+            logger.log(Level.SEVERE, null, e);
+
+            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (JSONException e) {
             logger.log(Level.SEVERE, null, e);
