@@ -44,6 +44,9 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -98,28 +101,12 @@ public class ListGroupMembersRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID groupId;
-        @SuppressWarnings("unused")
-        String groupName = null;
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
 
-        try {
-            Properties groupProps = getGroupNameAndId(values[0]);
-            if (groupProps != null) {
-                groupId = UUID.fromString(groupProps.getProperty("uuid"));
-                groupName = groupProps.getProperty("name");
-            } else {
-                // Specified group does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
-                sendResponse(jaSuccess, jaErrors, ct, response);
-                return true;
-            }
-        }
-        catch (BackendStoreException e) {
-            logger.log(Level.SEVERE, null, e);
-            jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         long offset = 0;
         long count = Long.MAX_VALUE;
@@ -130,16 +117,46 @@ public class ListGroupMembersRestlet extends AbstractBaseRestlet {
         try {
             if (sOffset != null) offset = Long.parseLong(sOffset);
             if (sCount != null) count = Long.parseLong(sCount);
-
-            jaSuccess = bsl.listGroupMembers(groupId, offset, count);
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+
+        try {
+            Properties groupProps = getGroupNameAndId(values[0]);
+            UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
+            String groupName = groupProps.getProperty("name");
+
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            // Check permissions
+            if (!SCSecurity.canListGroupMembers(groupId, remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
+
+            jaSuccess = bsl.listGroupMembers(groupId, offset, count);
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (UserNotFoundException e) {
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
 
         // Send the response

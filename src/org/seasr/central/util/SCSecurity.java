@@ -239,4 +239,47 @@ public abstract class SCSecurity {
         return false;
     }
 
+    public static boolean canAccessGroupInfo(UUID groupId, UUID remoteUserId,
+                                             BackendStoreLink bsl, HttpServletRequest request)
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        if (bsl.isGroupMember(remoteUserId, groupId))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canListGroupMembers(UUID groupId, UUID remoteUserId,
+                                             BackendStoreLink bsl, HttpServletRequest request)
+        throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user is a member of the group having ADMIN role in that group
+        if (bsl.isUserInGroupRole(remoteUserId, groupId, SCRole.ADMIN))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canListUserGroupMembership(UUID userId, UUID remoteUserId, 
+                                                      BackendStoreLink bsl, HttpServletRequest request)
+        throws BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        // Allowed if the remote user wants to list his/her own joined groups
+        if (userId.equals(remoteUserId))
+            return true;
+
+        return false;
+    }
 }

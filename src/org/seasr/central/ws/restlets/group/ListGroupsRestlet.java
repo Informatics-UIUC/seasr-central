@@ -44,6 +44,7 @@ import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -51,6 +52,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
@@ -96,6 +98,13 @@ public class ListGroupsRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         long offset = 0;
         long count = Long.MAX_VALUE;
 
@@ -105,16 +114,32 @@ public class ListGroupsRestlet extends AbstractBaseRestlet {
         try {
             if (sOffset != null) offset = Long.parseLong(sOffset);
             if (sCount != null) count = Long.parseLong(sCount);
-
-            jaSuccess = bsl.listGroups(offset, count);
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.INVALID_PARAM_VALUE, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+
+        try {
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            // TODO: Check permissions
+
+            jaSuccess = bsl.listGroups(offset, count);
+        }
+        catch (UserNotFoundException e) {
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
 
         // Send the response

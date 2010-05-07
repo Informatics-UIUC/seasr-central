@@ -47,6 +47,8 @@ import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.storage.exceptions.GroupNotFoundException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -102,7 +104,16 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         try {
+            remoteUserId = bsl.getUserId(remoteUser);
+
             Properties groupProps = getGroupNameAndId(values[0]);
             UUID groupId = UUID.fromString(groupProps.getProperty("uuid"));
             String groupName = groupProps.getProperty("name");
@@ -111,14 +122,22 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
             joGroup.put("uuid", groupId.toString());
             joGroup.put("name", groupName);
 
-            
-            joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
-            joGroup.put("profile", bsl.getGroupProfile(groupId));
+            // Check permissions
+            if (SCSecurity.canAccessGroupInfo(groupId, remoteUserId, bsl, request)) {
+                joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
+                joGroup.put("profile", bsl.getGroupProfile(groupId));
+            }
 
             jaSuccess.put(joGroup);
         }
         catch (GroupNotFoundException e) {
             jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (UserNotFoundException e) {
+            logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
         }
