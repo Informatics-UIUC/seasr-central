@@ -46,6 +46,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
 import org.seasr.central.util.SCValidator;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -111,6 +112,7 @@ public class AddUserRestlet extends AbstractBaseRestlet {
                 screenNames.length == passwords.length && screenNames.length == profiles.length)) {
             jaErrors.put(SCError.createErrorObj(SCError.INCOMPLETE_REQUEST, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
 
         UUID userId;
@@ -129,16 +131,19 @@ public class AddUserRestlet extends AbstractBaseRestlet {
 
                 try {
                     // Check if another user with the same screen name exists
-                    userId = bsl.getUserId(screenName);
-                    if (userId != null) {
+                    try {
+                        userId = bsl.getUserId(screenName);
+
                         JSONObject joError = SCError.createErrorObj(SCError.SCREEN_NAME_EXISTS, bsl, screenName);
                         joError.put("screen_name", screenName);
                         joError.put("uuid", userId);
                         joError.put("created_at", bsl.getUserCreationTime(userId));
                         joError.put("profile", bsl.getUserProfile(userId));
-
                         jaErrors.put(joError);
                         continue;
+                    }
+                    catch (UserNotFoundException e) {
+                        // This is ok - it means there's no collision with other users
                     }
 
                     JSONObject joProfile;
@@ -164,6 +169,13 @@ public class AddUserRestlet extends AbstractBaseRestlet {
                     joUser.put("profile", joProfile);
 
                     jaSuccess.put(joUser);
+                }
+                catch (UserNotFoundException e) {
+                    // Should never happen
+                    JSONObject joError = SCError.createErrorObj(SCError.USER_NOT_FOUND, e, bsl);
+                    joError.put("screen_name", screenName);
+                    jaErrors.put(joError);
+                    continue;
                 }
                 catch (BackendStoreException e) {
                     logger.log(Level.SEVERE, null, e);

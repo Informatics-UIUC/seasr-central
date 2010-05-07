@@ -43,7 +43,6 @@ package org.seasr.central.ws.restlets.user;
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
@@ -97,13 +96,6 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
 
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
-
-        // Check permissions
-        if (!(request.isUserInRole(SCRole.ADMIN.name()))) {
-            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
 
         long offset = 0;
         long count = Long.MAX_VALUE;

@@ -45,8 +45,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
-import org.seasr.central.storage.SCRole;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -103,56 +104,52 @@ public class DeleteUserRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
-        UUID userId;
-        String screenName;
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
 
         try {
             Properties userProps = getUserScreenNameAndId(values[0]);
-            if (userProps != null) {
-                userId = UUID.fromString(userProps.getProperty("uuid"));
-                screenName = userProps.getProperty("screen_name");
-            } else {
-                // Specified user does not exist
-                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            UUID userId = UUID.fromString(userProps.getProperty("uuid"));
+            String screenName = userProps.getProperty("screen_name");
+
+            remoteUserId = bsl.getUserId(remoteUser);
+
+            // Check permissions
+            if (!SCSecurity.canDeleteUser(userId, remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
                 sendResponse(jaSuccess, jaErrors, ct, response);
                 return true;
             }
+
+            // Attempt to remove the user
+            bsl.removeUser(userId);
+
+            // User deleted successfully
+            JSONObject joUser = new JSONObject();
+            joUser.put("uuid", userId.toString());
+            joUser.put("screen_name", screenName);
+
+            jaSuccess.put(joUser);
+        }
+        catch (UserNotFoundException e) {
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, values[0]));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
             return true;
-        }
-
-        // Check permissions
-        if (!(request.isUserInRole(SCRole.ADMIN.name()))) {
-            jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
-            sendResponse(jaSuccess, jaErrors, ct, response);
-            return true;
-        }
-
-        try {
-            try {
-                // Attempt to remove the user
-                bsl.removeUser(userId);
-
-                // User deleted successfully
-                JSONObject joUser = new JSONObject();
-                joUser.put("uuid", userId.toString());
-                joUser.put("screen_name", screenName);
-
-                jaSuccess.put(joUser);
-            }
-            catch (BackendStoreException e) {
-                // Could not remove the user
-                logger.log(Level.SEVERE, null, e);
-
-                JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
-                joError.put("uuid", userId.toString());
-                joError.put("screen_name", screenName);
-                jaErrors.put(joError);
-            }
         }
         catch (JSONException e) {
             // Should not happen
