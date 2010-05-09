@@ -155,7 +155,20 @@
 </script>
 
 <h3>List available roles</h3>
-<a href="/services/roles.txt">Show roles</a>
+<form name="listRoles" method="GET" paramAction="/services/roles.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listRoles);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
 
 <h3>Add a user</h3>
 <form name="addUser" method="POST" action="/services/users.txt">
@@ -194,8 +207,12 @@
 </form>
 
 <h3>Remove a user</h3>
-<form name="removeUser" method="DELETE" paramAction="/services/users/[screen_name].txt">
+<form name="removeUser" method="DELETE" paramAction="/services/users/[screen_name].txt?remoteUser=[remoteUser]">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
@@ -210,7 +227,20 @@
 </form>
 
 <h3>List users</h3>
-<a href="/services/users.txt">Show users</a>
+<form name="listUsers" method="GET" paramAction="/services/users.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listUsers);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
 
 <h3>Get user info</h3>
 <form name="userInfo" method="GET" paramAction="/services/users/[screen_name].txt">
@@ -236,6 +266,10 @@
 <form name="createGroup" method="POST" paramAction="/services/users/[screen_name]/groups.txt">
     <table>
         <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
             <td>Screen name:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
@@ -257,11 +291,28 @@
 </form>
 
 <h3>List groups</h3>
-<a href="/services/groups.txt">Show groups</a>
+<form name="listGroups" method="GET" paramAction="/services/groups.txt">
+    <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" onClick="return actionBuilder(document.listGroups);">
+                <input type="reset">
+            </td>
+        </tr>
+    </table>
+</form>
 
 <h3>Get group info</h3>
 <form name="groupInfo" method="GET" paramAction="/services/groups/[group_name].txt">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Group name or id:</td>
             <td><input type="text" name="group_name"></td>
@@ -278,6 +329,10 @@
 <h3>Request join group</h3>
 <form name="groupAddPendingMember" method="POST" paramAction="/services/groups/[group_name]/members/pending.txt">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Group name or id:</td>
             <td><input type="text" name="group_name"></td>
@@ -303,6 +358,10 @@
 <form name="groupListPendingMembers" method="GET" paramAction="/services/groups/[group_name]/members/pending.txt">
     <table>
         <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
             <td>Group name or id:</td>
             <td><input type="text" name="group_name"></td>
         </tr>
@@ -318,6 +377,10 @@
 <h3>Approve join request</h3>
 <form name="groupAddMember" method="POST" paramAction="/services/groups/[group_name]/members.txt">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Group name or id:</td>
             <td><input type="text" name="group_name"></td>
@@ -354,6 +417,10 @@
 <form name="groupListMembers" method="GET" paramAction="/services/groups/[group_name]/members.txt">
     <table>
         <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
             <td>Group name or id:</td>
             <td><input type="text" name="group_name"></td>
         </tr>
@@ -370,6 +437,10 @@
 <form name="listGroupsForUser" method="GET" paramAction="/services/users/[screen_name]/groups.txt">
     <table>
         <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
+        <tr>
             <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
         </tr>
@@ -384,8 +455,12 @@
 
 <h3>Upload component</h3>
 <form name="uploadComponent" method="POST" enctype="multipart/form-data"
-      paramAction="/services/users/[screen_name]/components.txt">
+      paramAction="/services/users/[screen_name]/components.txt?remoteUser=[remoteUser]">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>
@@ -579,6 +654,10 @@
 <form name="uploadFlow" method="POST" enctype="multipart/form-data"
       paramAction="/services/users/[screen_name]/flows.txt">
     <table>
+        <tr>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
+        </tr>
         <tr>
             <td>Screen name or id:</td>
             <td><input type="text" name="screen_name"></td>

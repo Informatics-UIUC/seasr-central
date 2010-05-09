@@ -1,15 +1,15 @@
-jdbcdriver = org.sqlite.JDBC
-url = jdbc:sqlite:/Users/xavier/Documents/Workspace/SEASR\ Central/SC\ J\ API/db/SCStore.sqlite
-username = 
-password = 
-usertable = auth_user
-usertablekey = uuid
-usertableuserfield = user
+jdbcdriver = com.mysql.jdbc.Driver
+url = jdbc:mysql://localhost/SC?useUnicode=yes&characterEncoding=utf8&autoReconnect=true
+username = sc
+password = sc
+usertable = sc_user
+usertablekey = user_uuid
+usertableuserfield = screen_name
 usertablepasswordfield = password
-roletable = auth_role
-roletablekey = uuid
-roletablerolefield = role
-userroletable = auth_user_role
+roletable = sc_role
+roletablekey = role_id
+roletablerolefield = name
+userroletable = sc_user_role
 userroletableuserkey = user_uuid
-userroletablerolekey = role_uuid
+userroletablerolekey = role_id
 cachetime = 300

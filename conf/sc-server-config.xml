@@ -539,6 +539,14 @@
                         </Arg>
                         <Arg>/</Arg>
                     </Call>
+                    <Get name="securityHandler">
+                        <Set name="userRealm">
+                            <New class="org.mortbay.jetty.security.JDBCUserRealm">
+                                <Set name="name">Test JDBC Realm</Set>
+                                <Set name="config">../conf/jetty-jdbc-realm.prop</Set>
+                            </New>
+                        </Set>
+                    </Get>
                 </New>
             </Item>
             <Item>
