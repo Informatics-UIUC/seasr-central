@@ -340,7 +340,7 @@ public class UploadComponentRestlet extends AbstractBaseRestlet {
                     }
                     catch (BackendStoreException e) {
                         logger.log(Level.SEVERE, null, e);
-                        
+
                         JSONObject joError = SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl);
                         joError.put("name", ecd.getName());
                         joError.put("orig_uri", origUri);

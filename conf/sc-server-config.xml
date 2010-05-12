@@ -81,9 +81,11 @@
     <Call name="addConnector">
         <Arg>
             <New class="org.mortbay.jetty.nio.SelectChannelConnector">
-                <Set name="port">
-                    <SystemProperty name="sc.port" default="8888"/>
-                </Set>
+                <!-- the ip address or domain to bind -->
+                <Set name="host"><SystemProperty name="sc.host"/></Set>
+
+                <!-- the port to use/bind, defaults to 8888 if property not set -->
+                <Set name="port"><SystemProperty name="sc.port" default="8888"/></Set>
             </New>
         </Arg>
     </Call>
@@ -524,11 +526,41 @@
     <Set name="handlers">
         <Array type="org.mortbay.jetty.Handler">
             <Item>
-                <New id="RequestLogHandler" class="org.mortbay.jetty.handler.RequestLogHandler"/>
-            </Item>
-            <Item>
                 <New id="userContext" class="org.mortbay.jetty.servlet.Context">
                     <Set name="contextPath">/services</Set>
+                    <Call name="addHandler">
+                        <Arg>
+                            <New class="org.mortbay.jetty.security.SecurityHandler">
+                                <Set name="userRealm">
+                                    <New class="org.mortbay.jetty.security.JDBCUserRealm">
+                                        <Set name="name">SC Authenticated Access</Set>
+                                        <Set name="config"><SystemProperty name="sc.realm_conf" default="conf/jetty-jdbc-realm.prop"/></Set>
+                                    </New>
+                                </Set>
+                                <Set name="constraintMappings">
+                                    <Array type="org.mortbay.jetty.security.ConstraintMapping">
+                                        <Item>
+                                            <New class="org.mortbay.jetty.security.ConstraintMapping">
+                                                <Set name="constraint">
+                                                    <New class="org.mortbay.jetty.security.Constraint">
+                                                        <Set name="name">BASIC</Set>
+                                                        <Set name="roles">
+                                                            <Array type="java.lang.String">
+                                                                <Item>ADMIN</Item>
+                                                                <Item>USER</Item>
+                                                            </Array>
+                                                        </Set>
+                                                        <Set name="authenticate">true</Set>
+                                                    </New>
+                                                </Set>
+                                                <Set name="pathSpec">/*</Set>
+                                            </New>
+                                        </Item>
+                                    </Array>
+                                </Set>
+                            </New>
+                        </Arg>
+                    </Call>
                     <Call name="addServlet">
                         <Arg>
                             <New class="org.mortbay.jetty.servlet.ServletHolder">
@@ -539,14 +571,6 @@
                         </Arg>
                         <Arg>/</Arg>
                     </Call>
-                    <Get name="securityHandler">
-                        <Set name="userRealm">
-                            <New class="org.mortbay.jetty.security.JDBCUserRealm">
-                                <Set name="name">Test JDBC Realm</Set>
-                                <Set name="config">../conf/jetty-jdbc-realm.prop</Set>
-                            </New>
-                        </Set>
-                    </Get>
                 </New>
             </Item>
             <Item>
@@ -573,19 +597,17 @@
                     </Call>
                 </New>
             </Item>
+            <Item>
+                <New id="requestLogHandler" class="org.mortbay.jetty.handler.RequestLogHandler"/>
+            </Item>
         </Array>
     </Set>
 
     <!-- Set up the logging facility for the server -->
-    <Ref id="RequestLogHandler">
-        <Set name="server">
-            <Ref id="Server"/>
-        </Set>
+    <Ref id="requestLogHandler">
         <Set name="requestLog">
             <New class="org.mortbay.jetty.NCSARequestLog">
-                <Set name="filename">
-                    <Ref id="logFolder"/>/access.log
-                </Set>
+                <Set name="filename"><Ref id="logFolder"/>/access.log</Set>
                 <Set name="append">true</Set>
                 <Set name="extended">false</Set>
             </New>
