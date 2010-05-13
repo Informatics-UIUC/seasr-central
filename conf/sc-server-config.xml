@@ -558,7 +558,7 @@
                                 <Set name="userRealm">
                                     <New class="org.mortbay.jetty.plus.jaas.JAASUserRealm">
                                         <Set name="name">SC Authenticated Access</Set>
-                                        <Set name="loginModuleName">jdbc</Set>
+                                        <Set name="loginModuleName">SC</Set>
                                     </New>
                                 </Set>
                                 <Set name="constraintMappings">
