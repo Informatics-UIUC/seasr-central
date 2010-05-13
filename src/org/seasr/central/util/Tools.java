@@ -491,7 +491,7 @@ public class Tools {
      */
     public static String computePasswordDigest(String string) {
         try {
-            return Crypto.toHexString(Crypto.createSHA1Hash(string.getBytes("UTF-8")));
+            return "MD5:" + Crypto.toHexString(Crypto.createMD5Hash(string.getBytes("ISO-8859-1")));
         }
         catch (Exception e) {
             logger.log(Level.SEVERE, null, e);

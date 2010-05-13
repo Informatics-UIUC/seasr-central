@@ -526,15 +526,39 @@
     <Set name="handlers">
         <Array type="org.mortbay.jetty.Handler">
             <Item>
-                <New id="userContext" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/services</Set>
+                <New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/static</Set>
+                    <Set name="resourceBase">
+                        <SystemProperty name="sc.docroot" default="static"/>
+                    </Set>
+                    <Call name="addServlet">
+                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
+                        <Arg>/*</Arg>
+                    </Call>
+                </New>
+            </Item>
+            <Item>
+                <New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/logs</Set>
+                    <Set name="resourceBase">
+                        <Ref id="logFolder"/>
+                    </Set>
+                    <Call name="addServlet">
+                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
+                        <Arg>/*</Arg>
+                    </Call>
+                </New>
+            </Item>
+            <Item>
+                <New class="org.mortbay.jetty.servlet.Context">
+                    <Set name="contextPath">/</Set>
                     <Call name="addHandler">
                         <Arg>
                             <New class="org.mortbay.jetty.security.SecurityHandler">
                                 <Set name="userRealm">
-                                    <New class="org.mortbay.jetty.security.JDBCUserRealm">
+                                    <New class="org.mortbay.jetty.plus.jaas.JAASUserRealm">
                                         <Set name="name">SC Authenticated Access</Set>
-                                        <Set name="config"><SystemProperty name="sc.realm_conf" default="conf/jetty-jdbc-realm.prop"/></Set>
+                                        <Set name="loginModuleName">jdbc</Set>
                                     </New>
                                 </Set>
                                 <Set name="constraintMappings">
@@ -546,14 +570,14 @@
                                                         <Set name="name">BASIC</Set>
                                                         <Set name="roles">
                                                             <Array type="java.lang.String">
-                                                                <Item>ADMIN</Item>
                                                                 <Item>USER</Item>
+                                                                <Item>ADMIN</Item>
                                                             </Array>
                                                         </Set>
                                                         <Set name="authenticate">true</Set>
                                                     </New>
                                                 </Set>
-                                                <Set name="pathSpec">/*</Set>
+                                                <Set name="pathSpec">/services/*</Set>
                                             </New>
                                         </Item>
                                     </Array>
@@ -569,31 +593,19 @@
                                 </Arg>
                             </New>
                         </Arg>
-                        <Arg>/</Arg>
+                        <Arg>/services/*</Arg>
                     </Call>
-                </New>
-            </Item>
-            <Item>
-                <New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/logs</Set>
-                    <Set name="resourceBase">
-                        <Ref id="logFolder"/>
-                    </Set>
                     <Call name="addServlet">
-                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
-                        <Arg>/</Arg>
-                    </Call>
-                </New>
-            </Item>
-            <Item>
-                <New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/</Set>
-                    <Set name="resourceBase">
-                        <SystemProperty name="sc.docroot" default="static"/>
-                    </Set>
-                    <Call name="addServlet">
-                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
-                        <Arg>/</Arg>
+                        <Arg>
+                            <New class="org.mortbay.jetty.servlet.ServletHolder">
+                                <Arg>
+                                    <New class="org.seasr.central.ws.restlets.PublicDispatcher">
+                                        <Set name="logger"><Ref id="logger"/></Set>
+                                    </New>
+                                </Arg>
+                            </New>
+                        </Arg>
+                        <Arg>/public/services/*</Arg>
                     </Call>
                 </New>
             </Item>

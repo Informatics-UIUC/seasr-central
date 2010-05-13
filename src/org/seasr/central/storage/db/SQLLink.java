@@ -336,7 +336,8 @@ public class SQLLink implements BackendStoreLink {
 
     @Override
     public UUID addUser(String userName, String password, JSONObject profile) throws BackendStoreException {
-        String sqlQuery = properties.getProperty(DBProperties.Q_USER_ADD).trim();
+        String sqlQueryAddUser = properties.getProperty(DBProperties.Q_USER_ADD).trim();
+        String sqlQueryAddUserRole = properties.getProperty(DBProperties.Q_USER_ADD_ROLE).trim();
         Connection conn = null;
         PreparedStatement ps = null;
         UUID userId = UUID.randomUUID();
@@ -346,11 +347,19 @@ public class SQLLink implements BackendStoreLink {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
 
-            ps = conn.prepareStatement(sqlQuery);
+            // Add the user
+            ps = conn.prepareStatement(sqlQueryAddUser);
             ps.setBigDecimal(1, new BigDecimal(uid));
             ps.setString(2, userName);
             ps.setString(3, computePasswordDigest(password));
             ps.setString(4, profile.toString());
+            ps.executeUpdate();
+            ps.close();
+
+            // Set the user's role to USER
+            ps = conn.prepareStatement(sqlQueryAddUserRole);
+            ps.setBigDecimal(1, new BigDecimal(uid));
+            ps.setInt(2, SCRole.USER.getRoleId());
             ps.executeUpdate();
 
             // Record this event

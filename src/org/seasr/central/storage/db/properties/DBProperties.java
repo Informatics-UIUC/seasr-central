@@ -67,6 +67,7 @@ public abstract class DBProperties {
     public static final String Q_ROLE_EXISTS = "org.seasr.central.storage.db.query.role.exists";
 
     public static final String Q_USER_ADD = "org.seasr.central.storage.db.query.user.add";
+    public static final String Q_USER_ADD_ROLE = "org.seasr.central.storage.db.query.user.add.role";
     public static final String Q_USER_REMOVE = "org.seasr.central.storage.db.query.user.remove";
     public static final String Q_USER_UPDATE_PASSWORD = "org.seasr.central.storage.db.query.user.update.password";
     public static final String Q_USER_UPDATE_PROFILE = "org.seasr.central.storage.db.query.user.update.profile";

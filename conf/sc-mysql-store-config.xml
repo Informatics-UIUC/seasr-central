@@ -507,6 +507,9 @@
     <entry key="org.seasr.central.storage.db.query.user.add">
         INSERT INTO sc_user (user_uuid, screen_name, password, created_at, profile) VALUES (?, ?, ?, NOW(), ?);
     </entry>
+    <entry key="org.seasr.central.storage.db.query.user.add.role">
+        INSERT INTO sc_user_role (user_uuid, role_id) VALUES (?, ?);
+    </entry>
     <entry key="org.seasr.central.storage.db.query.user.remove">
         UPDATE sc_user SET deleted = 1 WHERE user_uuid = ?;
     </entry>
