@@ -45,6 +45,7 @@ import org.json.JSONObject;
 import org.seasr.central.storage.exceptions.BackendStoreException;
 
 import javax.servlet.http.HttpServletResponse;
+import java.sql.SQLException;
 
 /**
  * Defines the SC application-specific error codes
@@ -122,7 +123,14 @@ public enum SCError {
 
     public static JSONObject createErrorObj(SCError error, Exception e, BackendStoreLink bsl, String... params) {
         try {
-            String errMsg =  bsl.getErrorMessage(error); //error.getErrorMessage();
+            String errMsg;
+
+            if (e instanceof BackendStoreException && e.getCause() instanceof SQLException 
+                    && ((SQLException)e.getCause()).getSQLState().toUpperCase().equals("08S01"))
+                errMsg = error.getErrorMessage();
+            else
+                errMsg =  bsl.getErrorMessage(error);
+
             if (errMsg == null) errMsg = "No error message found for error code: " + error.getErrorCode();
 
             if (params != null && params.length > 0)

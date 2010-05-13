@@ -60,8 +60,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.sendErrorInternalServerError;
-import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Restlet for retrieving group info
@@ -122,10 +121,13 @@ public class GroupInfoRestlet extends AbstractBaseRestlet {
             joGroup.put("uuid", groupId.toString());
             joGroup.put("name", groupName);
 
+            JSONObject joGroupProfile = bsl.getGroupProfile(groupId);
+            joGroup.put("profile", getPublicProfileEntries(joGroupProfile));
+
             // Check permissions
-            if (SCSecurity.canAccessGroupInfo(groupId, remoteUserId, bsl, request)) {
+            if (SCSecurity.canAccessPrivateGroupInfo(groupId, remoteUserId, bsl, request)) {
                 joGroup.put("created_at", bsl.getGroupCreationTime(groupId));
-                joGroup.put("profile", bsl.getGroupProfile(groupId));
+                joGroup.put("profile", joGroupProfile);
             }
 
             jaSuccess.put(joGroup);

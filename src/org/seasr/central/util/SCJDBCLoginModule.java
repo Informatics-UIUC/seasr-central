@@ -60,6 +60,8 @@ import java.util.Map;
 
 
 /**
+ * JAAS JDBC authentication provider for SC
+ *
  * @author Boris Capitanu
  */
 public class SCJDBCLoginModule extends AbstractLoginModule {

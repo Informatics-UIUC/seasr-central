@@ -42,9 +42,13 @@ package org.seasr.central.ws.restlets.group;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.GroupNotFoundException;
 import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -55,7 +59,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Restlet for retrieving the list of groups
@@ -125,9 +129,29 @@ public class ListGroupsRestlet extends AbstractBaseRestlet {
         try {
             remoteUserId = bsl.getUserId(remoteUser);
 
-            // TODO: Check permissions
+            // Check permissions
+            if (!SCSecurity.canListGroups(remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
 
-            jaSuccess = bsl.listGroups(offset, count);
+            JSONArray jaGroups = bsl.listGroups(offset, count);
+
+            for (int i = 0, iMax = jaGroups.length(); i < iMax; i++) {
+                JSONObject joGroup = jaGroups.getJSONObject(i);
+
+                UUID groupId = UUID.fromString(joGroup.getString("uuid"));
+                if (!SCSecurity.canAccessPrivateGroupInfo(groupId, remoteUserId, bsl, request))
+                    joGroup.put("profile", getPublicProfileEntries(joGroup.getJSONObject("profile")));
+
+                jaSuccess.put(joGroup);
+            }
+        }
+        catch (GroupNotFoundException e) {
+            jaErrors.put(SCError.createErrorObj(SCError.GROUP_NOT_FOUND, bsl, e.getGroupId().toString()));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (UserNotFoundException e) {
             logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
@@ -139,6 +163,12 @@ public class ListGroupsRestlet extends AbstractBaseRestlet {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
             sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
+        }
+        catch (JSONException e) {
+            // Should not happen
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
             return true;
         }
 

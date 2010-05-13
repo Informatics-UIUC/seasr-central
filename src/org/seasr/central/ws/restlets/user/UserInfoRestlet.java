@@ -59,8 +59,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.sendErrorInternalServerError;
-import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Restlet for retrieving user info
@@ -121,10 +120,13 @@ public class UserInfoRestlet extends AbstractBaseRestlet {
             joUser.put("uuid", userId.toString());
             joUser.put("screen_name", screenName);
 
+            JSONObject joUserProfile = bsl.getUserProfile(userId);
+            joUser.put("profile", getPublicProfileEntries(joUserProfile));
+
             // Check permissions
-            if (SCSecurity.canAccessUserInfo(userId, remoteUserId, bsl, request)) {
+            if (SCSecurity.canAccessPrivateUserInfo(userId, remoteUserId, bsl, request)) {
                 joUser.put("created_at", bsl.getUserCreationTime(userId));
-                joUser.put("profile", bsl.getUserProfile(userId));
+                joUser.put("profile", joUserProfile);
             }
 
             jaSuccess.put(joUser);

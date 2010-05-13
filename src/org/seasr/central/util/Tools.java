@@ -697,4 +697,26 @@ public class Tools {
         flowModel.removeAll();
         ModelUtils.readModelFromString(flowModel, sModel);
     }
+
+    /**
+     * Returns a new profile containing the public elements of a given profile
+     *
+     * @param joProfile The given profile
+     * @return A new profile containing the public elements of the given profile
+     * @throws JSONException
+     */
+    public static JSONObject getPublicProfileEntries(JSONObject joProfile) throws JSONException {
+        JSONObject joPublicProfile = new JSONObject();
+
+        // Filter out all the non-public information from the profile
+        Iterator it = joProfile.keys();
+        while (it.hasNext()) {
+            String key = (String) it.next();
+            JSONObject joProfileEntry = joProfile.getJSONObject(key);
+            if (joProfileEntry.getBoolean("public"))
+                joPublicProfile.put(key, joProfileEntry);
+        }
+
+        return joPublicProfile;
+    }
 }

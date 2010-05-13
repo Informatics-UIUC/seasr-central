@@ -42,8 +42,12 @@ package org.seasr.central.ws.restlets.user;
 
 import com.google.gdata.util.ContentType;
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.seasr.central.storage.SCError;
 import org.seasr.central.storage.exceptions.BackendStoreException;
+import org.seasr.central.storage.exceptions.UserNotFoundException;
+import org.seasr.central.util.SCSecurity;
 import org.seasr.central.ws.restlets.AbstractBaseRestlet;
 import org.seasr.central.ws.restlets.ContentTypes;
 
@@ -51,9 +55,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 
-import static org.seasr.central.util.Tools.sendErrorNotAcceptable;
+import static org.seasr.central.util.Tools.*;
 
 /**
  * Restlet for retrieving the list of users
@@ -97,6 +102,13 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
         JSONArray jaSuccess = new JSONArray();
         JSONArray jaErrors = new JSONArray();
 
+        UUID remoteUserId = null;
+        String remoteUser = request.getRemoteUser();
+
+        //TODO: for test purposes
+        if (request.getParameterMap().containsKey("remoteUser") && request.getParameter("remoteUser").trim().length() > 0)
+            remoteUser = request.getParameter("remoteUser");
+
         long offset = 0;
         long count = Long.MAX_VALUE;
 
@@ -107,7 +119,36 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
             if (sOffset != null) offset = Long.parseLong(sOffset);
             if (sCount != null) count = Long.parseLong(sCount);
 
-            jaSuccess = bsl.listUsers(offset, count);
+            remoteUserId = bsl.getUserId(remoteUser);
+
+             // Check permissions
+            if (!SCSecurity.canListUsers(remoteUserId, bsl, request)) {
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, bsl));
+                sendResponse(jaSuccess, jaErrors, ct, response);
+                return true;
+            }
+
+            JSONArray jaUsers = bsl.listUsers(offset, count);
+
+            for (int i = 0, iMax = jaUsers.length(); i < iMax; i++) {
+                JSONObject joUser = jaUsers.getJSONObject(i);
+
+                UUID userId = UUID.fromString(joUser.getString("uuid"));
+                if (!SCSecurity.canAccessPrivateUserInfo(userId, remoteUserId, bsl, request))
+                    joUser.put("profile", getPublicProfileEntries(joUser.getJSONObject("profile")));
+
+                jaSuccess.put(joUser);
+            }
+        }
+        catch (UserNotFoundException e) {
+            if ((remoteUser != null && remoteUser.equals(e.getUserName())) ||
+                    (remoteUserId != null && remoteUserId.equals(e.getUserId()))) {
+                logger.log(Level.WARNING, String.format("Cannot obtain user id for authenticated user '%s'!", remoteUser));
+                jaErrors.put(SCError.createErrorObj(SCError.UNAUTHORIZED, e, bsl));
+            } else
+                jaErrors.put(SCError.createErrorObj(SCError.USER_NOT_FOUND, bsl, e.getUserId().toString()));
+            sendResponse(jaSuccess, jaErrors, ct, response);
+            return true;
         }
         catch (NumberFormatException e) {
             logger.log(Level.WARNING, null, e);
@@ -116,6 +157,12 @@ public class ListUsersRestlet extends AbstractBaseRestlet {
         catch (BackendStoreException e) {
             logger.log(Level.SEVERE, null, e);
             jaErrors.put(SCError.createErrorObj(SCError.BACKEND_ERROR, e, bsl));
+        }
+        catch (JSONException e) {
+            // Should not happen
+            logger.log(Level.SEVERE, null, e);
+            sendErrorInternalServerError(response);
+            return true;
         }
 
         // Send the response

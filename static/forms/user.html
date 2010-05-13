@@ -9,6 +9,12 @@
         var re = new RegExp("\\[(.+?)\\]", "g");
         var paramAction = form.attributes["paramAction"];
 
+        // save the original action
+        if (form.origAction == null)
+            form.origAction = (paramAction == null) ? form.attributes["action"].value : form.attributes["paramAction"].value;
+        else
+            form.action = form.origAction;
+
         if (paramAction != null) {
             var str = paramAction.value;
 
@@ -21,6 +27,10 @@
 
             form.action = str;
         }
+
+        var remoteUser = form["remoteUser"].value;
+        if (remoteUser == null || remoteUser.length == 0)
+            form.action = "/public" + form.attributes["action"].value;
 
         if (form.method.toUpperCase() != "GET" && form.method.toUpperCase() != "POST") {
             var req = new XMLHttpRequest();
@@ -155,7 +165,7 @@
 </script>
 
 <h3>List available roles</h3>
-<form name="listRoles" method="GET" paramAction="/services/roles.txt">
+<form name="listRoles" method="GET" action="/services/roles.txt">
     <table>
         <tr>
             <td>Log in as:</td>
@@ -174,16 +184,8 @@
 <form name="addUser" method="POST" action="/services/users.txt">
     <table>
         <tr>
-            <td>Screen name:</td>
-            <td><input type="text" name="screen_name"></td>
-        </tr>
-        <tr>
-            <td>Password:</td>
-            <td><input type="password" name="password"></td>
-        </tr>
-        <tr>
-            <td>Profile:</td>
-            <td><textarea name="profile">{"email":"foo@bar.org"}</textarea></td>
+            <td>Log in as:</td>
+            <td><input type="text" name="remoteUser"></td>
         </tr>
         <tr>
             <td>Screen name:</td>
@@ -195,7 +197,19 @@
         </tr>
         <tr>
             <td>Profile:</td>
-            <td><textarea name="profile">{"email":"foo@bar.org"}</textarea></td>
+            <td><textarea name="profile">{"first_name":{"value":"John","public":"true"}, "last_name":{"value":"Doe","public":"true"}, "email":{"value":"john.doe@email.me","public":"false"}, "organization":{"value":"NCSA","public":"true"}}</textarea></td>
+        </tr>
+        <tr>
+            <td>Screen name:</td>
+            <td><input type="text" name="screen_name"></td>
+        </tr>
+        <tr>
+            <td>Password:</td>
+            <td><input type="password" name="password"></td>
+        </tr>
+        <tr>
+            <td>Profile:</td>
+            <td><textarea name="profile">{"first_name":{"value":"John","public":"true"}, "last_name":{"value":"Doe","public":"true"}, "email":{"value":"john.doe@email.me","public":"false"}, "organization":{"value":"NCSA","public":"true"}}</textarea></td>
         </tr>
         <tr>
             <td colspan="2">
@@ -227,7 +241,7 @@
 </form>
 
 <h3>List users</h3>
-<form name="listUsers" method="GET" paramAction="/services/users.txt">
+<form name="listUsers" method="GET" action="/services/users.txt">
     <table>
         <tr>
             <td>Log in as:</td>
@@ -279,7 +293,7 @@
         </tr>
         <tr>
             <td>Profile:</td>
-            <td><textarea name="profile">{"foo":"true"}</textarea></td>
+            <td><textarea name="profile">{"description":{"value":"A nice group","public":"true"}}</textarea></td>
         </tr>
         <tr>
             <td colspan="2">
@@ -291,7 +305,7 @@
 </form>
 
 <h3>List groups</h3>
-<form name="listGroups" method="GET" paramAction="/services/groups.txt">
+<form name="listGroups" method="GET" action="/services/groups.txt">
     <table>
         <tr>
             <td>Log in as:</td>

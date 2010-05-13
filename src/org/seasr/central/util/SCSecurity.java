@@ -52,6 +52,33 @@ import java.util.UUID;
  */
 public abstract class SCSecurity {
 
+    public static boolean canAddUsers(UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws UserNotFoundException, BackendStoreException {
+
+        // Allowed if the remote user has the ADMIN role
+        if (request.isUserInRole(SCRole.ADMIN.name()))
+            return true;
+
+        return false;
+    }
+
+    public static boolean canListUsers(UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws UserNotFoundException, BackendStoreException {
+
+        // Allow everyone
+        return true;
+    }
+
+    public static boolean canListGroups(UUID remoteUserId, BackendStoreLink bsl, HttpServletRequest request)
+        throws UserNotFoundException, BackendStoreException {
+
+        // Allow any authenticated user
+        if (remoteUserId != null)
+            return true;
+
+        return false;
+    }
+
     public static boolean canAccessGroupComponents(UUID groupId, UUID remoteUserId,
                                                    BackendStoreLink bsl, HttpServletRequest request)
         throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
@@ -239,7 +266,7 @@ public abstract class SCSecurity {
         return false;
     }
 
-    public static boolean canAccessGroupInfo(UUID groupId, UUID remoteUserId,
+    public static boolean canAccessPrivateGroupInfo(UUID groupId, UUID remoteUserId,
                                              BackendStoreLink bsl, HttpServletRequest request)
         throws GroupNotFoundException, UserNotFoundException, BackendStoreException {
 
@@ -294,9 +321,9 @@ public abstract class SCSecurity {
         return false;
     }
 
-    public static boolean canAccessUserInfo(UUID userId, UUID remoteUserId,
+    public static boolean canAccessPrivateUserInfo(UUID userId, UUID remoteUserId,
                                             BackendStoreLink bsl, HttpServletRequest request)
-        throws BackendStoreException {
+        throws UserNotFoundException, BackendStoreException {
 
         // Allowed if the remote user has the ADMIN role
         if (request.isUserInRole(SCRole.ADMIN.name()))
