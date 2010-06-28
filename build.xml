@@ -130,6 +130,7 @@
             <jvmarg value="-Dsc.loglevel=${sc.loglevel}"/>
             <jvmarg value="-Dsc.port=${sc.port}"/>
             <jvmarg value="-Dsc.docroot=../static"/>
+            <jvmarg value="-Djava.security.auth.login.config=../conf/sc-jaas-jdbc-login.conf"/>
             <arg value="--serverconfig=../conf/sc-server-config.xml"/>
             <arg value="--storeconfig=../conf/sc-mysql-store-config.xml"/>
         </java>
