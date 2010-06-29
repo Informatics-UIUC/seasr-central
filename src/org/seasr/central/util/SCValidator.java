@@ -40,6 +40,9 @@
 
 package org.seasr.central.util;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+
 /**
  * This class provides validation for various SC data
  *
@@ -49,7 +52,12 @@ package org.seasr.central.util;
 public abstract class SCValidator {
 
     public static boolean isValidScreenName(String screenName) {
-        return screenName.trim().length() > 0;
+        try {
+            return screenName.length() > 0 && !URLDecoder.decode(screenName, "UTF-8").matches(".*\\s.*");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static boolean isValidGroupName(String groupName) {

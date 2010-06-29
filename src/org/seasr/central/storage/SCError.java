@@ -125,7 +125,7 @@ public enum SCError {
         try {
             String errMsg;
 
-            if (e instanceof BackendStoreException && e.getCause() instanceof SQLException 
+            if (e instanceof BackendStoreException && e.getCause() instanceof SQLException
                     && ((SQLException)e.getCause()).getSQLState().toUpperCase().equals("08S01"))
                 errMsg = error.getErrorMessage();
             else
@@ -134,7 +134,7 @@ public enum SCError {
             if (errMsg == null) errMsg = "No error message found for error code: " + error.getErrorCode();
 
             if (params != null && params.length > 0)
-                errMsg = String.format(errMsg, params);
+                errMsg = String.format(errMsg, (Object[])params);
 
             JSONObject joError = new JSONObject();
             joError.put(getErrorCodeKey(), error.getErrorCode());

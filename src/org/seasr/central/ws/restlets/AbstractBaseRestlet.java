@@ -53,6 +53,8 @@ import org.seasr.central.util.Tools;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
@@ -159,7 +161,12 @@ public abstract class AbstractBaseRestlet implements RestServlet {
             screenName = bsl.getUserScreenName(userId);
         }
         catch (IllegalArgumentException e) {
-            screenName = screenNameOrUserId;
+            try {
+                screenName = URLDecoder.decode(screenNameOrUserId, "UTF-8");
+            }
+            catch (UnsupportedEncodingException e1) {
+                throw new RuntimeException(e1);
+            }
             userId = bsl.getUserId(screenName);
         }
 
@@ -187,7 +194,12 @@ public abstract class AbstractBaseRestlet implements RestServlet {
             groupName = bsl.getGroupName(groupId);
         }
         catch (IllegalArgumentException e) {
-            groupName = groupNameOrId;
+            try {
+                groupName = URLDecoder.decode(groupNameOrId, "UTF-8");
+            }
+            catch (UnsupportedEncodingException e1) {
+                throw new RuntimeException(e1);
+            }
             groupId = bsl.getGroupId(groupName);
         }
 
