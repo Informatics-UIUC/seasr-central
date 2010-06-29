@@ -53,14 +53,23 @@ public abstract class SCValidator {
 
     public static boolean isValidScreenName(String screenName) {
         try {
-            return screenName.length() > 0 && !URLDecoder.decode(screenName, "UTF-8").matches(".*\\s.*");
+            screenName = URLDecoder.decode(screenName, "UTF-8");
         }
         catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+
+        return screenName.length() > 0 && !screenName.matches(".*\\s.*");
     }
 
     public static boolean isValidGroupName(String groupName) {
-        return isValidScreenName(groupName);
+        try {
+            groupName = URLDecoder.decode(groupName, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+
+        return groupName.length() > 0 && !(groupName.matches("^\\s.*") || groupName.matches(".*\\s$"));
     }
 }
