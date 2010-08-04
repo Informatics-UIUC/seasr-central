@@ -526,18 +526,6 @@
     <Set name="handlers">
         <Array type="org.mortbay.jetty.Handler">
             <Item>
-                <New id="resourceContext" class="org.mortbay.jetty.servlet.Context">
-                    <Set name="contextPath">/static</Set>
-                    <Set name="resourceBase">
-                        <SystemProperty name="sc.docroot" default="static"/>
-                    </Set>
-                    <Call name="addServlet">
-                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
-                        <Arg>/*</Arg>
-                    </Call>
-                </New>
-            </Item>
-            <Item>
                 <New id="resourceContextLogs" class="org.mortbay.jetty.servlet.Context">
                     <Set name="contextPath">/logs</Set>
                     <Set name="resourceBase">
@@ -606,6 +594,14 @@
                             </New>
                         </Arg>
                         <Arg>/public/services/*</Arg>
+                    </Call>
+
+                    <Set name="resourceBase">
+                        <SystemProperty name="sc.docroot" default="static"/>
+                    </Set>
+                    <Call name="addServlet">
+                        <Arg>org.mortbay.jetty.servlet.DefaultServlet</Arg>
+                        <Arg>/*</Arg>
                     </Call>
                 </New>
             </Item>
